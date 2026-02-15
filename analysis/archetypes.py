@@ -160,8 +160,9 @@ class ArchetypeAnalyzer:
         variance_explained = pca.explained_variance_ratio_.sum()
         logger.info(f"    PCA: {n_components} components, {variance_explained:.1%} variance")
 
-        # Find best K
+        # Find best K — force minimum K=3 for meaningful differentiation
         k_min, k_max = K_RANGE
+        k_min = max(k_min, 3)  # FORCE minimum 3 archetypes per position
         k_max = min(k_max + 1, len(df))
         best_k = k_min
         best_score = -1
@@ -178,6 +179,18 @@ class ArchetypeAnalyzer:
             if score > best_score:
                 best_score = score
                 best_k = k
+
+        # If silhouette favors K=3 but K=4 is within 0.05, prefer K=4 for richer archetypes
+        if best_k == 3 and k_max > 4:
+            km3 = KMeans(n_clusters=3, n_init=20, random_state=42)
+            km4 = KMeans(n_clusters=4, n_init=20, random_state=42)
+            labels3 = km3.fit_predict(X_pca)
+            labels4 = km4.fit_predict(X_pca)
+            s3 = silhouette_score(X_pca, labels3)
+            s4 = silhouette_score(X_pca, labels4) if len(set(labels4)) >= 2 else -1
+            if s4 > 0 and (s3 - s4) < 0.05:
+                best_k = 4
+                logger.info(f"    Bumped to K=4 (s3={s3:.3f}, s4={s4:.3f}, delta={s3-s4:.3f})")
 
         logger.info(f"    Best K={best_k} (silhouette={best_score:.3f})")
 

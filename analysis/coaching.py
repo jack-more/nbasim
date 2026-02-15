@@ -1,12 +1,9 @@
-"""Coaching scheme classification using K-Means clustering on play type distributions."""
+"""Coaching scheme classification using percentile-rank labeling on play type distributions."""
 
 import json
 import logging
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score
 
 from db.connection import read_query, execute, save_dataframe
 from utils.constants import PLAY_TYPES
@@ -19,15 +16,14 @@ class CoachingAnalyzer:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    def _build_offensive_features(self, season: str) -> tuple[pd.DataFrame, list[str]]:
-        """Build offensive feature matrix for all teams."""
-        # Get team season stats
+    def _get_offensive_data(self, season: str) -> pd.DataFrame:
+        """Build a per-team DataFrame with offensive play type freq + ppp."""
         team_stats = read_query(
-            "SELECT * FROM team_season_stats WHERE season_id = ?",
+            "SELECT team_id, pace, off_rating, fg3a_rate, ft_rate, ast_pct, tov_pct "
+            "FROM team_season_stats WHERE season_id = ?",
             self.db_path, [season]
         )
 
-        # Get offensive play type distributions
         playtypes = read_query(
             """SELECT team_id, play_type, poss_pct, ppp
                FROM team_playtypes
@@ -36,28 +32,32 @@ class CoachingAnalyzer:
         )
 
         if team_stats.empty or playtypes.empty:
-            return pd.DataFrame(), []
+            return pd.DataFrame()
 
-        # Pivot play types: each play type becomes a column
-        pt_pivot = playtypes.pivot_table(
+        freq_pivot = playtypes.pivot_table(
             index="team_id", columns="play_type",
             values="poss_pct", fill_value=0
         ).reset_index()
+        freq_pivot.columns = [
+            f"off_{c}_freq" if c != "team_id" else c for c in freq_pivot.columns
+        ]
 
-        # Merge with team stats
-        merged = team_stats.merge(pt_pivot, on="team_id", how="inner")
+        ppp_pivot = playtypes.pivot_table(
+            index="team_id", columns="play_type",
+            values="ppp", fill_value=0
+        ).reset_index()
+        ppp_pivot.columns = [
+            f"off_{c}_ppp" if c != "team_id" else c for c in ppp_pivot.columns
+        ]
 
-        # Select features
-        pt_cols = [c for c in pt_pivot.columns if c != "team_id"]
-        stat_cols = ["pace", "fg3a_rate", "ft_rate", "ast_pct", "tov_pct"]
-        feature_cols = [c for c in stat_cols + pt_cols if c in merged.columns]
+        merged = team_stats.merge(freq_pivot, on="team_id", how="inner")
+        merged = merged.merge(ppp_pivot, on="team_id", how="left")
+        return merged
 
-        return merged[["team_id"] + feature_cols], feature_cols
-
-    def _build_defensive_features(self, season: str) -> tuple[pd.DataFrame, list[str]]:
-        """Build defensive feature matrix for all teams."""
+    def _get_defensive_data(self, season: str) -> pd.DataFrame:
+        """Build a per-team DataFrame with defensive play type freq + ppp."""
         team_stats = read_query(
-            "SELECT * FROM team_season_stats WHERE season_id = ?",
+            "SELECT team_id, def_rating FROM team_season_stats WHERE season_id = ?",
             self.db_path, [season]
         )
 
@@ -69,184 +69,178 @@ class CoachingAnalyzer:
         )
 
         if team_stats.empty or playtypes.empty:
-            return pd.DataFrame(), []
+            return pd.DataFrame()
 
-        pt_pivot = playtypes.pivot_table(
+        freq_pivot = playtypes.pivot_table(
             index="team_id", columns="play_type",
             values="poss_pct", fill_value=0
         ).reset_index()
+        freq_pivot.columns = [
+            f"def_{c}_freq" if c != "team_id" else c for c in freq_pivot.columns
+        ]
 
-        # Also get defensive PPP per play type
         ppp_pivot = playtypes.pivot_table(
             index="team_id", columns="play_type",
             values="ppp", fill_value=0
         ).reset_index()
         ppp_pivot.columns = [
-            f"{c}_ppp" if c != "team_id" else c for c in ppp_pivot.columns
+            f"def_{c}_ppp" if c != "team_id" else c for c in ppp_pivot.columns
         ]
 
-        merged = team_stats.merge(pt_pivot, on="team_id", how="inner")
+        merged = team_stats.merge(freq_pivot, on="team_id", how="inner")
         merged = merged.merge(ppp_pivot, on="team_id", how="left")
+        return merged
 
-        pt_cols = [c for c in pt_pivot.columns if c != "team_id"]
-        ppp_cols = [c for c in ppp_pivot.columns if c != "team_id"]
-        stat_cols = ["def_rating"]
-        feature_cols = [c for c in stat_cols + pt_cols + ppp_cols if c in merged.columns]
+    def _label_offensive_scheme(self, row: pd.Series, ranks: pd.DataFrame) -> str:
+        """Label a team's offensive scheme based on percentile ranks within the league.
 
-        return merged[["team_id"] + feature_cols], feature_cols
+        Uses relative ranking (where does this team sit among the 30 teams?)
+        instead of raw values, so we get meaningful differentiation.
+        """
+        tid = row["team_id"]
+        team_ranks = ranks.loc[tid] if tid in ranks.index else pd.Series()
 
-    def _find_best_k(self, X: np.ndarray, k_range: tuple = (3, 6)) -> int:
-        """Find best K using silhouette score."""
-        if len(X) < k_range[0]:
-            return min(len(X), 2)
+        # Get raw freq values for primary identification
+        pnr_freq = row.get("off_PRBallHandler_freq", 0) or 0
+        iso_freq = row.get("off_Isolation_freq", 0) or 0
+        trans_freq = row.get("off_Transition_freq", 0) or 0
+        spotup_freq = row.get("off_Spotup_freq", 0) or 0
+        cut_freq = row.get("off_Cut_freq", 0) or 0
+        handoff_freq = row.get("off_Handoff_freq", 0) or 0
+        offscreen_freq = row.get("off_OffScreen_freq", 0) or 0
+        postup_freq = row.get("off_Postup_freq", 0) or 0
+        pnr_roll_freq = row.get("off_PRRollMan_freq", 0) or 0
 
-        best_k = k_range[0]
-        best_score = -1
+        motion_total = cut_freq + offscreen_freq + handoff_freq
+        pace = row.get("pace", 100) or 100
 
-        for k in range(k_range[0], min(k_range[1], len(X))):
-            km = KMeans(n_clusters=k, n_init=20, random_state=42)
-            labels = km.fit_predict(X)
-            if len(set(labels)) < 2:
-                continue
-            score = silhouette_score(X, labels)
-            if score > best_score:
-                best_score = score
-                best_k = k
-                logger.info(f"    K={k}: silhouette={score:.3f} (new best)")
-            else:
-                logger.info(f"    K={k}: silhouette={score:.3f}")
+        # Use percentile ranks (0-1, higher = more of that thing)
+        pnr_rank = team_ranks.get("off_PRBallHandler_freq", 0.5)
+        iso_rank = team_ranks.get("off_Isolation_freq", 0.5)
+        trans_rank = team_ranks.get("off_Transition_freq", 0.5)
+        spotup_rank = team_ranks.get("off_Spotup_freq", 0.5)
+        motion_rank = (
+            team_ranks.get("off_Cut_freq", 0.5) +
+            team_ranks.get("off_OffScreen_freq", 0.5) +
+            team_ranks.get("off_Handoff_freq", 0.5)
+        ) / 3
+        postup_rank = team_ranks.get("off_Postup_freq", 0.5)
+        pnr_roll_rank = team_ranks.get("off_PRRollMan_freq", 0.5)
+        pace_rank = team_ranks.get("pace", 0.5)
 
-        return best_k
+        # Score each scheme type using RELATIVE rankings
+        schemes = {}
 
-    def _label_offensive_cluster(self, centroid: np.ndarray, feature_names: list) -> str:
-        """Assign human-readable label based on centroid characteristics."""
-        feat_map = {name: val for name, val in zip(feature_names, centroid)}
+        # PnR-Heavy: top-10 in PnR ball-handler frequency
+        schemes["PnR-Heavy"] = pnr_rank * 3 + pnr_roll_rank * 1.5
 
-        # Score each label candidate
-        scores = {}
+        # ISO-Heavy: top-10 in isolation frequency
+        schemes["ISO-Heavy"] = iso_rank * 4
 
-        # PnR-Dominant: high PRBallHandler
-        scores["PnR-Dominant"] = feat_map.get("PRBallHandler", 0) * 2
+        # Motion: high cuts + off-screens + handoffs
+        schemes["Motion"] = motion_rank * 3.5
 
-        # Pace-and-Space: high pace + high fg3a_rate + high Transition
-        scores["Pace-and-Space"] = (
-            feat_map.get("pace", 0) * 0.5 +
-            feat_map.get("fg3a_rate", 0) * 2 +
-            feat_map.get("Transition", 0) * 1.5
-        )
+        # Transition: high pace + high transition %
+        schemes["Run-and-Gun"] = trans_rank * 2.5 + pace_rank * 1.5
 
-        # ISO-Heavy: high Isolation
-        scores["ISO-Heavy"] = feat_map.get("Isolation", 0) * 2.5
+        # Spot-Up Heavy: relies on catch-and-shoot more than creation
+        schemes["Spot-Up Heavy"] = spotup_rank * 3 + (1 - pnr_rank) * 1.0
 
-        # Motion-Heavy: high Cut + OffScreen + Handoff
-        scores["Motion-Heavy"] = (
-            feat_map.get("Cut", 0) * 2 +
-            feat_map.get("OffScreen", 0) * 2 +
-            feat_map.get("Handoff", 0) * 1.5
-        )
+        # Post-Oriented
+        schemes["Post-Oriented"] = postup_rank * 4
 
-        # Post-Oriented: high Postup
-        scores["Post-Oriented"] = feat_map.get("Postup", 0) * 2.5
+        # Pick the highest
+        primary = max(schemes, key=schemes.get)
 
-        # Balanced
-        scores["Balanced"] = 0.1  # fallback
+        # Add a secondary modifier
+        # Remove the primary from consideration
+        del schemes[primary]
+        secondary = max(schemes, key=schemes.get)
 
-        return max(scores, key=scores.get)
+        # Add pace modifier
+        if pace > 101:
+            pace_mod = "Fast"
+        elif pace < 97:
+            pace_mod = "Slow"
+        else:
+            pace_mod = "Mid"
 
-    def _label_defensive_cluster(self, centroid: np.ndarray, feature_names: list) -> str:
-        """Assign defensive scheme label."""
-        feat_map = {name: val for name, val in zip(feature_names, centroid)}
+        return f"{primary} ({pace_mod})"
 
-        scores = {}
-        # Switch-Heavy: low opponent ISO PPP (good at defending ISO)
-        scores["Switch-Heavy"] = -feat_map.get("Isolation_ppp", 0)
+    def _label_defensive_scheme(self, row: pd.Series, ranks: pd.DataFrame) -> str:
+        """Label a team's defensive scheme based on percentile ranks."""
+        tid = row["team_id"]
+        team_ranks = ranks.loc[tid] if tid in ranks.index else pd.Series()
 
-        # Drop-Coverage: high opponent PRBallHandler poss_pct but low PPP
-        scores["Drop-Coverage"] = (
-            feat_map.get("PRBallHandler", 0) -
-            feat_map.get("PRBallHandler_ppp", 0)
-        )
+        def_rating = row.get("def_rating", 115) or 115
 
-        # Aggressive: low def_rating (better defense)
-        scores["Aggressive"] = -feat_map.get("def_rating", 0)
+        # How good are they at limiting specific play types (low PPP = good)?
+        # For PPP, we INVERT the rank (low PPP = good defense = high rank)
+        iso_ppp_rank = 1.0 - team_ranks.get("def_Isolation_ppp", 0.5)
+        pnr_ppp_rank = 1.0 - team_ranks.get("def_PRBallHandler_ppp", 0.5)
+        trans_ppp_rank = 1.0 - team_ranks.get("def_Transition_ppp", 0.5)
+        spotup_ppp_rank = 1.0 - team_ranks.get("def_Spotup_ppp", 0.5)
+        postup_ppp_rank = 1.0 - team_ranks.get("def_Postup_ppp", 0.5)
 
-        # Standard
-        scores["Standard"] = 0.1
+        # What do opponents run against them? (freq)
+        opp_iso_rank = team_ranks.get("def_Isolation_freq", 0.5)
+        opp_pnr_rank = team_ranks.get("def_PRBallHandler_freq", 0.5)
+        opp_trans_rank = team_ranks.get("def_Transition_freq", 0.5)
 
-        return max(scores, key=scores.get)
+        drtg_rank = 1.0 - team_ranks.get("def_rating", 0.5)  # invert: low DRtg = good
+
+        schemes = {}
+
+        # Switch-Everything: good at ISO defense, opponents don't run ISO much
+        schemes["Switch-Everything"] = iso_ppp_rank * 2.5 + (1 - opp_iso_rank) * 1.5
+
+        # Drop Coverage: let opponents PnR but limit damage
+        schemes["Drop-Coverage"] = pnr_ppp_rank * 2.5 + opp_pnr_rank * 1.0
+
+        # Rim Protection: force outside shots, protect paint
+        schemes["Rim-Protect"] = postup_ppp_rank * 2 + spotup_ppp_rank * 1.5
+
+        # Transition Defense: limit fast break points
+        schemes["Trans-Defense"] = trans_ppp_rank * 3 + (1 - opp_trans_rank) * 1.5
+
+        # Blitz/Aggressive: force turnovers
+        schemes["Blitz"] = drtg_rank * 3.5
+
+        primary = max(schemes, key=schemes.get)
+
+        # Quality modifier
+        if def_rating < 110:
+            qual = "Elite"
+        elif def_rating < 113:
+            qual = "Good"
+        elif def_rating < 116:
+            qual = "Avg"
+        else:
+            qual = "Poor"
+
+        return f"{primary} ({qual})"
 
     def classify_schemes(self, season: str):
         """Run full coaching scheme classification for a season."""
         logger.info(f"Classifying coaching schemes for {season}")
 
-        # Offensive
-        off_df, off_features = self._build_offensive_features(season)
-        # Defensive
-        def_df, def_features = self._build_defensive_features(season)
+        off_df = self._get_offensive_data(season)
+        def_df = self._get_defensive_data(season)
 
         if off_df.empty:
             logger.warning("No data for offensive scheme classification")
             return
 
-        team_ids = off_df["team_id"].values
-        X_off = off_df[off_features].fillna(0).values
-        scaler_off = StandardScaler()
-        X_off_scaled = scaler_off.fit_transform(X_off)
+        # Compute percentile ranks (0-1) for each feature across all teams
+        off_numeric = off_df.select_dtypes(include=[np.number]).drop(columns=["team_id"], errors="ignore")
+        off_ranks = off_numeric.rank(pct=True)
+        off_ranks.index = off_df["team_id"].values
 
-        # Find best K for offensive
-        logger.info("  Finding best K for offensive schemes:")
-        k_off = self._find_best_k(X_off_scaled, (3, 7))
-        km_off = KMeans(n_clusters=k_off, n_init=20, random_state=42)
-        off_labels = km_off.fit_predict(X_off_scaled)
-
-        # Label offensive clusters
-        off_cluster_labels = {}
-        used_labels = set()
-        for i, centroid in enumerate(scaler_off.inverse_transform(km_off.cluster_centers_)):
-            label = self._label_offensive_cluster(centroid, off_features)
-            # Avoid duplicates
-            if label in used_labels:
-                label = f"{label}-{i}"
-            used_labels.add(label)
-            off_cluster_labels[i] = label
-            logger.info(f"    Offensive cluster {i}: {label}")
-
-        # Defensive
-        def_labels = np.zeros(len(team_ids), dtype=int)
-        def_cluster_labels = {0: "Standard"}
-
+        def_ranks = pd.DataFrame()
         if not def_df.empty:
-            # Align defensive teams with offensive teams
-            def_team_ids = def_df["team_id"].values
-            X_def = def_df[def_features].fillna(0).values
-            scaler_def = StandardScaler()
-            X_def_scaled = scaler_def.fit_transform(X_def)
-
-            logger.info("  Finding best K for defensive schemes:")
-            k_def = self._find_best_k(X_def_scaled, (3, 6))
-            km_def = KMeans(n_clusters=k_def, n_init=20, random_state=42)
-            def_labels_raw = km_def.fit_predict(X_def_scaled)
-
-            # Map defensive labels
-            used_labels = set()
-            for i, centroid in enumerate(scaler_def.inverse_transform(km_def.cluster_centers_)):
-                label = self._label_defensive_cluster(centroid, def_features)
-                if label in used_labels:
-                    label = f"{label}-{i}"
-                used_labels.add(label)
-                def_cluster_labels[i] = label
-                logger.info(f"    Defensive cluster {i}: {label}")
-
-            # Create mapping from def team_id to labels
-            def_map = dict(zip(def_team_ids, def_labels_raw))
-            def_labels = np.array([def_map.get(tid, 0) for tid in team_ids])
-
-        # Get pace and play type rankings for each team
-        team_stats = read_query(
-            "SELECT team_id, pace FROM team_season_stats WHERE season_id = ?",
-            self.db_path, [season]
-        )
-        pace_map = dict(zip(team_stats["team_id"].astype(int), team_stats["pace"]))
+            def_numeric = def_df.select_dtypes(include=[np.number]).drop(columns=["team_id"], errors="ignore")
+            def_ranks = def_numeric.rank(pct=True)
+            def_ranks.index = def_df["team_id"].values
 
         # Get top 3 play styles per team
         playstyles = read_query(
@@ -264,11 +258,19 @@ class CoachingAnalyzer:
 
         # Build coaching profiles
         rows = []
-        for idx, tid in enumerate(team_ids):
-            tid = int(tid)
-            pace = pace_map.get(tid, 0)
+        for _, row in off_df.iterrows():
+            tid = int(row["team_id"])
 
-            # Pace category
+            off_label = self._label_offensive_scheme(row, off_ranks)
+
+            # Defensive label
+            if not def_df.empty and tid in def_df["team_id"].values:
+                def_row = def_df[def_df["team_id"] == tid].iloc[0]
+                def_label = self._label_defensive_scheme(def_row, def_ranks)
+            else:
+                def_label = "Unknown"
+
+            pace = row.get("pace", 100) or 100
             if pace > 101:
                 pace_cat = "Fast"
             elif pace < 97:
@@ -277,27 +279,22 @@ class CoachingAnalyzer:
                 pace_cat = "Average"
 
             plays = top_plays.get(tid, ["", "", ""])
-            fg3a = off_df.iloc[idx].get("fg3a_rate", 0) if "fg3a_rate" in off_df.columns else 0
 
             rows.append({
                 "team_id": tid,
                 "season_id": season,
-                "off_scheme_label": off_cluster_labels.get(off_labels[idx], "Unknown"),
-                "off_scheme_cluster": int(off_labels[idx]),
+                "off_scheme_label": off_label,
+                "off_scheme_cluster": 0,
                 "pace_category": pace_cat,
                 "pace_value": pace,
                 "primary_playstyle": plays[0] if len(plays) > 0 else "",
                 "secondary_playstyle": plays[1] if len(plays) > 1 else "",
                 "tertiary_playstyle": plays[2] if len(plays) > 2 else "",
-                "fg3a_rate": fg3a,
-                "def_scheme_label": def_cluster_labels.get(int(def_labels[idx]), "Standard"),
-                "def_scheme_cluster": int(def_labels[idx]),
-                "off_feature_vector": json.dumps(X_off_scaled[idx].tolist()),
-                "def_feature_vector": json.dumps(
-                    X_def_scaled[
-                        list(def_team_ids).index(tid)
-                    ].tolist() if tid in def_team_ids else []
-                ) if not def_df.empty else "[]",
+                "fg3a_rate": row.get("fg3a_rate", 0) or 0,
+                "def_scheme_label": def_label,
+                "def_scheme_cluster": 0,
+                "off_feature_vector": "[]",
+                "def_feature_vector": "[]",
             })
 
         df = pd.DataFrame(rows)
@@ -319,9 +316,8 @@ class CoachingAnalyzer:
         for _, row in df.iterrows():
             abbr = team_names.get(int(row["team_id"]), "???")
             print(
-                f"  {abbr:>3}: OFF={row['off_scheme_label']:<20} "
-                f"DEF={row['def_scheme_label']:<15} "
-                f"Pace={row['pace_category']:<8} "
+                f"  {abbr:>3}: OFF={row['off_scheme_label']:<25} "
+                f"DEF={row['def_scheme_label']:<25} "
                 f"Top: {row['primary_playstyle']}, {row['secondary_playstyle']}"
             )
         print()

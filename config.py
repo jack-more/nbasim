@@ -29,7 +29,7 @@ MIN_MINUTES_SOLO = 200
 
 # Archetype clustering
 MIN_MINUTES_FOR_CLUSTERING = 300
-K_RANGE = (2, 5)  # test K=2,3,4,5 per position, pick best by silhouette
+K_RANGE = (3, 6)  # test K=3,4,5,6 per position — force minimum 3 for meaningful archetypes
 
 # Value score synergy weights (sum of synergy portion = 0.70)
 SYNERGY_WEIGHTS = {

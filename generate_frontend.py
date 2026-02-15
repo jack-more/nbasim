@@ -436,6 +436,12 @@ def render_matchup(matchup, idx):
     a_ortg = a.get("off_rating", 110) or 110
     a_drtg = a.get("def_rating", 110) or 110
 
+    # Coaching scheme labels
+    h_off_scheme = h.get("off_scheme_label", "") or ""
+    h_def_scheme = h.get("def_scheme_label", "") or ""
+    a_off_scheme = a.get("off_scheme_label", "") or ""
+    a_def_scheme = a.get("def_scheme_label", "") or ""
+
     # Render player nodes
     home_starters_html = ""
     home_bench_html = ""
@@ -463,6 +469,7 @@ def render_matchup(matchup, idx):
                 <div>
                     <div class="team-name">{ha}</div>
                     <div class="team-record">{h_wins}-{h_losses} // ORTG {h_ortg:.0f} DRTG {h_drtg:.0f} // Pace {h_pace:.0f}</div>
+                    <div class="team-scheme">OFF: {h_off_scheme} // DEF: {h_def_scheme}</div>
                 </div>
             </div>
             <div class="confidence-core">
@@ -487,6 +494,7 @@ def render_matchup(matchup, idx):
                 <div>
                     <div class="team-name">{aa}</div>
                     <div class="team-record">{a_wins}-{a_losses} // ORTG {a_ortg:.0f} DRTG {a_drtg:.0f} // Pace {a_pace:.0f}</div>
+                    <div class="team-scheme">OFF: {a_off_scheme} // DEF: {a_def_scheme}</div>
                 </div>
             </div>
         </div>
@@ -709,6 +717,8 @@ def generate_html():
         .team-name {{ font-family: var(--font-display); font-weight: 700; font-size: 20px;
                      text-transform: uppercase; letter-spacing: -0.5px; }}
         .team-record {{ font-size: 10px; color: var(--text-dim); margin-top: 2px; }}
+        .team-scheme {{ font-size: 9px; color: var(--text-mid); margin-top: 2px;
+                       font-style: italic; letter-spacing: 0.2px; }}
 
         .confidence-core {{ flex-grow: 1; display: flex; flex-direction: column; align-items: center; }}
         .confidence-label {{ font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
