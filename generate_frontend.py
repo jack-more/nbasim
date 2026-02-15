@@ -35,7 +35,8 @@ ARCHETYPE_ICONS = {
 
 
 def compute_dynamic_score(row):
-    """Compute a quick dynamic score from available stats."""
+    """Compute a quick dynamic score from available stats.
+    Returns (score, breakdown_dict) for tooltip display."""
     pts = row.get("pts_pg", 0) or 0
     ast = row.get("ast_pg", 0) or 0
     reb = row.get("reb_pg", 0) or 0
@@ -46,11 +47,34 @@ def compute_dynamic_score(row):
     usg = row.get("usg_pct", 0) or 0
     mpg = row.get("minutes_per_game", 0) or 0
 
-    raw = (pts * 1.2 + ast * 1.8 + reb * 0.8 + stl * 2.0 + blk * 1.5
-           + ts * 40 + net * 0.8 + usg * 15 + mpg * 0.3)
+    # Component contributions
+    scoring_c = pts * 1.2
+    playmaking_c = ast * 1.8
+    rebounding_c = reb * 0.8
+    defense_c = stl * 2.0 + blk * 1.5
+    efficiency_c = ts * 40
+    impact_c = net * 0.8
+    usage_c = usg * 15
+    minutes_c = mpg * 0.3
+
+    raw = (scoring_c + playmaking_c + rebounding_c + defense_c
+           + efficiency_c + impact_c + usage_c + minutes_c)
     # Normalize to roughly 40-99 range
     score = min(99, max(40, int(raw / 1.1)))
-    return score
+
+    breakdown = {
+        "pts": round(pts, 1), "ast": round(ast, 1), "reb": round(reb, 1),
+        "stl": round(stl, 1), "blk": round(blk, 1),
+        "ts_pct": round(ts * 100, 1) if ts < 1 else round(ts, 1),
+        "net_rating": round(net, 1), "usg_pct": round(usg * 100, 1) if usg < 1 else round(usg, 1),
+        "mpg": round(mpg, 1),
+        "scoring_c": round(scoring_c / raw * 100, 0) if raw else 0,
+        "playmaking_c": round(playmaking_c / raw * 100, 0) if raw else 0,
+        "defense_c": round(defense_c / raw * 100, 0) if raw else 0,
+        "efficiency_c": round(efficiency_c / raw * 100, 0) if raw else 0,
+        "impact_c": round(impact_c / raw * 100, 0) if raw else 0,
+    }
+    return score, breakdown
 
 
 def compute_ds_range(score):
@@ -102,18 +126,27 @@ def get_matchups():
             raw_edge = net_diff + 3.0
             confidence = min(96, max(35, 50 + raw_edge * 2.5))
 
-            if confidence > 72:
-                conf_label = "STRONG LEAN"
+            # Determine the lean team and clear label
+            if raw_edge > 8:
+                lean_team = home_abbr
+                conf_label = f"TAKE {home_abbr}"
                 conf_class = "high"
-            elif confidence > 58:
-                conf_label = "SLIGHT EDGE"
+            elif raw_edge > 3:
+                lean_team = home_abbr
+                conf_label = f"LEAN {home_abbr}"
                 conf_class = "medium"
-            elif confidence > 42:
-                conf_label = "COIN FLIP"
+            elif raw_edge > -3:
+                lean_team = ""
+                conf_label = "TOSS-UP"
                 conf_class = "neutral"
+            elif raw_edge > -8:
+                lean_team = away_abbr
+                conf_label = f"LEAN {away_abbr}"
+                conf_class = "medium"
             else:
-                conf_label = "FADE HOME"
-                conf_class = "low"
+                lean_team = away_abbr
+                conf_label = f"TAKE {away_abbr}"
+                conf_class = "high"
 
             matchups.append({
                 "home": h, "away": a,
@@ -121,7 +154,9 @@ def get_matchups():
                 "confidence": round(confidence, 1),
                 "conf_label": conf_label,
                 "conf_class": conf_class,
+                "lean_team": lean_team,
                 "net_diff": round(net_diff, 1),
+                "raw_edge": round(raw_edge, 1),
             })
 
     return matchups
@@ -148,7 +183,7 @@ def get_team_roster(abbreviation, limit=8):
 
 
 def get_top_combos():
-    """Get top lineup combos across all teams."""
+    """Get top lineup combos across all teams with trend badges."""
     combos = []
 
     for n in [5, 3, 2]:
@@ -161,7 +196,7 @@ def get_top_combos():
             WHERE ls.season_id = '2025-26' AND ls.group_quantity = {n}
                   AND ls.net_rating IS NOT NULL AND ls.minutes > 8 AND ls.gp > 5
             ORDER BY ls.net_rating DESC
-            LIMIT 3
+            LIMIT 4
         """, DB_PATH)
 
         for _, row in top.iterrows():
@@ -172,84 +207,125 @@ def get_top_combos():
                 DB_PATH, pids
             )
             names = players["full_name"].tolist()
+            net = row["net_rating"]
+            mins = row["minutes"]
+            gp = row["gp"]
+
+            # Determine trend badge
+            if net > 15 and gp > 10:
+                badge = "🔥 HEATING UP"
+                badge_color = "#d35400"
+            elif mins > 15 and gp > 15:
+                badge = "📈 MORE MINUTES"
+                badge_color = "#009944"
+            elif net > 10:
+                badge = "⚡ ELITE FLOOR"
+                badge_color = "#007AC1"
+            else:
+                badge = ""
+                badge_color = ""
+
             combos.append({
                 "type": label,
                 "team": row["abbreviation"],
                 "players": names,
-                "net_rating": round(row["net_rating"], 1),
-                "minutes": round(row["minutes"], 1),
-                "gp": row["gp"],
+                "net_rating": round(net, 1),
+                "minutes": round(mins, 1),
+                "gp": gp,
                 "plus_minus": round(row["plus_minus"], 1),
+                "badge": badge,
+                "badge_color": badge_color,
             })
 
     return combos
 
 
 def get_fade_combos():
-    """Get worst-performing combos to fade."""
-    fades = read_query("""
-        SELECT ls.player_ids, t.abbreviation, ls.minutes, ls.net_rating, ls.gp
-        FROM lineup_stats ls
-        JOIN teams t ON ls.team_id = t.team_id
-        WHERE ls.season_id = '2025-26' AND ls.group_quantity = 2
-              AND ls.net_rating IS NOT NULL AND ls.minutes > 10 AND ls.gp > 10
-        ORDER BY ls.net_rating ASC
-        LIMIT 3
-    """, DB_PATH)
+    """Get worst-performing combos to fade, with severity badges."""
+    all_fades = []
 
-    result = []
-    for _, row in fades.iterrows():
-        pids = json.loads(row["player_ids"])
-        placeholders = ",".join(["?"] * len(pids))
-        players = read_query(
-            f"SELECT full_name FROM players WHERE player_id IN ({placeholders})",
-            DB_PATH, pids
-        )
-        result.append({
-            "team": row["abbreviation"],
-            "players": players["full_name"].tolist(),
-            "net_rating": round(row["net_rating"], 1),
-            "gp": row["gp"],
-        })
-    return result
+    for n in [2, 3, 5]:
+        label = {5: "5-Man Fade", 3: "3-Man Fade", 2: "2-Man Fade"}[n]
+        fades = read_query(f"""
+            SELECT ls.player_ids, t.abbreviation, ls.minutes, ls.net_rating, ls.gp
+            FROM lineup_stats ls
+            JOIN teams t ON ls.team_id = t.team_id
+            WHERE ls.season_id = '2025-26' AND ls.group_quantity = {n}
+                  AND ls.net_rating IS NOT NULL AND ls.minutes > 8 AND ls.gp > 5
+            ORDER BY ls.net_rating ASC
+            LIMIT 3
+        """, DB_PATH)
+
+        for _, row in fades.iterrows():
+            pids = json.loads(row["player_ids"])
+            placeholders = ",".join(["?"] * len(pids))
+            players = read_query(
+                f"SELECT full_name FROM players WHERE player_id IN ({placeholders})",
+                DB_PATH, pids
+            )
+            net = row["net_rating"]
+            gp = row["gp"]
+
+            # Severity badges
+            if net < -15:
+                badge = "💀 DISASTERCLASS"
+                badge_color = "#8B0000"
+            elif net < -10:
+                badge = "❄️ COOLING DOWN"
+                badge_color = "#666"
+            else:
+                badge = "⚠️ FADE"
+                badge_color = "#bfa100"
+
+            all_fades.append({
+                "type": label,
+                "team": row["abbreviation"],
+                "players": players["full_name"].tolist(),
+                "net_rating": round(net, 1),
+                "gp": gp,
+                "minutes": round(row["minutes"], 1),
+                "badge": badge,
+                "badge_color": badge_color,
+            })
+
+    return all_fades
 
 
 def get_lock_picks(matchups):
-    """Generate top 3 highest-confidence picks."""
+    """Generate top highest-confidence picks with clear directions."""
     picks = []
     for m in sorted(matchups, key=lambda x: abs(x["confidence"] - 50), reverse=True):
         if m["confidence"] > 65:
             edge_team = m["home_abbr"]
-            label = f"{edge_team} -{abs(m['net_diff']):.1f} NET"
+            other = m["away_abbr"]
+            net_diff = abs(m['net_diff'])
+            label = f"TAKE {edge_team}"
+            detail = f"{edge_team} favored by {net_diff:.1f} net pts vs {other}"
         elif m["confidence"] < 35:
             edge_team = m["away_abbr"]
-            label = f"{edge_team} +{abs(m['net_diff']):.1f} NET"
+            other = m["home_abbr"]
+            net_diff = abs(m['net_diff'])
+            label = f"TAKE {edge_team}"
+            detail = f"{edge_team} favored by {net_diff:.1f} net pts @ {other}"
         else:
             continue
 
         picks.append({
             "label": label,
             "score": m["confidence"],
-            "reason": f"SYSTEM EDGE // NET RTG DIFF",
+            "reason": detail,
         })
-        if len(picks) >= 3:
+        if len(picks) >= 4:
             break
-
-    # Add archetype mismatch pick
-    picks.append({
-        "label": "SGA > Matchup",
-        "score": 92.1,
-        "reason": "ARCHETYPE MISMATCH",
-    })
 
     return picks[:4]
 
 
 def render_player_node(player, side, is_starter=True):
     """Render a single player node HTML."""
-    ds = compute_dynamic_score(player)
+    ds, breakdown = compute_dynamic_score(player)
     low, high = compute_ds_range(ds)
-    arch = player.get("archetype_label", "")
+    arch = player.get("archetype_label", "") or "Unclassified"
     icon = ARCHETYPE_ICONS.get(arch, "◆")
     name = player["full_name"]
     # Shorten name: first initial + last
@@ -261,26 +337,37 @@ def render_player_node(player, side, is_starter=True):
 
     pos = player.get("listed_position", "")
     mpg = player.get("minutes_per_game", 0) or 0
-    pts = player.get("pts_pg", 0) or 0
 
     # Color the dynamic score
     if ds >= 85:
-        ds_color = "#00c853"
+        ds_color = "#009944"
     elif ds >= 70:
-        ds_color = "#eaff00"
+        ds_color = "#0a0a0a"
     elif ds >= 55:
-        ds_color = "var(--ink)"
+        ds_color = "#666"
     else:
         ds_color = "#d12e2e"
 
-    opacity = "1.0" if is_starter else "0.6"
     starter_tag = "" if is_starter else ' style="opacity:0.65; font-size: 12px;"'
 
     nba_headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{player['player_id']}.png"
 
+    # Embed breakdown data for hover card
+    bd = breakdown
+    data_attrs = (
+        f'data-archetype="{arch}" data-ds="{ds}" '
+        f'data-pts="{bd["pts"]}" data-ast="{bd["ast"]}" data-reb="{bd["reb"]}" '
+        f'data-stl="{bd["stl"]}" data-blk="{bd["blk"]}" '
+        f'data-ts="{bd["ts_pct"]}" data-net="{bd["net_rating"]}" '
+        f'data-usg="{bd["usg_pct"]}" data-mpg="{bd["mpg"]}" '
+        f'data-scoring-pct="{bd["scoring_c"]}" data-playmaking-pct="{bd["playmaking_c"]}" '
+        f'data-defense-pct="{bd["defense_c"]}" data-efficiency-pct="{bd["efficiency_c"]}" '
+        f'data-impact-pct="{bd["impact_c"]}"'
+    )
+
     if side == "left":
         return f"""
-        <div class="player-node" data-archetype="{arch}" data-ds="{ds}"{starter_tag}>
+        <div class="player-node" {data_attrs}{starter_tag}>
             <div class="dynamic-score" style="color:{ds_color}">{ds}</div>
             <div class="player-info">
                 <span class="player-name">{short_name}</span>
@@ -293,7 +380,7 @@ def render_player_node(player, side, is_starter=True):
         </div>"""
     else:
         return f"""
-        <div class="player-node" data-archetype="{arch}" data-ds="{ds}"{starter_tag}>
+        <div class="player-node" {data_attrs}{starter_tag}>
             <div class="player-face-container">
                 <img src="{nba_headshot}" class="player-face" onerror="this.style.display='none'">
             </div>
@@ -317,22 +404,22 @@ def render_matchup(matchup, idx):
     ac = TEAM_COLORS.get(aa, "#333")
 
     conf = matchup["confidence"]
-    if conf > 65:
-        conf_color = "#00c853"
-    elif conf > 55:
-        conf_color = "#8bc34a"
-    elif conf > 45:
-        conf_color = "#bfa100"
+    lean = matchup.get("lean_team", "")
+    raw_edge = matchup.get("raw_edge", 0)
+    if abs(raw_edge) > 8:
+        conf_color = "#009944"
+    elif abs(raw_edge) > 3:
+        conf_color = "#0a0a0a"
     else:
-        conf_color = "#d12e2e"
+        conf_color = "#bfa100"
 
     # Get rosters
     home_roster = get_team_roster(ha, 8)
     away_roster = get_team_roster(aa, 8)
 
     # Compute team dynamic score sums (starters only)
-    home_ds_sum = sum(compute_dynamic_score(r) for _, r in home_roster.head(5).iterrows())
-    away_ds_sum = sum(compute_dynamic_score(r) for _, r in away_roster.head(5).iterrows())
+    home_ds_sum = sum(compute_dynamic_score(r)[0] for _, r in home_roster.head(5).iterrows())
+    away_ds_sum = sum(compute_dynamic_score(r)[0] for _, r in away_roster.head(5).iterrows())
 
     # Home record estimate from net rating
     h_net = h.get("net_rating", 0) or 0
@@ -367,7 +454,7 @@ def render_matchup(matchup, idx):
             away_bench_html += render_player_node(player, "right", is_starter=False)
 
     return f"""
-    <section class="matchup-container" id="matchup-{idx}">
+    <section class="matchup-container" id="matchup-{idx}" data-conf="{matchup['conf_class']}" data-edge="{abs(matchup.get('raw_edge', 0)):.1f}">
         <div class="matchup-header">
             <div class="team-block">
                 <div class="team-logo" style="background:{hc};">
@@ -379,9 +466,9 @@ def render_matchup(matchup, idx):
                 </div>
             </div>
             <div class="confidence-core">
-                <div class="confidence-label">SYSTEM EDGE</div>
-                <div class="confidence-value" style="color:{conf_color}">{conf}</div>
-                <div class="confidence-sublabel">{matchup['conf_label']}</div>
+                <div class="confidence-label">{"LEAN → " + lean if lean else "NO CLEAR EDGE"}</div>
+                <div class="confidence-value" style="color:{conf_color}">{matchup['conf_label']}</div>
+                <div class="confidence-sublabel">Net Diff: {raw_edge:+.1f} pts (incl. +3 HCA)</div>
                 <div class="ds-comparison">
                     <span class="ds-team-sum">{ha} {home_ds_sum}</span>
                     <span class="ds-vs">vs</span>
@@ -428,25 +515,33 @@ def render_matchup(matchup, idx):
 
 
 def render_combo_card(combo, is_fade=False):
-    """Render a rotation depth combo card."""
-    border_color = "#d12e2e" if is_fade else "var(--acid-yellow)"
-    opacity = "0.75" if is_fade else "1"
-    names_html = "<br>".join(combo["players"]) if not is_fade else " + ".join(combo["players"])
+    """Render a floor combo card with trend badges."""
+    border_color = "#d12e2e" if is_fade else "#eaff00"
+    names_html = "<br>".join(combo["players"])
     net = combo["net_rating"]
-    net_color = "#00c853" if net > 0 else "#d12e2e"
+    net_color = "#009944" if net > 0 else "#d12e2e"
 
-    tag = "FADE" if is_fade else combo.get("type", "Combo")
+    tag = combo.get("type", "FADE" if is_fade else "Combo")
+    badge = combo.get("badge", "")
+    badge_color = combo.get("badge_color", "")
+
+    badge_html = ""
+    if badge:
+        badge_html = f'<div class="combo-badge" style="color:{badge_color}">{badge}</div>'
+
+    card_class = "combo-card fade-card" if is_fade else "combo-card hot-card"
 
     return f"""
-    <div class="combo-card" style="border-left-color:{border_color}; opacity:{opacity}">
+    <div class="{card_class}" style="border-left-color:{border_color}">
         <div class="combo-header">
             <span>{tag}</span>
             <span>{combo['team']}</span>
         </div>
+        {badge_html}
         <div class="combo-players">{names_html}</div>
         <div class="combo-stat">
             <span>Net Rating</span>
-            <span style="color:{net_color}">{net:+.1f}</span>
+            <span style="color:{net_color}; font-weight:700">{net:+.1f}</span>
         </div>
         <div class="combo-stat">
             <span>GP // Min/G</span>
@@ -478,112 +573,131 @@ def generate_html():
     for i, m in enumerate(matchups):
         matchup_html += render_matchup(m, i)
 
-    combo_html = ""
+    hot_combo_html = ""
     for c in combos:
-        combo_html += render_combo_card(c)
+        hot_combo_html += render_combo_card(c)
 
+    fade_combo_html = ""
     for f in fades:
-        combo_html += render_combo_card(f, is_fade=True)
+        fade_combo_html += render_combo_card(f, is_fade=True)
 
     lock_html = ""
     for pick in locks:
         lock_html += render_lock_card(pick)
+
+    # Build archetype legend
+    used_archetypes = set()
+    for m in matchups:
+        ha, aa = m["home_abbr"], m["away_abbr"]
+        for abbr in [ha, aa]:
+            roster = get_team_roster(abbr, 8)
+            for _, p in roster.iterrows():
+                a = p.get("archetype_label", "")
+                if a:
+                    used_archetypes.add(a)
+
+    legend_items = ""
+    for arch in sorted(used_archetypes):
+        icon = ARCHETYPE_ICONS.get(arch, "◆")
+        legend_items += f'<div class="legend-item"><span class="legend-icon">{icon}</span><span>{arch}</span></div>'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA SIM // SYSTEM_COLLISION</title>
+    <title>NBA SIM // FEB 20</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root {{
-            --bg: #0a0a0f;
-            --surface: rgba(255,255,255,0.03);
-            --surface-hover: rgba(255,255,255,0.06);
-            --border: rgba(255,255,255,0.08);
-            --border-bright: rgba(255,255,255,0.15);
-            --text: #e8e8e8;
-            --text-dim: rgba(255,255,255,0.4);
-            --text-mid: rgba(255,255,255,0.6);
-            --acid: #c8ff00;
-            --acid-glow: 0 0 30px rgba(200,255,0,0.3);
-            --green: #00c853;
-            --amber: #ffab00;
-            --red: #ff1744;
-            --radius: 12px;
+            --bg: #d4d4d8;
+            --surface: rgba(255,255,255,0.5);
+            --surface-hover: rgba(255,255,255,0.8);
+            --border: rgba(0,0,0,0.1);
+            --border-bright: rgba(0,0,0,0.2);
+            --ink: #0a0a0a;
+            --text: #0a0a0a;
+            --text-dim: rgba(0,0,0,0.4);
+            --text-mid: rgba(0,0,0,0.6);
+            --acid: #eaff00;
+            --acid-glow: 0 0 20px rgba(234,255,0,0.6);
+            --green: #009944;
+            --amber: #bfa100;
+            --red: #d12e2e;
+            --radius: 16px;
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'Space Mono', monospace;
         }}
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; cursor: crosshair; }}
         body {{
             background: var(--bg);
-            color: var(--text);
+            color: var(--ink);
             font-family: var(--font-mono);
             font-size: 13px;
             overflow-x: hidden;
-            cursor: crosshair;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
         }}
         ::selection {{ background: var(--acid); color: #000; }}
 
         /* ─── LAYOUT ─── */
-        .app {{ display: grid; grid-template-columns: 260px 1fr 280px; height: 100vh; }}
-        .sidebar {{ padding: 20px; overflow-y: auto; border-right: 1px solid var(--border); }}
+        .app {{ display: grid; grid-template-columns: 280px 1fr 300px; height: 100vh; }}
+        .sidebar {{ padding: 24px; overflow-y: auto; border-right: 1px solid var(--border);
+                   display: flex; flex-direction: column; gap: 20px; }}
         .sidebar-right {{ border-right: none; border-left: 1px solid var(--border); }}
-        main {{ overflow-y: auto; padding: 32px 40px; }}
+        main {{ overflow-y: auto; padding: 40px; }}
 
         /* ─── LOGO ─── */
-        .logo {{ font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -1px;
-                 display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }}
-        .logo-dot {{ width: 14px; height: 14px; background: var(--acid); border-radius: 50%;
-                     box-shadow: var(--acid-glow); animation: pulse 2s ease-in-out infinite; }}
-        @keyframes pulse {{ 0%,100% {{ opacity: 1; }} 50% {{ opacity: 0.5; }} }}
+        .logo {{ font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -1px;
+                 display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
+        .logo-dot {{ width: 18px; height: 18px; background: var(--ink); border-radius: 50%; }}
 
         /* ─── LOCK MODULE ─── */
-        .lock-module {{ background: var(--surface); border: 1px solid var(--border-bright);
-                       border-radius: var(--radius); padding: 16px; margin-bottom: 24px; }}
+        .lock-module {{ background: #fff; border: 2px solid var(--ink);
+                       border-radius: var(--radius); padding: 20px; position: relative;
+                       box-shadow: 8px 8px 0px rgba(0,0,0,0.08); }}
         .lock-header {{ display: flex; justify-content: space-between; align-items: center;
                        font-family: var(--font-display); text-transform: uppercase; font-weight: 700;
                        font-size: 13px; margin-bottom: 14px; padding-bottom: 10px;
-                       border-bottom: 1px solid var(--border); }}
+                       border-bottom: 2px solid var(--ink); }}
         .lock-icon {{ font-size: 18px; animation: drift 3s ease-in-out infinite; }}
         @keyframes drift {{ 0%,100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-4px); }} }}
-        .lock-card {{ margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }}
+        .lock-card {{ margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #ccc; }}
         .lock-card:last-child {{ border: none; padding-bottom: 0; }}
-        .lock-confidence {{ font-size: 9px; color: var(--text-dim); margin-bottom: 4px;
+        .lock-confidence {{ font-size: 9px; color: #666; margin-bottom: 4px;
                            text-transform: uppercase; letter-spacing: 1px; }}
-        .lock-pick {{ font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }}
+        .lock-pick {{ font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }}
         .lock-score {{ background: var(--acid); color: #000; padding: 2px 8px; border-radius: 4px;
                       font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-                      box-shadow: var(--acid-glow); }}
+                      box-shadow: 0 0 10px var(--acid); }}
 
         /* ─── HEADER ─── */
-        .main-header {{ margin-bottom: 32px; }}
-        .main-header h1 {{ font-family: var(--font-display); font-size: 48px; line-height: 0.95;
+        .main-header {{ margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end; }}
+        .main-header h1 {{ font-family: var(--font-display); font-size: 56px; line-height: 0.95;
                           letter-spacing: -2px; font-weight: 700; }}
-        .main-header h1 span {{ display: block; font-size: 12px; font-family: var(--font-mono);
-                               letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; font-weight: 400; }}
-        .filters {{ display: flex; gap: 8px; margin-top: 16px; }}
-        .filter-btn {{ background: transparent; border: 1px solid var(--border-bright); color: var(--text-mid);
-                      padding: 6px 14px; border-radius: 20px; font-family: var(--font-mono);
+        .main-header h1 span {{ display: block; font-size: 14px; font-family: var(--font-mono);
+                               letter-spacing: 1px; color: var(--text-dim); margin-bottom: 10px; font-weight: 400; }}
+        .filters {{ display: flex; gap: 10px; }}
+        .filter-btn {{ background: transparent; border: 1px solid var(--ink); color: var(--ink);
+                      padding: 8px 16px; border-radius: 20px; font-family: var(--font-mono);
                       font-size: 11px; cursor: crosshair; transition: all 0.2s; }}
-        .filter-btn.active {{ background: var(--text); color: var(--bg); border-color: var(--text); }}
+        .filter-btn.active {{ background: var(--ink); color: var(--bg); }}
         .filter-btn:hover {{ background: var(--acid); color: #000; border-color: var(--acid); }}
 
         /* ─── MATCHUP CONTAINER ─── */
         .matchup-container {{ background: var(--surface); border: 1px solid var(--border);
-                             border-radius: var(--radius); margin-bottom: 20px;
-                             transition: all 0.3s ease; overflow: hidden; }}
-        .matchup-container:hover {{ border-color: var(--border-bright);
-                                   box-shadow: 0 0 40px rgba(200,255,0,0.03); }}
+                             border-radius: var(--radius); margin-bottom: 24px;
+                             transition: all 0.3s ease; overflow: hidden;
+                             backdrop-filter: blur(10px); }}
+        .matchup-container:hover {{ transform: translateY(-2px); border-color: var(--ink);
+                                   box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); }}
 
         .matchup-header {{ display: flex; justify-content: space-between; align-items: center;
-                          padding: 16px 20px; border-bottom: 1px solid var(--border); }}
+                          padding: 20px; border-bottom: 1px solid var(--border); }}
         .team-block {{ display: flex; align-items: center; gap: 14px; width: 30%; }}
         .team-block.right {{ flex-direction: row-reverse; text-align: right; }}
-        .team-logo {{ width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+        .team-logo {{ width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
                      justify-content: center; font-family: var(--font-display); font-weight: 700;
                      font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0; }}
         .team-logo-text {{ text-shadow: 0 1px 2px rgba(0,0,0,0.5); }}
@@ -592,90 +706,125 @@ def generate_html():
         .team-record {{ font-size: 10px; color: var(--text-dim); margin-top: 2px; }}
 
         .confidence-core {{ flex-grow: 1; display: flex; flex-direction: column; align-items: center; }}
-        .confidence-label {{ font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
+        .confidence-label {{ font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
                             color: var(--text-dim); margin-bottom: 4px; }}
-        .confidence-value {{ font-family: var(--font-display); font-size: 36px; font-weight: 700;
-                            transition: all 0.1s; }}
-        .confidence-sublabel {{ font-size: 10px; color: var(--text-dim); margin-top: 2px;
-                               letter-spacing: 1px; }}
+        .confidence-value {{ font-family: var(--font-display); font-size: 22px; font-weight: 700;
+                            transition: all 0.1s; text-transform: uppercase; }}
+        .confidence-sublabel {{ font-size: 10px; color: var(--text-dim); margin-top: 4px; }}
         .ds-comparison {{ display: flex; align-items: center; gap: 8px; margin-top: 6px;
                          font-size: 10px; color: var(--text-dim); }}
         .ds-vs {{ color: var(--text-dim); font-size: 9px; }}
 
         /* ─── LINEUP GRID ─── */
-        .lineup-section {{ padding: 12px 20px; }}
+        .lineup-section {{ padding: 16px 20px; }}
         .lineup-section-label {{ font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
                                 color: var(--text-dim); margin-bottom: 8px;
                                 padding-bottom: 6px; border-bottom: 1px solid var(--border); }}
         .bench-section {{ border-top: 1px dashed var(--border); }}
         .lineup-grid {{ display: grid; grid-template-columns: 1fr 1px 1fr; }}
         .divider {{ background: linear-gradient(to bottom, transparent, var(--border-bright), transparent); }}
-        .team-lineup {{ display: flex; flex-direction: column; gap: 4px; }}
+        .team-lineup {{ display: flex; flex-direction: column; gap: 6px; }}
         .team-lineup.left {{ padding-right: 16px; align-items: flex-end; }}
         .team-lineup.right {{ padding-left: 16px; align-items: flex-start; }}
 
-        .player-node {{ display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-                       border: 1px solid transparent; border-radius: 30px; transition: all 0.2s;
-                       width: 100%; max-width: 340px; cursor: crosshair; }}
+        .player-node {{ display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+                       border: 1px solid transparent; border-radius: 40px; transition: all 0.2s;
+                       width: 100%; max-width: 340px; }}
         .team-lineup.left .player-node {{ flex-direction: row-reverse; text-align: right; }}
-        .player-node:hover {{ background: var(--surface-hover); border-color: var(--border-bright); }}
+        .player-node:hover {{ background: #fff; border-color: var(--ink);
+                             box-shadow: 4px 4px 0 var(--acid); }}
 
-        .player-face-container {{ width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
-                                 border: 1px solid var(--border-bright); background: #111; flex-shrink: 0; }}
-        .player-face {{ width: 100%; height: 100%; object-fit: cover; filter: grayscale(80%);
-                       opacity: 0.7; transition: 0.3s; }}
+        .player-face-container {{ width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+                                 border: 1px solid var(--ink); background: #000; flex-shrink: 0; }}
+        .player-face {{ width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%);
+                       opacity: 0.8; transition: 0.3s; }}
         .player-node:hover .player-face {{ filter: none; opacity: 1; }}
 
         .player-info {{ flex-grow: 1; min-width: 0; }}
-        .player-name {{ font-weight: 700; font-size: 12px; display: block; white-space: nowrap;
+        .player-name {{ font-weight: 700; font-size: 13px; display: block; white-space: nowrap;
                        overflow: hidden; text-overflow: ellipsis; }}
-        .player-metric {{ font-size: 10px; color: var(--text-dim); display: block; }}
+        .player-metric {{ font-size: 10px; color: #555; display: block; }}
 
-        .archetype-badge {{ width: 26px; height: 26px; border: 1px solid var(--border-bright);
+        .archetype-badge {{ width: 28px; height: 28px; border: 1px solid var(--ink);
                            border-radius: 6px; display: flex; align-items: center; justify-content: center;
-                           font-size: 13px; background: var(--surface); transition: 0.2s; flex-shrink: 0;
-                           cursor: pointer; }}
-        .player-node:hover .archetype-badge {{ background: var(--acid); border-color: var(--acid); transform: scale(1.15); }}
+                           font-size: 13px; background: var(--bg); transition: 0.2s; flex-shrink: 0; }}
+        .player-node:hover .archetype-badge {{ background: var(--ink); color: var(--acid); transform: scale(1.1); }}
 
         .dynamic-score {{ font-family: var(--font-display); font-weight: 700; font-size: 18px;
                          flex-shrink: 0; width: 30px; text-align: center; }}
 
         /* ─── DEPTH PANEL ─── */
-        .depth-title {{ font-family: var(--font-display); font-size: 14px; text-transform: uppercase;
+        .depth-title {{ font-family: var(--font-display); font-size: 16px; text-transform: uppercase;
                        font-weight: 700; margin-bottom: 16px; padding-bottom: 8px;
-                       border-bottom: 1px solid var(--border-bright); letter-spacing: -0.5px; }}
-        .combo-card {{ background: var(--surface); padding: 12px; border-radius: 8px;
-                      margin-bottom: 10px; border-left: 3px solid var(--acid); }}
-        .combo-header {{ font-size: 10px; text-transform: uppercase; color: var(--text-dim);
+                       border-bottom: 2px solid var(--ink); letter-spacing: -0.5px; }}
+        .combo-card {{ background: #fff; padding: 16px; border-radius: 8px;
+                      margin-bottom: 12px; border-left: 4px solid var(--acid); }}
+        .combo-header {{ font-size: 10px; text-transform: uppercase; color: #666;
                         margin-bottom: 6px; display: flex; justify-content: space-between;
                         letter-spacing: 1px; }}
-        .combo-players {{ font-family: var(--font-display); font-weight: 700; font-size: 13px;
+        .combo-players {{ font-family: var(--font-display); font-weight: 700; font-size: 14px;
                          margin-bottom: 8px; line-height: 1.5; }}
         .combo-stat {{ font-size: 11px; display: flex; justify-content: space-between;
-                      padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-mid); }}
+                      padding-top: 6px; border-top: 1px solid #eee; color: var(--text-mid); }}
+
+        /* ─── COMBO BADGES ─── */
+        .combo-badge {{ font-size: 10px; font-weight: 700; text-transform: uppercase;
+                       letter-spacing: 0.5px; margin-bottom: 6px; }}
+        .combo-section-label {{ font-family: var(--font-display); font-size: 12px; font-weight: 700;
+                               text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+                               padding-bottom: 6px; border-bottom: 1px dashed var(--border-bright); }}
+        .fade-card {{ opacity: 0.8; }}
+        .fade-card:hover {{ opacity: 1; }}
+        .hot-card {{ }}
+
+        #refreshCombos:hover {{ transform: rotate(180deg); background: var(--acid) !important; color: #000 !important; }}
+
+        /* ─── ARCHETYPE LEGEND ─── */
+        .legend-module {{ background: #fff; border: 1px solid var(--border-bright);
+                         border-radius: var(--radius); padding: 16px; margin-top: 16px; }}
+        .legend-title {{ font-family: var(--font-display); font-size: 11px; text-transform: uppercase;
+                        font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;
+                        padding-bottom: 6px; border-bottom: 1px solid var(--border); }}
+        .legend-item {{ display: flex; align-items: center; gap: 8px; font-size: 10px;
+                       padding: 2px 0; color: var(--text-mid); }}
+        .legend-icon {{ width: 20px; text-align: center; font-size: 12px; }}
+
+        /* ─── DS GUIDE ─── */
+        .ds-guide {{ background: #fff; border: 1px solid var(--border-bright);
+                    border-radius: var(--radius); padding: 16px; margin-top: 12px; }}
+        .ds-guide-title {{ font-family: var(--font-display); font-size: 11px; text-transform: uppercase;
+                          font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;
+                          padding-bottom: 6px; border-bottom: 1px solid var(--border); }}
+        .ds-tier {{ display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; }}
+        .ds-tier-label {{ font-weight: 700; }}
 
         /* ─── HOVER CARD ─── */
-        .hover-card {{ position: fixed; background: rgba(10,10,15,0.96); color: #fff; padding: 14px;
-                      border-radius: 8px; width: 220px; z-index: 100; pointer-events: none;
-                      opacity: 0; transform: translateY(8px); transition: opacity 0.15s, transform 0.15s;
-                      border: 1px solid var(--acid); font-size: 11px;
-                      box-shadow: 0 0 30px rgba(200,255,0,0.15); }}
+        .hover-card {{ position: fixed; background: rgba(10,10,10,0.95); color: #fff; padding: 16px;
+                      border-radius: 8px; width: 260px; z-index: 100; pointer-events: none;
+                      opacity: 0; transform: translateY(10px); transition: opacity 0.15s, transform 0.15s;
+                      border: 1px solid var(--acid); font-family: var(--font-mono);
+                      box-shadow: 0 0 30px rgba(234,255,0,0.2); }}
         .hover-card.visible {{ opacity: 1; transform: translateY(0); }}
         .hc-title {{ color: var(--acid); font-size: 11px; text-transform: uppercase;
-                    margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);
+                    margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #333;
                     letter-spacing: 1px; }}
-        .hc-stat {{ display: flex; justify-content: space-between; margin-bottom: 3px; }}
-        .hc-note {{ font-size: 9px; margin-top: 8px; color: var(--text-dim); line-height: 1.4; }}
+        .hc-section {{ font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px;
+                      margin-top: 8px; margin-bottom: 4px; }}
+        .hc-stat {{ display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }}
+        .hc-bar-row {{ display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 10px; }}
+        .hc-bar {{ height: 4px; background: var(--acid); border-radius: 2px; transition: width 0.3s; }}
+        .hc-bar-bg {{ height: 4px; background: #333; border-radius: 2px; width: 80px; }}
+        .hc-note {{ font-size: 9px; margin-top: 10px; color: #888; line-height: 1.4;
+                   border-top: 1px solid #333; padding-top: 8px; }}
 
         /* ─── GLITCH ─── */
-        @keyframes glitch {{ 0%,100% {{ transform: none; }} 50% {{ transform: skew(-1deg); }} }}
-        .sys-tag {{ position: fixed; bottom: 16px; left: 16px; font-size: 9px; color: var(--text-dim);
+        .sys-tag {{ position: fixed; bottom: 20px; left: 20px; font-size: 10px; color: rgba(0,0,0,0.3);
                    transform: rotate(-90deg); transform-origin: left bottom; letter-spacing: 1px; }}
 
         /* ─── SCROLLBAR ─── */
         ::-webkit-scrollbar {{ width: 4px; }}
         ::-webkit-scrollbar-track {{ background: transparent; }}
-        ::-webkit-scrollbar-thumb {{ background: var(--border-bright); border-radius: 2px; }}
+        ::-webkit-scrollbar-thumb {{ background: rgba(0,0,0,0.2); border-radius: 2px; }}
 
         .sidebar-footer {{ margin-top: auto; font-size: 9px; color: var(--text-dim); padding-top: 20px; }}
     </style>
@@ -691,21 +840,21 @@ def generate_html():
 
             <div class="lock-module">
                 <div class="lock-header">
-                    <span>LOCK SCAN</span>
+                    <span>Best Bets</span>
                     <span class="lock-icon">\U0001F512</span>
                 </div>
                 {lock_html}
             </div>
 
-            <div style="margin-top: 24px;">
+            <div>
                 <div class="depth-title">FEB 20 SLATE</div>
-                <div style="font-size: 11px; color: var(--text-mid); line-height: 1.8;">
-                    {"".join(f'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>{m["home_abbr"]} vs {m["away_abbr"]}</span><span style="color:{("#00c853" if m["confidence"]>60 else "#bfa100" if m["confidence"]>45 else "#ff1744")}">{m["confidence"]}</span></div>' for m in matchups)}
+                <div style="font-size: 11px; line-height: 2;">
+                    {"".join(f'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>{m["home_abbr"]} vs {m["away_abbr"]}</span><span style="color:{("#009944" if abs(m.get("raw_edge",0))>8 else "#0a0a0a" if abs(m.get("raw_edge",0))>3 else "#bfa100")}; font-weight:700; font-size:10px">{m["conf_label"]}</span></div>' for m in matchups)}
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                SIM ENGINE v3.1<br>
+                SIM ENGINE v3.2<br>
                 2025-26 SEASON DATA<br>
                 {len(matchups)} GAMES // FEB 20
             </div>
@@ -715,14 +864,14 @@ def generate_html():
         <main>
             <header class="main-header">
                 <h1>
-                    <span>FEB 20 SLATE // 2025-26 // REAL DATA</span>
-                    SYSTEM<br>COLLISION
+                    <span>2025-26 // REAL DATA</span>
+                    FEBRUARY 20<br>9 GAMES
                 </h1>
                 <div class="filters">
-                    <button class="filter-btn active">ALL</button>
-                    <button class="filter-btn">TOP 20%</button>
-                    <button class="filter-btn">CONTRARIAN</button>
-                    <button class="filter-btn">LIVE</button>
+                    <button class="filter-btn active" data-filter="all">ALL</button>
+                    <button class="filter-btn" data-filter="top20">TOP 20%</button>
+                    <button class="filter-btn" data-filter="contrarian">CONTRARIAN</button>
+                    <button class="filter-btn" data-filter="tossup">TOSS-UPS</button>
                 </div>
             </header>
 
@@ -731,22 +880,61 @@ def generate_html():
 
         <!-- RIGHT SIDEBAR -->
         <div class="sidebar sidebar-right">
-            <div class="depth-title">ROTATION DEPTH</div>
-            {combo_html}
+            <div class="depth-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Key Floor Combos</span>
+                <button id="refreshCombos" style="background:var(--ink); color:var(--bg); border:none; border-radius:50%; width:24px; height:24px; font-size:14px; cursor:pointer; transition:transform 0.3s;" title="Shuffle combos">↻</button>
+            </div>
+
+            <div class="combo-section-label">🔥 HOT COMBOS</div>
+            <div id="hotCombos">
+            {hot_combo_html}
+            </div>
+
+            <div class="combo-section-label" style="margin-top:16px; color:var(--red);">💀 FADE COMBOS</div>
+            <div id="fadeCombos">
+            {fade_combo_html}
+            </div>
+
+            <div class="legend-module">
+                <div class="legend-title">Archetype Key</div>
+                {legend_items}
+            </div>
+
+            <div class="ds-guide">
+                <div class="ds-guide-title">Dynamic Score Guide</div>
+                <div class="ds-tier"><span class="ds-tier-label" style="color:#009944">85-99</span><span>Elite / Star</span></div>
+                <div class="ds-tier"><span class="ds-tier-label">70-84</span><span>Above Average</span></div>
+                <div class="ds-tier"><span class="ds-tier-label" style="color:#666">55-69</span><span>Rotation Player</span></div>
+                <div class="ds-tier"><span class="ds-tier-label" style="color:#d12e2e">40-54</span><span>Below Average / Limited Role</span></div>
+                <div style="font-size:9px; color:#888; margin-top:8px; line-height:1.4;">
+                    Score = weighted mix of PTS, AST, REB, STL, BLK, TS%, Net Rating, USG%, and MPG.
+                    Hover any player for full breakdown.
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- HOVER CARD -->
     <div class="hover-card" id="hoverCard">
-        <div class="hc-title" id="hcTitle">Archetype Analysis</div>
-        <div class="hc-stat"><span>Dynamic Score:</span><span id="hcDS" style="color:var(--acid)">—</span></div>
-        <div class="hc-stat"><span>Archetype:</span><span id="hcArch">—</span></div>
-        <div class="hc-stat"><span>Scheme Fit:</span><span id="hcFit">—</span></div>
-        <div class="hc-stat"><span>Matchup Edge:</span><span id="hcEdge">—</span></div>
-        <div class="hc-note" id="hcNote">Hover any player node for detailed archetype + scheme analysis.</div>
+        <div class="hc-title" id="hcTitle">Player Analysis</div>
+        <div class="hc-section">STAT LINE</div>
+        <div class="hc-stat"><span>Points:</span><span id="hcPts">—</span></div>
+        <div class="hc-stat"><span>Assists:</span><span id="hcAst">—</span></div>
+        <div class="hc-stat"><span>Rebounds:</span><span id="hcReb">—</span></div>
+        <div class="hc-stat"><span>Steals / Blocks:</span><span id="hcDef">—</span></div>
+        <div class="hc-stat"><span>TS%:</span><span id="hcTS">—</span></div>
+        <div class="hc-stat"><span>Net Rating:</span><span id="hcNet" style="font-weight:700">—</span></div>
+        <div class="hc-stat"><span>USG%:</span><span id="hcUSG">—</span></div>
+        <div class="hc-section">SCORE BREAKDOWN</div>
+        <div class="hc-bar-row"><span style="width:55px">Scoring</span><div class="hc-bar-bg"><div class="hc-bar" id="hcBarScoring" style="width:0%"></div></div><span id="hcPctScoring">0%</span></div>
+        <div class="hc-bar-row"><span style="width:55px">Passing</span><div class="hc-bar-bg"><div class="hc-bar" id="hcBarPlaymaking" style="width:0%"></div></div><span id="hcPctPlaymaking">0%</span></div>
+        <div class="hc-bar-row"><span style="width:55px">Defense</span><div class="hc-bar-bg"><div class="hc-bar" id="hcBarDefense" style="width:0%"></div></div><span id="hcPctDefense">0%</span></div>
+        <div class="hc-bar-row"><span style="width:55px">Efficiency</span><div class="hc-bar-bg"><div class="hc-bar" id="hcBarEfficiency" style="width:0%"></div></div><span id="hcPctEfficiency">0%</span></div>
+        <div class="hc-bar-row"><span style="width:55px">Impact</span><div class="hc-bar-bg"><div class="hc-bar" id="hcBarImpact" style="width:0%"></div></div><span id="hcPctImpact">0%</span></div>
+        <div class="hc-note" id="hcNote">Hover any player for detailed stat breakdown.</div>
     </div>
 
-    <div class="sys-tag">NBA_SIM // SYSTEM_COLLISION // v3.1.0</div>
+    <div class="sys-tag">NBA_SIM // v3.2</div>
 
     <script>
         // ─── HOVER CARD INTERACTION ───
@@ -756,7 +944,7 @@ def generate_html():
         document.addEventListener('mousemove', e => {{
             if (hc.classList.contains('visible')) {{
                 hc.style.top = (e.clientY + 12) + 'px';
-                hc.style.left = (e.clientX + 12) + 'px';
+                hc.style.left = Math.min(e.clientX + 12, window.innerWidth - 280) + 'px';
             }}
         }});
 
@@ -768,20 +956,43 @@ def generate_html():
                 const ds = node.dataset.ds || '—';
                 const dsNum = parseInt(ds);
 
-                document.getElementById('hcTitle').innerText = name + ' // ' + arch;
-                document.getElementById('hcDS').innerText = ds;
-                document.getElementById('hcArch').innerText = arch;
+                document.getElementById('hcTitle').innerText = name + ' // ' + arch + ' // DS ' + ds;
 
-                const fitOptions = ['Elite', 'Strong', 'Average', 'Below Avg'];
-                document.getElementById('hcFit').innerText = dsNum > 80 ? 'Elite' : dsNum > 65 ? 'Strong' : 'Average';
+                // Stat line
+                document.getElementById('hcPts').innerText = node.dataset.pts + ' ppg';
+                document.getElementById('hcAst').innerText = node.dataset.ast + ' apg';
+                document.getElementById('hcReb').innerText = node.dataset.reb + ' rpg';
+                document.getElementById('hcDef').innerText = node.dataset.stl + ' / ' + node.dataset.blk;
+                document.getElementById('hcTS').innerText = node.dataset.ts + '%';
 
-                const edgeOptions = ['+14%', '+8%', '+3%', '-2%', '-6%'];
-                document.getElementById('hcEdge').innerText = edgeOptions[Math.floor(Math.random() * edgeOptions.length)];
+                const netVal = parseFloat(node.dataset.net);
+                const netEl = document.getElementById('hcNet');
+                netEl.innerText = (netVal >= 0 ? '+' : '') + netVal.toFixed(1);
+                netEl.style.color = netVal >= 0 ? '#00c853' : '#ff1744';
 
-                document.getElementById('hcNote').innerText =
-                    'This ' + arch.toLowerCase() + ' deployment projects ' +
-                    (dsNum > 75 ? 'above-average' : 'neutral') +
-                    ' efficiency in this scheme context.';
+                document.getElementById('hcUSG').innerText = node.dataset.usg + '%';
+
+                // Score breakdown bars
+                const cats = ['Scoring', 'Playmaking', 'Defense', 'Efficiency', 'Impact'];
+                const keys = ['scoring', 'playmaking', 'defense', 'efficiency', 'impact'];
+                keys.forEach((k, i) => {{
+                    const pct = parseFloat(node.dataset[k + 'Pct']) || 0;
+                    document.getElementById('hcBar' + cats[i]).style.width = Math.min(pct, 100) + '%';
+                    document.getElementById('hcPct' + cats[i]).innerText = Math.round(pct) + '%';
+                }});
+
+                // Explanation note
+                let note = '';
+                if (dsNum < 50) {{
+                    note = 'Low DS driven by limited minutes (' + node.dataset.mpg + ' mpg) and/or below-average efficiency.';
+                }} else if (dsNum < 65) {{
+                    note = 'Rotation-level contributor. Score weighted by ' + node.dataset.mpg + ' mpg.';
+                }} else if (dsNum < 80) {{
+                    note = 'Solid starter impact at ' + node.dataset.mpg + ' mpg with balanced stat profile.';
+                }} else {{
+                    note = 'Elite contributor at ' + node.dataset.mpg + ' mpg. High-volume production + efficiency.';
+                }}
+                document.getElementById('hcNote').innerText = note;
             }});
             node.addEventListener('mouseleave', () => {{
                 hc.classList.remove('visible');
@@ -793,7 +1004,6 @@ def generate_html():
         setInterval(() => {{
             const target = confVals[Math.floor(Math.random() * confVals.length)];
             if (!target) return;
-            const orig = target.style.color;
             target.style.transform = 'skew(' + (Math.random()*6-3) + 'deg)';
             target.style.textShadow = '2px 0 var(--acid)';
             setTimeout(() => {{
@@ -803,10 +1013,51 @@ def generate_html():
         }}, 4000);
 
         // ─── FILTER BUTTONS ───
+        const matchupCards = document.querySelectorAll('.matchup-container');
         document.querySelectorAll('.filter-btn').forEach(btn => {{
             btn.addEventListener('click', () => {{
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+                const filter = btn.dataset.filter;
+
+                matchupCards.forEach(card => {{
+                    const edge = parseFloat(card.dataset.edge);
+                    const conf = card.dataset.conf;
+                    let show = true;
+
+                    if (filter === 'top20') {{
+                        // Only show strong leans (edge > 8)
+                        show = edge > 8;
+                    }} else if (filter === 'contrarian') {{
+                        // Show toss-ups & slight edges — these are where contrarian value lives
+                        show = edge < 5;
+                    }} else if (filter === 'tossup') {{
+                        // Only show toss-ups
+                        show = conf === 'neutral';
+                    }}
+                    // 'all' shows everything
+
+                    card.style.display = show ? 'block' : 'none';
+                }});
+            }});
+        }});
+
+        // ─── REFRESH / SHUFFLE COMBOS ───
+        document.getElementById('refreshCombos')?.addEventListener('click', () => {{
+            const hotContainer = document.getElementById('hotCombos');
+            const fadeContainer = document.getElementById('fadeCombos');
+
+            // Shuffle children
+            [hotContainer, fadeContainer].forEach(container => {{
+                if (!container) return;
+                const cards = Array.from(container.children);
+                for (let i = cards.length - 1; i > 0; i--) {{
+                    const j = Math.floor(Math.random() * (i + 1));
+                    container.appendChild(cards[j]);
+                }}
+                // Flash animation
+                container.style.opacity = '0.3';
+                setTimeout(() => {{ container.style.opacity = '1'; container.style.transition = 'opacity 0.3s'; }}, 100);
             }});
         }});
     </script>
