@@ -469,7 +469,7 @@ def render_matchup(matchup, idx):
                 <div>
                     <div class="team-name">{ha}</div>
                     <div class="team-record">{h_wins}-{h_losses} // ORTG {h_ortg:.0f} DRTG {h_drtg:.0f} // Pace {h_pace:.0f}</div>
-                    <div class="team-scheme">OFF: {h_off_scheme} // DEF: {h_def_scheme}</div>
+                    <div class="team-scheme">OFF: {h_off_scheme}<br>DEF: {h_def_scheme}</div>
                 </div>
             </div>
             <div class="confidence-core">
@@ -494,7 +494,7 @@ def render_matchup(matchup, idx):
                 <div>
                     <div class="team-name">{aa}</div>
                     <div class="team-record">{a_wins}-{a_losses} // ORTG {a_ortg:.0f} DRTG {a_drtg:.0f} // Pace {a_pace:.0f}</div>
-                    <div class="team-scheme">OFF: {a_off_scheme} // DEF: {a_def_scheme}</div>
+                    <div class="team-scheme">OFF: {a_off_scheme}<br>DEF: {a_def_scheme}</div>
                 </div>
             </div>
         </div>
