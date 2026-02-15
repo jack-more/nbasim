@@ -61,7 +61,7 @@ def compute_ds_range(score):
 
 
 def get_matchups():
-    """Generate 6 matchups from real teams, ranked by interest."""
+    """Generate matchups from the real Feb 20, 2026 slate."""
     teams = read_query("""
         SELECT t.team_id, t.abbreviation, t.full_name,
                ts.pace, ts.off_rating, ts.def_rating, ts.net_rating, ts.fg3a_rate,
@@ -74,14 +74,18 @@ def get_matchups():
         ORDER BY ts.net_rating DESC
     """, DB_PATH)
 
-    # Create compelling matchups
+    # REAL SLATE: February 20, 2026 — First games back from All-Star break
+    # Format: (home_team, away_team) — home team listed first
     matchup_pairs = [
-        ("OKC", "BOS"),  # #1 vs #3 - elite clash
-        ("CLE", "NYK"),  # East rivals
-        ("DEN", "MIN"),  # West playoff rematch
-        ("DET", "SAS"),  # young cores
-        ("LAL", "GSW"),  # rivalry
-        ("MIA", "PHX"),  # mid-tier showdown
+        ("WAS", "IND"),   # Indiana @ Washington
+        ("MEM", "UTA"),   # Utah @ Memphis
+        ("CHA", "CLE"),   # Cleveland @ Charlotte
+        ("ATL", "MIA"),   # Miami @ Atlanta
+        ("MIN", "DAL"),   # Dallas @ Minnesota
+        ("NOP", "MIL"),   # Milwaukee @ New Orleans
+        ("OKC", "BKN"),   # Brooklyn @ Oklahoma City
+        ("LAL", "LAC"),   # L.A. Clippers @ L.A. Lakers
+        ("POR", "DEN"),   # Denver @ Portland
     ]
 
     matchups = []
@@ -694,7 +698,7 @@ def generate_html():
             </div>
 
             <div style="margin-top: 24px;">
-                <div class="depth-title">TONIGHT'S SLATE</div>
+                <div class="depth-title">FEB 20 SLATE</div>
                 <div style="font-size: 11px; color: var(--text-mid); line-height: 1.8;">
                     {"".join(f'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>{m["home_abbr"]} vs {m["away_abbr"]}</span><span style="color:{("#00c853" if m["confidence"]>60 else "#bfa100" if m["confidence"]>45 else "#ff1744")}">{m["confidence"]}</span></div>' for m in matchups)}
                 </div>
@@ -703,7 +707,7 @@ def generate_html():
             <div class="sidebar-footer">
                 SIM ENGINE v3.1<br>
                 2025-26 SEASON DATA<br>
-                {len(matchups)} GAMES TONIGHT
+                {len(matchups)} GAMES // FEB 20
             </div>
         </div>
 
@@ -711,7 +715,7 @@ def generate_html():
         <main>
             <header class="main-header">
                 <h1>
-                    <span>TONIGHT'S SLATE // 2025-26 // REAL DATA</span>
+                    <span>FEB 20 SLATE // 2025-26 // REAL DATA</span>
                     SYSTEM<br>COLLISION
                 </h1>
                 <div class="filters">
