@@ -94,9 +94,11 @@
                           padding: 20px; border-bottom: 1px solid var(--border); }
         .team-block { display: flex; align-items: center; gap: 14px; width: 30%; }
         .team-block.right { flex-direction: row-reverse; text-align: right; }
-        .team-logo { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
+        .team-logo { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
                      justify-content: center; font-family: var(--font-display); font-weight: 700;
-                     font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0; }
+                     font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0;
+                     overflow: hidden; background: transparent; }
+        .team-logo-img { width: 100%; height: 100%; object-fit: contain; }
         .team-logo-text { text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
         .team-name { font-family: var(--font-display); font-weight: 700; font-size: 20px;
                      text-transform: uppercase; letter-spacing: -0.5px; }
@@ -227,6 +229,35 @@
         .hc-note { font-size: 9px; margin-top: 10px; color: #888; line-height: 1.4;
                    border-top: 1px solid #333; padding-top: 8px; }
 
+        /* ─── PROPS PANEL ─── */
+        .props-header { margin-bottom: 24px; }
+        .props-title { font-family: var(--font-display); font-size: 28px; font-weight: 700;
+                       letter-spacing: -1px; text-transform: uppercase; }
+        .props-subtitle { font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px; }
+        .props-grid { display: flex; flex-direction: column; gap: 8px; }
+        .prop-card { display: flex; align-items: center; gap: 14px; background: var(--surface);
+                     border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;
+                     transition: all 0.2s; }
+        .prop-card:hover { background: var(--surface-hover); border-color: var(--ink);
+                           box-shadow: 4px 4px 0 var(--acid); transform: translateY(-1px); }
+        .prop-rank { font-family: var(--font-display); font-weight: 700; font-size: 16px;
+                     color: var(--text-dim); width: 30px; text-align: center; flex-shrink: 0; }
+        .prop-player-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .prop-team-logo { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+        .prop-player-name { font-weight: 700; font-size: 13px; white-space: nowrap;
+                            overflow: hidden; text-overflow: ellipsis; }
+        .prop-matchup { font-size: 10px; color: var(--text-dim); }
+        .prop-details { text-align: center; flex-shrink: 0; min-width: 80px; }
+        .prop-type { font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+                     color: var(--text-mid); font-weight: 700; }
+        .prop-line { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+        .prop-note { font-size: 10px; color: var(--text-dim); flex-shrink: 0; min-width: 120px; text-align: right; }
+        .prop-conf { font-family: var(--font-display); font-weight: 700; font-size: 11px;
+                     flex-shrink: 0; width: 40px; text-align: center; text-transform: uppercase;
+                     letter-spacing: 0.5px; }
+        #propsToggle.active { background: var(--acid); color: #000; border-color: var(--acid);
+                              box-shadow: 0 0 12px rgba(234,255,0,0.4); }
+
         /* ─── GLITCH ─── */
         .sys-tag { position: fixed; bottom: 20px; left: 20px; font-size: 10px; color: rgba(0,0,0,0.3);
                    transform: rotate(-90deg); transform-origin: left bottom; letter-spacing: 1px; }
@@ -301,17 +332,348 @@
                 <div class="filters">
                     <button class="filter-btn active" data-filter="all">ALL</button>
                     <button class="filter-btn" data-filter="top20">TOP 20%</button>
-                    <button class="filter-btn" data-filter="contrarian">CONTRARIAN</button>
-                    <button class="filter-btn" data-filter="tossup">TOSS-UPS</button>
+                    <button class="filter-btn" id="propsToggle">BEST PROPS</button>
                 </div>
             </header>
 
+            <!-- PROPS PANEL (hidden by default) -->
+            <div id="propsPanel" style="display:none;">
+                <div class="props-header">
+                    <h2 class="props-title">BEST PLAYER PROPS</h2>
+                    <span class="props-subtitle">Ranked by dynamic score + stat dominance</span>
+                </div>
+                <div class="props-grid">
+                    
+    <div class="prop-card">
+        <div class="prop-rank">#1</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">N. Jokić</div>
+                <div class="prop-matchup">DEN vs POR</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">51.7</div>
+        </div>
+        <div class="prop-note">29p + 12r + 11a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#2</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">L. Dončić</div>
+                <div class="prop-matchup">LAL vs LAC</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">49.2</div>
+        </div>
+        <div class="prop-note">33p + 8r + 9a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#3</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">S. Gilgeous-Alexander</div>
+                <div class="prop-matchup">OKC vs BKN</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">42.6</div>
+        </div>
+        <div class="prop-note">32p + 4r + 6a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#4</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">G. Antetokounmpo</div>
+                <div class="prop-matchup">MIL vs NOP</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">43.6</div>
+        </div>
+        <div class="prop-note">28p + 10r + 6a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#5</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">D. Mitchell</div>
+                <div class="prop-matchup">CLE vs CHA</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">39.4</div>
+        </div>
+        <div class="prop-note">29p + 4r + 6a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#6</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">J. Johnson</div>
+                <div class="prop-matchup">ATL vs MIA</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">42.1</div>
+        </div>
+        <div class="prop-note">23p + 11r + 8a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#7</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">J. Murray</div>
+                <div class="prop-matchup">DEN vs POR</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">37.7</div>
+        </div>
+        <div class="prop-note">26p + 4r + 8a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#8</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">A. Edwards</div>
+                <div class="prop-matchup">MIN vs DAL</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">38.2</div>
+        </div>
+        <div class="prop-note">29p + 5r + 4a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#9</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">K. Leonard</div>
+                <div class="prop-matchup">LAC vs LAL</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">38.0</div>
+        </div>
+        <div class="prop-note">28p + 6r + 4a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#10</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">J. Harden</div>
+                <div class="prop-matchup">CLE vs CHA</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">38.1</div>
+        </div>
+        <div class="prop-note">25p + 5r + 8a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#11</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">D. Avdija</div>
+                <div class="prop-matchup">POR vs DEN</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">39.0</div>
+        </div>
+        <div class="prop-note">25p + 7r + 7a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#12</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">A. Reaves</div>
+                <div class="prop-matchup">LAL vs LAC</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">36.4</div>
+        </div>
+        <div class="prop-note">25p + 5r + 6a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#13</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">J. Randle</div>
+                <div class="prop-matchup">MIN vs DAL</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">34.7</div>
+        </div>
+        <div class="prop-note">22p + 7r + 5a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#14</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">L. James</div>
+                <div class="prop-matchup">LAL vs LAC</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">34.9</div>
+        </div>
+        <div class="prop-note">22p + 6r + 7a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#15</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">L. Markkanen</div>
+                <div class="prop-matchup">UTA vs MEM</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">35.8</div>
+        </div>
+        <div class="prop-note">27p + 7r + 2a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#16</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">M. Porter Jr.</div>
+                <div class="prop-matchup">BKN vs OKC</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">35.4</div>
+        </div>
+        <div class="prop-note">25p + 7r + 3a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#17</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">L. Ball</div>
+                <div class="prop-matchup">CHA vs CLE</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">31.5</div>
+        </div>
+        <div class="prop-note">19p + 5r + 7a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#18</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">E. Mobley</div>
+                <div class="prop-matchup">CLE vs CHA</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">30.7</div>
+        </div>
+        <div class="prop-note">18p + 9r + 4a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#19</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">K. George</div>
+                <div class="prop-matchup">UTA vs MEM</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">34.2</div>
+        </div>
+        <div class="prop-note">24p + 4r + 6a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+    <div class="prop-card">
+        <div class="prop-rank">#20</div>
+        <div class="prop-player-info">
+            <img src="https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">P. Siakam</div>
+                <div class="prop-matchup">IND vs WAS</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">OVER PRA</div>
+            <div class="prop-line">34.3</div>
+        </div>
+        <div class="prop-note">24p + 7r + 4a</div>
+        <div class="prop-conf" style="color:#009944">HIGH</div>
+    </div>
+                </div>
+            </div>
+
+            <div id="matchupsContainer">
             
     <section class="matchup-container" id="matchup-0" data-conf="neutral" data-edge="0.6">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#002B5C;">
-                    <span class="team-logo-text">WAS</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg" alt="WAS" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#002B5C';this.parentElement.innerHTML='<span class=team-logo-text>WAS</span>'">
                 </div>
                 <div>
                     <div class="team-name">WAS</div>
@@ -335,8 +697,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#002D62;">
-                    <span class="team-logo-text">IND</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg" alt="IND" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#002D62';this.parentElement.innerHTML='<span class=team-logo-text>IND</span>'">
                 </div>
                 <div>
                     <div class="team-name">IND</div>
@@ -551,8 +913,8 @@
     <section class="matchup-container" id="matchup-1" data-conf="medium" data-edge="7.8">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#5D76A9;">
-                    <span class="team-logo-text">MEM</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg" alt="MEM" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#5D76A9';this.parentElement.innerHTML='<span class=team-logo-text>MEM</span>'">
                 </div>
                 <div>
                     <div class="team-name">MEM</div>
@@ -576,8 +938,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#002B5C;">
-                    <span class="team-logo-text">UTA</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" alt="UTA" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#002B5C';this.parentElement.innerHTML='<span class=team-logo-text>UTA</span>'">
                 </div>
                 <div>
                     <div class="team-name">UTA</div>
@@ -792,8 +1154,8 @@
     <section class="matchup-container" id="matchup-2" data-conf="neutral" data-edge="2.2">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#1D1160;">
-                    <span class="team-logo-text">CHA</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg" alt="CHA" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#1D1160';this.parentElement.innerHTML='<span class=team-logo-text>CHA</span>'">
                 </div>
                 <div>
                     <div class="team-name">CHA</div>
@@ -817,8 +1179,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#860038;">
-                    <span class="team-logo-text">CLE</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" alt="CLE" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#860038';this.parentElement.innerHTML='<span class=team-logo-text>CLE</span>'">
                 </div>
                 <div>
                     <div class="team-name">CLE</div>
@@ -1033,8 +1395,8 @@
     <section class="matchup-container" id="matchup-3" data-conf="neutral" data-edge="0.7">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#E03A3E;">
-                    <span class="team-logo-text">ATL</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg" alt="ATL" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#E03A3E';this.parentElement.innerHTML='<span class=team-logo-text>ATL</span>'">
                 </div>
                 <div>
                     <div class="team-name">ATL</div>
@@ -1058,8 +1420,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#98002E;">
-                    <span class="team-logo-text">MIA</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg" alt="MIA" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#98002E';this.parentElement.innerHTML='<span class=team-logo-text>MIA</span>'">
                 </div>
                 <div>
                     <div class="team-name">MIA</div>
@@ -1274,8 +1636,8 @@
     <section class="matchup-container" id="matchup-4" data-conf="high" data-edge="11.0">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#0C2340;">
-                    <span class="team-logo-text">MIN</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" alt="MIN" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#0C2340';this.parentElement.innerHTML='<span class=team-logo-text>MIN</span>'">
                 </div>
                 <div>
                     <div class="team-name">MIN</div>
@@ -1299,8 +1661,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#00538C;">
-                    <span class="team-logo-text">DAL</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612742/global/L/logo.svg" alt="DAL" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#00538C';this.parentElement.innerHTML='<span class=team-logo-text>DAL</span>'">
                 </div>
                 <div>
                     <div class="team-name">DAL</div>
@@ -1515,8 +1877,8 @@
     <section class="matchup-container" id="matchup-5" data-conf="neutral" data-edge="0.7">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#0C2340;">
-                    <span class="team-logo-text">NOP</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg" alt="NOP" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#0C2340';this.parentElement.innerHTML='<span class=team-logo-text>NOP</span>'">
                 </div>
                 <div>
                     <div class="team-name">NOP</div>
@@ -1540,8 +1902,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#00471B;">
-                    <span class="team-logo-text">MIL</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" alt="MIL" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#00471B';this.parentElement.innerHTML='<span class=team-logo-text>MIL</span>'">
                 </div>
                 <div>
                     <div class="team-name">MIL</div>
@@ -1756,8 +2118,8 @@
     <section class="matchup-container" id="matchup-6" data-conf="high" data-edge="20.6">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#007AC1;">
-                    <span class="team-logo-text">OKC</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" alt="OKC" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#007AC1';this.parentElement.innerHTML='<span class=team-logo-text>OKC</span>'">
                 </div>
                 <div>
                     <div class="team-name">OKC</div>
@@ -1781,8 +2143,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#000000;">
-                    <span class="team-logo-text">BKN</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" alt="BKN" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#000000';this.parentElement.innerHTML='<span class=team-logo-text>BKN</span>'">
                 </div>
                 <div>
                     <div class="team-name">BKN</div>
@@ -1997,8 +2359,8 @@
     <section class="matchup-container" id="matchup-7" data-conf="neutral" data-edge="2.8">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#552583;">
-                    <span class="team-logo-text">LAL</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" alt="LAL" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#552583';this.parentElement.innerHTML='<span class=team-logo-text>LAL</span>'">
                 </div>
                 <div>
                     <div class="team-name">LAL</div>
@@ -2022,8 +2384,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#C8102E;">
-                    <span class="team-logo-text">LAC</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" alt="LAC" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#C8102E';this.parentElement.innerHTML='<span class=team-logo-text>LAC</span>'">
                 </div>
                 <div>
                     <div class="team-name">LAC</div>
@@ -2238,8 +2600,8 @@
     <section class="matchup-container" id="matchup-8" data-conf="neutral" data-edge="2.5">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:#E03A3E;">
-                    <span class="team-logo-text">POR</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg" alt="POR" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#E03A3E';this.parentElement.innerHTML='<span class=team-logo-text>POR</span>'">
                 </div>
                 <div>
                     <div class="team-name">POR</div>
@@ -2263,8 +2625,8 @@
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:#0E2240;">
-                    <span class="team-logo-text">DEN</span>
+                <div class="team-logo">
+                    <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" alt="DEN" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='#0E2240';this.parentElement.innerHTML='<span class=team-logo-text>DEN</span>'">
                 </div>
                 <div>
                     <div class="team-name">DEN</div>
@@ -2476,6 +2838,7 @@
             </div>
         </div>
     </section>
+            </div>
         </main>
 
         <!-- RIGHT SIDEBAR -->
@@ -2950,32 +3313,52 @@
 
         // ─── FILTER BUTTONS ───
         const matchupCards = document.querySelectorAll('.matchup-container');
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                const filter = btn.dataset.filter;
+        const propsPanel = document.getElementById('propsPanel');
+        const matchupsContainer = document.getElementById('matchupsContainer');
+        const propsToggle = document.getElementById('propsToggle');
 
+        // ALL and TOP 20% filter buttons
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Deactivate all filter buttons + props toggle
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                propsToggle.classList.remove('active');
+                btn.classList.add('active');
+
+                // Show matchups, hide props
+                propsPanel.style.display = 'none';
+                matchupsContainer.style.display = 'block';
+
+                const filter = btn.dataset.filter;
                 matchupCards.forEach(card => {
                     const edge = parseFloat(card.dataset.edge);
-                    const conf = card.dataset.conf;
                     let show = true;
-
                     if (filter === 'top20') {
-                        // Only show strong leans (edge > 8)
                         show = edge > 8;
-                    } else if (filter === 'contrarian') {
-                        // Show toss-ups & slight edges — these are where contrarian value lives
-                        show = edge < 5;
-                    } else if (filter === 'tossup') {
-                        // Only show toss-ups
-                        show = conf === 'neutral';
                     }
-                    // 'all' shows everything
-
                     card.style.display = show ? 'block' : 'none';
                 });
             });
+        });
+
+        // BEST PROPS toggle
+        propsToggle.addEventListener('click', () => {
+            const isActive = propsToggle.classList.contains('active');
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+
+            if (isActive) {
+                // Toggle off — back to all matchups
+                propsToggle.classList.remove('active');
+                propsPanel.style.display = 'none';
+                matchupsContainer.style.display = 'block';
+                document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+                matchupCards.forEach(card => { card.style.display = 'block'; });
+            } else {
+                // Toggle on — show props, hide matchups
+                propsToggle.classList.add('active');
+                propsPanel.style.display = 'block';
+                matchupsContainer.style.display = 'none';
+            }
         });
 
         // ─── REFRESH / SHUFFLE COMBOS ───

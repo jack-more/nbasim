@@ -23,6 +23,24 @@ TEAM_COLORS = {
     "UTA": "#002B5C", "WAS": "#002B5C",
 }
 
+# ─── NBA Team IDs (for CDN logo URLs) ─────────────────────────────
+TEAM_IDS = {
+    "ATL": 1610612737, "BOS": 1610612738, "BKN": 1610612751, "CHA": 1610612766,
+    "CHI": 1610612741, "CLE": 1610612739, "DAL": 1610612742, "DEN": 1610612743,
+    "DET": 1610612765, "GSW": 1610612744, "HOU": 1610612745, "IND": 1610612754,
+    "LAC": 1610612746, "LAL": 1610612747, "MEM": 1610612763, "MIA": 1610612748,
+    "MIL": 1610612749, "MIN": 1610612750, "NOP": 1610612740, "NYK": 1610612752,
+    "OKC": 1610612760, "ORL": 1610612753, "PHI": 1610612755, "PHX": 1610612756,
+    "POR": 1610612757, "SAC": 1610612758, "SAS": 1610612759, "TOR": 1610612761,
+    "UTA": 1610612762, "WAS": 1610612764,
+}
+
+
+def get_team_logo_url(abbreviation):
+    """Get NBA CDN logo URL for a team."""
+    tid = TEAM_IDS.get(abbreviation, 0)
+    return f"https://cdn.nba.com/logos/nba/{tid}/global/L/logo.svg"
+
 ARCHETYPE_ICONS = {
     "Scoring Guard": "⚡", "Defensive Specialist": "🛡️", "Floor General": "🧠",
     "Combo Guard": "🔄", "Playmaking Guard": "🎯", "Two-Way Wing": "🦾",
@@ -321,6 +339,127 @@ def get_lock_picks(matchups):
     return picks[:4]
 
 
+def get_best_props(matchups):
+    """Generate best player prop suggestions ranked by confidence.
+
+    Looks at each player's stat profile and identifies their strongest
+    statistical category relative to their role, then ranks by
+    dynamic score + stat dominance.
+    """
+    all_props = []
+
+    for m in matchups:
+        ha = m["home_abbr"]
+        aa = m["away_abbr"]
+
+        for abbr in [ha, aa]:
+            opponent = aa if abbr == ha else ha
+            roster = get_team_roster(abbr, 8)
+
+            for _, p in roster.iterrows():
+                ds, breakdown = compute_dynamic_score(p)
+                if ds < 50:
+                    continue  # Skip low-DS players
+
+                pts = p.get("pts_pg", 0) or 0
+                ast = p.get("ast_pg", 0) or 0
+                reb = p.get("reb_pg", 0) or 0
+                stl = p.get("stl_pg", 0) or 0
+                blk = p.get("blk_pg", 0) or 0
+                mpg = p.get("minutes_per_game", 0) or 0
+                ts = p.get("ts_pct", 0) or 0
+                name = p.get("full_name", "?")
+
+                # Shorten name
+                parts = name.split()
+                short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else name
+
+                # Determine strongest prop category
+                prop_candidates = []
+
+                # Points prop
+                if pts >= 20:
+                    prop_candidates.append({
+                        "prop": "PTS",
+                        "line": f"{pts:.1f}",
+                        "direction": "OVER",
+                        "strength": pts * 1.2 + (ts - 0.55) * 80,
+                        "note": f"Avg {pts:.1f} pts on {ts*100:.0f}% TS",
+                    })
+                elif pts >= 15:
+                    prop_candidates.append({
+                        "prop": "PTS",
+                        "line": f"{pts:.1f}",
+                        "direction": "OVER",
+                        "strength": pts * 0.9 + (ts - 0.55) * 60,
+                        "note": f"Avg {pts:.1f} pts on {ts*100:.0f}% TS",
+                    })
+
+                # Assists prop
+                if ast >= 6:
+                    prop_candidates.append({
+                        "prop": "AST",
+                        "line": f"{ast:.1f}",
+                        "direction": "OVER",
+                        "strength": ast * 3.0,
+                        "note": f"Avg {ast:.1f} ast ({mpg:.0f} mpg)",
+                    })
+
+                # Rebounds prop
+                if reb >= 8:
+                    prop_candidates.append({
+                        "prop": "REB",
+                        "line": f"{reb:.1f}",
+                        "direction": "OVER",
+                        "strength": reb * 2.0,
+                        "note": f"Avg {reb:.1f} reb ({mpg:.0f} mpg)",
+                    })
+
+                # PRA (pts+reb+ast) combo prop
+                pra = pts + reb + ast
+                if pra >= 30:
+                    prop_candidates.append({
+                        "prop": "PRA",
+                        "line": f"{pra:.1f}",
+                        "direction": "OVER",
+                        "strength": pra * 0.7 + ds * 0.2,
+                        "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a",
+                    })
+
+                # Stocks (steals + blocks) prop
+                stocks = stl + blk
+                if stocks >= 2.5:
+                    prop_candidates.append({
+                        "prop": "STL+BLK",
+                        "line": f"{stocks:.1f}",
+                        "direction": "OVER",
+                        "strength": stocks * 4.0,
+                        "note": f"Avg {stl:.1f} stl + {blk:.1f} blk",
+                    })
+
+                if not prop_candidates:
+                    continue
+
+                # Pick the strongest prop for this player
+                best = max(prop_candidates, key=lambda x: x["strength"])
+
+                all_props.append({
+                    "player": short,
+                    "team": abbr,
+                    "opponent": opponent,
+                    "ds": ds,
+                    "prop": best["prop"],
+                    "line": best["line"],
+                    "direction": best["direction"],
+                    "note": best["note"],
+                    "confidence": round(ds * 0.4 + best["strength"] * 0.6, 1),
+                })
+
+    # Sort by confidence descending
+    all_props.sort(key=lambda x: x["confidence"], reverse=True)
+    return all_props[:20]
+
+
 def render_player_node(player, side, is_starter=True):
     """Render a single player node HTML."""
     ds, breakdown = compute_dynamic_score(player)
@@ -402,6 +541,8 @@ def render_matchup(matchup, idx):
 
     hc = TEAM_COLORS.get(ha, "#333")
     ac = TEAM_COLORS.get(aa, "#333")
+    h_logo = get_team_logo_url(ha)
+    a_logo = get_team_logo_url(aa)
 
     conf = matchup["confidence"]
     lean = matchup.get("lean_team", "")
@@ -463,8 +604,8 @@ def render_matchup(matchup, idx):
     <section class="matchup-container" id="matchup-{idx}" data-conf="{matchup['conf_class']}" data-edge="{abs(matchup.get('raw_edge', 0)):.1f}">
         <div class="matchup-header">
             <div class="team-block">
-                <div class="team-logo" style="background:{hc};">
-                    <span class="team-logo-text">{ha}</span>
+                <div class="team-logo">
+                    <img src="{h_logo}" alt="{ha}" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='{hc}';this.parentElement.innerHTML='<span class=team-logo-text>{ha}</span>'">
                 </div>
                 <div>
                     <div class="team-name">{ha}</div>
@@ -488,8 +629,8 @@ def render_matchup(matchup, idx):
                 </div>
             </div>
             <div class="team-block right">
-                <div class="team-logo" style="background:{ac};">
-                    <span class="team-logo-text">{aa}</span>
+                <div class="team-logo">
+                    <img src="{a_logo}" alt="{aa}" class="team-logo-img" onerror="this.style.display='none';this.parentElement.style.background='{ac}';this.parentElement.innerHTML='<span class=team-logo-text>{aa}</span>'">
                 </div>
                 <div>
                     <div class="team-name">{aa}</div>
@@ -575,12 +716,55 @@ def render_lock_card(pick):
     </div>"""
 
 
+def render_prop_card(prop, rank):
+    """Render a player prop suggestion card."""
+    ds = prop["ds"]
+    if ds >= 85:
+        ds_color = "#009944"
+    elif ds >= 70:
+        ds_color = "#0a0a0a"
+    else:
+        ds_color = "#666"
+
+    conf = prop["confidence"]
+    if conf >= 25:
+        conf_label = "HIGH"
+        conf_color = "#009944"
+    elif conf >= 18:
+        conf_label = "MED"
+        conf_color = "#bfa100"
+    else:
+        conf_label = "LOW"
+        conf_color = "#d12e2e"
+
+    team_logo = get_team_logo_url(prop["team"])
+
+    return f"""
+    <div class="prop-card">
+        <div class="prop-rank">#{rank}</div>
+        <div class="prop-player-info">
+            <img src="{team_logo}" class="prop-team-logo" onerror="this.style.display='none'">
+            <div>
+                <div class="prop-player-name">{prop['player']}</div>
+                <div class="prop-matchup">{prop['team']} vs {prop['opponent']}</div>
+            </div>
+        </div>
+        <div class="prop-details">
+            <div class="prop-type">{prop['direction']} {prop['prop']}</div>
+            <div class="prop-line">{prop['line']}</div>
+        </div>
+        <div class="prop-note">{prop['note']}</div>
+        <div class="prop-conf" style="color:{conf_color}">{conf_label}</div>
+    </div>"""
+
+
 def generate_html():
     """Generate the complete NBA SIM HTML."""
     matchups = get_matchups()
     combos = get_top_combos()
     fades = get_fade_combos()
     locks = get_lock_picks(matchups)
+    props = get_best_props(matchups)
 
     matchup_html = ""
     for i, m in enumerate(matchups):
@@ -593,6 +777,10 @@ def generate_html():
     fade_combo_html = ""
     for f in fades:
         fade_combo_html += render_combo_card(f, is_fade=True)
+
+    props_html = ""
+    for i, prop in enumerate(props):
+        props_html += render_prop_card(prop, i + 1)
 
     lock_html = ""
     for pick in locks:
@@ -710,9 +898,11 @@ def generate_html():
                           padding: 20px; border-bottom: 1px solid var(--border); }}
         .team-block {{ display: flex; align-items: center; gap: 14px; width: 30%; }}
         .team-block.right {{ flex-direction: row-reverse; text-align: right; }}
-        .team-logo {{ width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center;
+        .team-logo {{ width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
                      justify-content: center; font-family: var(--font-display); font-weight: 700;
-                     font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0; }}
+                     font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0;
+                     overflow: hidden; background: transparent; }}
+        .team-logo-img {{ width: 100%; height: 100%; object-fit: contain; }}
         .team-logo-text {{ text-shadow: 0 1px 2px rgba(0,0,0,0.5); }}
         .team-name {{ font-family: var(--font-display); font-weight: 700; font-size: 20px;
                      text-transform: uppercase; letter-spacing: -0.5px; }}
@@ -843,6 +1033,35 @@ def generate_html():
         .hc-note {{ font-size: 9px; margin-top: 10px; color: #888; line-height: 1.4;
                    border-top: 1px solid #333; padding-top: 8px; }}
 
+        /* ─── PROPS PANEL ─── */
+        .props-header {{ margin-bottom: 24px; }}
+        .props-title {{ font-family: var(--font-display); font-size: 28px; font-weight: 700;
+                       letter-spacing: -1px; text-transform: uppercase; }}
+        .props-subtitle {{ font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px; }}
+        .props-grid {{ display: flex; flex-direction: column; gap: 8px; }}
+        .prop-card {{ display: flex; align-items: center; gap: 14px; background: var(--surface);
+                     border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;
+                     transition: all 0.2s; }}
+        .prop-card:hover {{ background: var(--surface-hover); border-color: var(--ink);
+                           box-shadow: 4px 4px 0 var(--acid); transform: translateY(-1px); }}
+        .prop-rank {{ font-family: var(--font-display); font-weight: 700; font-size: 16px;
+                     color: var(--text-dim); width: 30px; text-align: center; flex-shrink: 0; }}
+        .prop-player-info {{ display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }}
+        .prop-team-logo {{ width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }}
+        .prop-player-name {{ font-weight: 700; font-size: 13px; white-space: nowrap;
+                            overflow: hidden; text-overflow: ellipsis; }}
+        .prop-matchup {{ font-size: 10px; color: var(--text-dim); }}
+        .prop-details {{ text-align: center; flex-shrink: 0; min-width: 80px; }}
+        .prop-type {{ font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+                     color: var(--text-mid); font-weight: 700; }}
+        .prop-line {{ font-family: var(--font-display); font-size: 18px; font-weight: 700; }}
+        .prop-note {{ font-size: 10px; color: var(--text-dim); flex-shrink: 0; min-width: 120px; text-align: right; }}
+        .prop-conf {{ font-family: var(--font-display); font-weight: 700; font-size: 11px;
+                     flex-shrink: 0; width: 40px; text-align: center; text-transform: uppercase;
+                     letter-spacing: 0.5px; }}
+        #propsToggle.active {{ background: var(--acid); color: #000; border-color: var(--acid);
+                              box-shadow: 0 0 12px rgba(234,255,0,0.4); }}
+
         /* ─── GLITCH ─── */
         .sys-tag {{ position: fixed; bottom: 20px; left: 20px; font-size: 10px; color: rgba(0,0,0,0.3);
                    transform: rotate(-90deg); transform-origin: left bottom; letter-spacing: 1px; }}
@@ -896,12 +1115,24 @@ def generate_html():
                 <div class="filters">
                     <button class="filter-btn active" data-filter="all">ALL</button>
                     <button class="filter-btn" data-filter="top20">TOP 20%</button>
-                    <button class="filter-btn" data-filter="contrarian">CONTRARIAN</button>
-                    <button class="filter-btn" data-filter="tossup">TOSS-UPS</button>
+                    <button class="filter-btn" id="propsToggle">BEST PROPS</button>
                 </div>
             </header>
 
+            <!-- PROPS PANEL (hidden by default) -->
+            <div id="propsPanel" style="display:none;">
+                <div class="props-header">
+                    <h2 class="props-title">BEST PLAYER PROPS</h2>
+                    <span class="props-subtitle">Ranked by dynamic score + stat dominance</span>
+                </div>
+                <div class="props-grid">
+                    {props_html}
+                </div>
+            </div>
+
+            <div id="matchupsContainer">
             {matchup_html}
+            </div>
         </main>
 
         <!-- RIGHT SIDEBAR -->
@@ -1040,32 +1271,52 @@ def generate_html():
 
         // ─── FILTER BUTTONS ───
         const matchupCards = document.querySelectorAll('.matchup-container');
-        document.querySelectorAll('.filter-btn').forEach(btn => {{
-            btn.addEventListener('click', () => {{
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                const filter = btn.dataset.filter;
+        const propsPanel = document.getElementById('propsPanel');
+        const matchupsContainer = document.getElementById('matchupsContainer');
+        const propsToggle = document.getElementById('propsToggle');
 
+        // ALL and TOP 20% filter buttons
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                // Deactivate all filter buttons + props toggle
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                propsToggle.classList.remove('active');
+                btn.classList.add('active');
+
+                // Show matchups, hide props
+                propsPanel.style.display = 'none';
+                matchupsContainer.style.display = 'block';
+
+                const filter = btn.dataset.filter;
                 matchupCards.forEach(card => {{
                     const edge = parseFloat(card.dataset.edge);
-                    const conf = card.dataset.conf;
                     let show = true;
-
                     if (filter === 'top20') {{
-                        // Only show strong leans (edge > 8)
                         show = edge > 8;
-                    }} else if (filter === 'contrarian') {{
-                        // Show toss-ups & slight edges — these are where contrarian value lives
-                        show = edge < 5;
-                    }} else if (filter === 'tossup') {{
-                        // Only show toss-ups
-                        show = conf === 'neutral';
                     }}
-                    // 'all' shows everything
-
                     card.style.display = show ? 'block' : 'none';
                 }});
             }});
+        }});
+
+        // BEST PROPS toggle
+        propsToggle.addEventListener('click', () => {{
+            const isActive = propsToggle.classList.contains('active');
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+
+            if (isActive) {{
+                // Toggle off — back to all matchups
+                propsToggle.classList.remove('active');
+                propsPanel.style.display = 'none';
+                matchupsContainer.style.display = 'block';
+                document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+                matchupCards.forEach(card => {{ card.style.display = 'block'; }});
+            }} else {{
+                // Toggle on — show props, hide matchups
+                propsToggle.classList.add('active');
+                propsPanel.style.display = 'block';
+                matchupsContainer.style.display = 'none';
+            }}
         }});
 
         // ─── REFRESH / SHUFFLE COMBOS ───
