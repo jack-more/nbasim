@@ -474,6 +474,11 @@ def render_matchup(matchup, idx):
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">{away_ds_sum} {aa}</span>
                 </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:{home_ds_sum / (home_ds_sum + away_ds_sum) * 100:.1f}%; background:{hc};"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:{away_ds_sum / (home_ds_sum + away_ds_sum) * 100:.1f}%; background:{ac};"></div>
+                    <div class="ds-bar-midline"></div>
+                </div>
             </div>
             <div class="team-block right">
                 <div class="team-logo" style="background:{ac};">
@@ -714,6 +719,17 @@ def generate_html():
         .ds-comparison {{ display: flex; align-items: center; gap: 8px; margin-top: 6px;
                          font-size: 10px; color: var(--text-dim); }}
         .ds-vs {{ color: var(--text-dim); font-size: 9px; }}
+
+        /* ─── DS COMPARISON BAR ─── */
+        .ds-bar-container {{ width: 180px; height: 6px; border-radius: 3px; display: flex;
+                            overflow: hidden; margin-top: 6px; position: relative;
+                            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }}
+        .ds-bar-fill {{ height: 100%; transition: width 0.6s ease; }}
+        .ds-bar-home {{ border-radius: 3px 0 0 3px; opacity: 0.85; }}
+        .ds-bar-away {{ border-radius: 0 3px 3px 0; opacity: 0.85; }}
+        .ds-bar-midline {{ position: absolute; left: 50%; top: -2px; width: 1px; height: 10px;
+                          background: var(--ink); opacity: 0.3; }}
+        .matchup-container:hover .ds-bar-fill {{ opacity: 1; }}
 
         /* ─── LINEUP GRID ─── */
         .lineup-section {{ padding: 16px 20px; }}

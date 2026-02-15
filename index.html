@@ -112,6 +112,17 @@
                          font-size: 10px; color: var(--text-dim); }
         .ds-vs { color: var(--text-dim); font-size: 9px; }
 
+        /* ─── DS COMPARISON BAR ─── */
+        .ds-bar-container { width: 180px; height: 6px; border-radius: 3px; display: flex;
+                            overflow: hidden; margin-top: 6px; position: relative;
+                            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+        .ds-bar-fill { height: 100%; transition: width 0.6s ease; }
+        .ds-bar-home { border-radius: 3px 0 0 3px; opacity: 0.85; }
+        .ds-bar-away { border-radius: 0 3px 3px 0; opacity: 0.85; }
+        .ds-bar-midline { position: absolute; left: 50%; top: -2px; width: 1px; height: 10px;
+                          background: var(--ink); opacity: 0.3; }
+        .matchup-container:hover .ds-bar-fill { opacity: 1; }
+
         /* ─── LINEUP GRID ─── */
         .lineup-section { padding: 16px 20px; }
         .lineup-section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
@@ -313,6 +324,11 @@
                     <span class="ds-team-sum">WAS 285</span>
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">290 IND</span>
+                </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:49.6%; background:#002B5C;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:50.4%; background:#002D62;"></div>
+                    <div class="ds-bar-midline"></div>
                 </div>
             </div>
             <div class="team-block right">
@@ -548,6 +564,11 @@
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">337 UTA</span>
                 </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:47.2%; background:#5D76A9;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:52.8%; background:#002B5C;"></div>
+                    <div class="ds-bar-midline"></div>
+                </div>
             </div>
             <div class="team-block right">
                 <div class="team-logo" style="background:#002B5C;">
@@ -781,6 +802,11 @@
                     <span class="ds-team-sum">CHA 330</span>
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">372 CLE</span>
+                </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:47.0%; background:#1D1160;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:53.0%; background:#860038;"></div>
+                    <div class="ds-bar-midline"></div>
                 </div>
             </div>
             <div class="team-block right">
@@ -1016,6 +1042,11 @@
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">327 MIA</span>
                 </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:50.3%; background:#E03A3E;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:49.7%; background:#98002E;"></div>
+                    <div class="ds-bar-midline"></div>
+                </div>
             </div>
             <div class="team-block right">
                 <div class="team-logo" style="background:#98002E;">
@@ -1249,6 +1280,11 @@
                     <span class="ds-team-sum">MIN 357</span>
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">245 DAL</span>
+                </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:59.3%; background:#0C2340;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:40.7%; background:#00538C;"></div>
+                    <div class="ds-bar-midline"></div>
                 </div>
             </div>
             <div class="team-block right">
@@ -1484,6 +1520,11 @@
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">331 MIL</span>
                 </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:46.3%; background:#0C2340;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:53.7%; background:#00471B;"></div>
+                    <div class="ds-bar-midline"></div>
+                </div>
             </div>
             <div class="team-block right">
                 <div class="team-logo" style="background:#00471B;">
@@ -1717,6 +1758,11 @@
                     <span class="ds-team-sum">OKC 354</span>
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">256 BKN</span>
+                </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:58.0%; background:#007AC1;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:42.0%; background:#000000;"></div>
+                    <div class="ds-bar-midline"></div>
                 </div>
             </div>
             <div class="team-block right">
@@ -1952,6 +1998,11 @@
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">307 LAC</span>
                 </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:53.7%; background:#552583;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:46.3%; background:#C8102E;"></div>
+                    <div class="ds-bar-midline"></div>
+                </div>
             </div>
             <div class="team-block right">
                 <div class="team-logo" style="background:#C8102E;">
@@ -2185,6 +2236,11 @@
                     <span class="ds-team-sum">POR 330</span>
                     <span class="ds-vs">vs</span>
                     <span class="ds-team-sum">365 DEN</span>
+                </div>
+                <div class="ds-bar-container">
+                    <div class="ds-bar-fill ds-bar-home" style="width:47.5%; background:#E03A3E;"></div>
+                    <div class="ds-bar-fill ds-bar-away" style="width:52.5%; background:#0E2240;"></div>
+                    <div class="ds-bar-midline"></div>
                 </div>
             </div>
             <div class="team-block right">
