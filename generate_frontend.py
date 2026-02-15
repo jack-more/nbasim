@@ -340,16 +340,20 @@ def get_lock_picks(matchups):
 
 
 def get_best_props(matchups):
-    """Generate best player prop suggestions ranked by confidence.
+    """Generate best player prop suggestions — both OVER and UNDER —
+    ranked by confidence.
 
-    Each prop type is scored on a 0-100 normalized scale so that PTS,
-    AST, REB, PRA, and STL+BLK compete fairly. Opponent defensive
-    ratings add matchup-awareness. Only the single best prop per
-    player is kept, then the list is sorted by final confidence.
+    OVER logic: strong stats + weak opponent defense = OVER
+    UNDER logic: player faces elite defense, or has bad efficiency,
+    or pace mismatch limits possessions → UNDER
+
+    Each prop type scored on 0-100 normalized scale. Opponent DRTG
+    shifts the direction: bad defense → OVER boost, elite defense →
+    UNDER candidates emerge.
     """
     all_props = []
 
-    # Build opponent def rating lookup for matchup context
+    # Build team lookup for matchup context
     team_map = {}
     for m in matchups:
         ha, aa = m["home_abbr"], m["away_abbr"]
@@ -362,15 +366,23 @@ def get_best_props(matchups):
 
         for abbr in [ha, aa]:
             opponent = aa if abbr == ha else ha
-            opp_drtg = (team_map.get(opponent, {}).get("def_rating", 112) or 112)
-            # Higher DRTG = worse defense = better for props. Normalize around 112.
-            opp_def_bonus = (opp_drtg - 112) * 1.5  # e.g. +3 for a 114 DRTG team
+            opp_data = team_map.get(opponent, {})
+            own_data = team_map.get(abbr, {})
+            opp_drtg = (opp_data.get("def_rating", 112) or 112)
+            opp_pace = (opp_data.get("pace", 100) or 100)
+            own_pace = (own_data.get("pace", 100) or 100)
+
+            # Matchup context signals
+            # Positive = good for offense (OVER), negative = good for defense (UNDER)
+            def_signal = (opp_drtg - 112) * 2.0  # e.g. +6 vs 115 DRTG, -6 vs 109
+            pace_signal = ((opp_pace + own_pace) / 2 - 100) * 0.5  # fast game = more stats
+            matchup_signal = def_signal + pace_signal
 
             roster = get_team_roster(abbr, 8)
 
             for _, p in roster.iterrows():
                 ds, breakdown = compute_dynamic_score(p)
-                if ds < 50:
+                if ds < 45:
                     continue
 
                 pts = p.get("pts_pg", 0) or 0
@@ -380,90 +392,109 @@ def get_best_props(matchups):
                 blk = p.get("blk_pg", 0) or 0
                 mpg = p.get("minutes_per_game", 0) or 0
                 ts = p.get("ts_pct", 0) or 0
+                net = p.get("net_rating", 0) or 0
                 name = p.get("full_name", "?")
 
                 parts = name.split()
                 short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else name
 
-                # ── Normalized scoring per prop type (0-100 scale) ──
-                # Each formula maps the realistic stat range to roughly 0-100
-
                 prop_candidates = []
 
-                # POINTS — elite: 30+ → ~90-100, good: 20-30 → ~55-85
+                # ── POINTS ──
                 if pts >= 15:
-                    # Normalize: 15 pts ≈ 35, 25 pts ≈ 70, 33 pts ≈ 100
-                    pts_score = min(100, (pts - 10) * 4.0)
-                    # TS% bonus: 60% TS gets +8, 55% gets 0, 50% gets -8
-                    ts_bonus = (ts - 0.55) * 160
-                    strength = pts_score + ts_bonus + opp_def_bonus
-                    prop_candidates.append({
-                        "prop": "PTS",
-                        "line": f"{pts:.1f}",
-                        "direction": "OVER",
-                        "strength": strength,
-                        "note": f"Avg {pts:.1f} pts on {ts*100:.0f}% TS",
-                    })
+                    base = min(100, (pts - 10) * 4.0)
+                    ts_mod = (ts - 0.55) * 160  # good TS → OVER, bad TS → UNDER
+                    raw = base + ts_mod + matchup_signal
 
-                # ASSISTS — elite: 10+ → ~90-100, good: 6-8 → ~50-70
+                    if raw >= 55:
+                        # OVER: good scorer + favorable matchup
+                        prop_candidates.append({
+                            "prop": "PTS", "line": f"{pts:.1f}",
+                            "direction": "OVER", "strength": raw,
+                            "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG",
+                        })
+                    elif pts >= 18 and (matchup_signal < -4 or ts < 0.53):
+                        # UNDER: decent scorer but tough matchup or bad efficiency
+                        under_strength = 60 + abs(matchup_signal) * 2 + max(0, (0.53 - ts) * 200)
+                        prop_candidates.append({
+                            "prop": "PTS", "line": f"{pts:.1f}",
+                            "direction": "UNDER", "strength": min(95, under_strength),
+                            "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG",
+                        })
+
+                # ── ASSISTS ──
                 if ast >= 5:
-                    ast_score = min(100, (ast - 2) * 10)
-                    strength = ast_score + opp_def_bonus
-                    prop_candidates.append({
-                        "prop": "AST",
-                        "line": f"{ast:.1f}",
-                        "direction": "OVER",
-                        "strength": strength,
-                        "note": f"Avg {ast:.1f} ast ({mpg:.0f} mpg)",
-                    })
+                    base = min(100, (ast - 2) * 10)
+                    raw = base + matchup_signal
 
-                # REBOUNDS — elite: 12+ → ~90-100, good: 8-10 → ~50-70
+                    if raw >= 50:
+                        prop_candidates.append({
+                            "prop": "AST", "line": f"{ast:.1f}",
+                            "direction": "OVER", "strength": raw,
+                            "note": f"Avg {ast:.1f} ast // {mpg:.0f} mpg vs {opp_drtg:.0f} DRTG",
+                        })
+                    elif ast >= 6 and matchup_signal < -4:
+                        under_strength = 55 + abs(matchup_signal) * 2
+                        prop_candidates.append({
+                            "prop": "AST", "line": f"{ast:.1f}",
+                            "direction": "UNDER", "strength": min(90, under_strength),
+                            "note": f"Avg {ast:.1f} ast vs {opp_drtg:.0f} DRTG (elite D)",
+                        })
+
+                # ── REBOUNDS ──
                 if reb >= 7:
-                    reb_score = min(100, (reb - 4) * 10)
-                    strength = reb_score + opp_def_bonus
-                    prop_candidates.append({
-                        "prop": "REB",
-                        "line": f"{reb:.1f}",
-                        "direction": "OVER",
-                        "strength": strength,
-                        "note": f"Avg {reb:.1f} reb ({mpg:.0f} mpg)",
-                    })
+                    base = min(100, (reb - 4) * 10)
+                    raw = base + matchup_signal * 0.5  # Reb less matchup-dependent
 
-                # PRA — only if the player is truly elite and well-rounded
+                    if raw >= 50:
+                        prop_candidates.append({
+                            "prop": "REB", "line": f"{reb:.1f}",
+                            "direction": "OVER", "strength": raw,
+                            "note": f"Avg {reb:.1f} reb // {mpg:.0f} mpg",
+                        })
+
+                # ── PRA (only for truly elite all-rounders) ──
                 pra = pts + reb + ast
                 if pra >= 35:
-                    # Normalize: 35 ≈ 55, 45 ≈ 75, 55 ≈ 95
-                    pra_score = min(100, (pra - 25) * 2.0)
-                    strength = pra_score + opp_def_bonus
-                    prop_candidates.append({
-                        "prop": "PRA",
-                        "line": f"{pra:.1f}",
-                        "direction": "OVER",
-                        "strength": strength,
-                        "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a",
-                    })
+                    base = min(100, (pra - 25) * 2.0)
+                    raw = base + matchup_signal
 
-                # STOCKS (steals + blocks) — niche but high-value
+                    if raw >= 60 and matchup_signal > 0:
+                        prop_candidates.append({
+                            "prop": "PRA", "line": f"{pra:.1f}",
+                            "direction": "OVER", "strength": raw,
+                            "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a vs {opp_drtg:.0f} DRTG",
+                        })
+                    elif pra >= 30 and matchup_signal < -5:
+                        under_strength = 55 + abs(matchup_signal) * 1.5
+                        prop_candidates.append({
+                            "prop": "PRA", "line": f"{pra:.1f}",
+                            "direction": "UNDER", "strength": min(90, under_strength),
+                            "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a vs {opp_drtg:.0f} DRTG",
+                        })
+
+                # ── STOCKS (steals + blocks) ──
                 stocks = stl + blk
                 if stocks >= 2.5:
-                    stocks_score = min(100, (stocks - 1) * 20)
-                    strength = stocks_score + opp_def_bonus
-                    prop_candidates.append({
-                        "prop": "STL+BLK",
-                        "line": f"{stocks:.1f}",
-                        "direction": "OVER",
-                        "strength": strength,
-                        "note": f"Avg {stl:.1f} stl + {blk:.1f} blk",
-                    })
+                    base = min(100, (stocks - 1) * 20)
+                    raw = base + matchup_signal * 0.3  # Less matchup-dependent
+                    if raw >= 50:
+                        prop_candidates.append({
+                            "prop": "STL+BLK", "line": f"{stocks:.1f}",
+                            "direction": "OVER", "strength": raw,
+                            "note": f"Avg {stl:.1f} stl + {blk:.1f} blk",
+                        })
 
                 if not prop_candidates:
                     continue
 
-                # Pick the single best prop for this player
                 best = max(prop_candidates, key=lambda x: x["strength"])
 
-                # Final confidence: blend of dynamic score + prop strength
-                confidence = round(ds * 0.35 + best["strength"] * 0.65, 1)
+                # For UNDER props, we invert confidence: lower DS actually helps
+                if best["direction"] == "UNDER":
+                    confidence = round(30 + best["strength"] * 0.7, 1)
+                else:
+                    confidence = round(ds * 0.35 + best["strength"] * 0.65, 1)
 
                 all_props.append({
                     "player": short,
@@ -740,29 +771,33 @@ def render_lock_card(pick):
 
 def render_prop_card(prop, rank):
     """Render a player prop suggestion card."""
-    ds = prop["ds"]
-    if ds >= 85:
-        ds_color = "#009944"
-    elif ds >= 70:
-        ds_color = "#0a0a0a"
-    else:
-        ds_color = "#666"
+    is_under = prop["direction"] == "UNDER"
 
     conf = prop["confidence"]
-    if conf >= 25:
+    if conf >= 55:
         conf_label = "HIGH"
         conf_color = "#009944"
-    elif conf >= 18:
+    elif conf >= 45:
         conf_label = "MED"
         conf_color = "#bfa100"
     else:
         conf_label = "LOW"
         conf_color = "#d12e2e"
 
+    # Direction styling
+    if is_under:
+        dir_color = "#d12e2e"
+        dir_icon = "▼"
+        border_accent = "border-left: 4px solid #d12e2e;"
+    else:
+        dir_color = "#009944"
+        dir_icon = "▲"
+        border_accent = "border-left: 4px solid #009944;"
+
     team_logo = get_team_logo_url(prop["team"])
 
     return f"""
-    <div class="prop-card">
+    <div class="prop-card" style="{border_accent}">
         <div class="prop-rank">#{rank}</div>
         <div class="prop-player-info">
             <img src="{team_logo}" class="prop-team-logo" onerror="this.style.display='none'">
@@ -772,7 +807,7 @@ def render_prop_card(prop, rank):
             </div>
         </div>
         <div class="prop-details">
-            <div class="prop-type">{prop['direction']} {prop['prop']}</div>
+            <div class="prop-type" style="color:{dir_color}">{dir_icon} {prop['direction']} {prop['prop']}</div>
             <div class="prop-line">{prop['line']}</div>
         </div>
         <div class="prop-note">{prop['note']}</div>
