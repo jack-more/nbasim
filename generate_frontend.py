@@ -342,11 +342,19 @@ def get_lock_picks(matchups):
 def get_best_props(matchups):
     """Generate best player prop suggestions ranked by confidence.
 
-    Looks at each player's stat profile and identifies their strongest
-    statistical category relative to their role, then ranks by
-    dynamic score + stat dominance.
+    Each prop type is scored on a 0-100 normalized scale so that PTS,
+    AST, REB, PRA, and STL+BLK compete fairly. Opponent defensive
+    ratings add matchup-awareness. Only the single best prop per
+    player is kept, then the list is sorted by final confidence.
     """
     all_props = []
+
+    # Build opponent def rating lookup for matchup context
+    team_map = {}
+    for m in matchups:
+        ha, aa = m["home_abbr"], m["away_abbr"]
+        team_map[ha] = m["home"]
+        team_map[aa] = m["away"]
 
     for m in matchups:
         ha = m["home_abbr"]
@@ -354,12 +362,16 @@ def get_best_props(matchups):
 
         for abbr in [ha, aa]:
             opponent = aa if abbr == ha else ha
+            opp_drtg = (team_map.get(opponent, {}).get("def_rating", 112) or 112)
+            # Higher DRTG = worse defense = better for props. Normalize around 112.
+            opp_def_bonus = (opp_drtg - 112) * 1.5  # e.g. +3 for a 114 DRTG team
+
             roster = get_team_roster(abbr, 8)
 
             for _, p in roster.iterrows():
                 ds, breakdown = compute_dynamic_score(p)
                 if ds < 50:
-                    continue  # Skip low-DS players
+                    continue
 
                 pts = p.get("pts_pg", 0) or 0
                 ast = p.get("ast_pg", 0) or 0
@@ -370,78 +382,88 @@ def get_best_props(matchups):
                 ts = p.get("ts_pct", 0) or 0
                 name = p.get("full_name", "?")
 
-                # Shorten name
                 parts = name.split()
                 short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else name
 
-                # Determine strongest prop category
+                # ── Normalized scoring per prop type (0-100 scale) ──
+                # Each formula maps the realistic stat range to roughly 0-100
+
                 prop_candidates = []
 
-                # Points prop
-                if pts >= 20:
+                # POINTS — elite: 30+ → ~90-100, good: 20-30 → ~55-85
+                if pts >= 15:
+                    # Normalize: 15 pts ≈ 35, 25 pts ≈ 70, 33 pts ≈ 100
+                    pts_score = min(100, (pts - 10) * 4.0)
+                    # TS% bonus: 60% TS gets +8, 55% gets 0, 50% gets -8
+                    ts_bonus = (ts - 0.55) * 160
+                    strength = pts_score + ts_bonus + opp_def_bonus
                     prop_candidates.append({
                         "prop": "PTS",
                         "line": f"{pts:.1f}",
                         "direction": "OVER",
-                        "strength": pts * 1.2 + (ts - 0.55) * 80,
-                        "note": f"Avg {pts:.1f} pts on {ts*100:.0f}% TS",
-                    })
-                elif pts >= 15:
-                    prop_candidates.append({
-                        "prop": "PTS",
-                        "line": f"{pts:.1f}",
-                        "direction": "OVER",
-                        "strength": pts * 0.9 + (ts - 0.55) * 60,
+                        "strength": strength,
                         "note": f"Avg {pts:.1f} pts on {ts*100:.0f}% TS",
                     })
 
-                # Assists prop
-                if ast >= 6:
+                # ASSISTS — elite: 10+ → ~90-100, good: 6-8 → ~50-70
+                if ast >= 5:
+                    ast_score = min(100, (ast - 2) * 10)
+                    strength = ast_score + opp_def_bonus
                     prop_candidates.append({
                         "prop": "AST",
                         "line": f"{ast:.1f}",
                         "direction": "OVER",
-                        "strength": ast * 3.0,
+                        "strength": strength,
                         "note": f"Avg {ast:.1f} ast ({mpg:.0f} mpg)",
                     })
 
-                # Rebounds prop
-                if reb >= 8:
+                # REBOUNDS — elite: 12+ → ~90-100, good: 8-10 → ~50-70
+                if reb >= 7:
+                    reb_score = min(100, (reb - 4) * 10)
+                    strength = reb_score + opp_def_bonus
                     prop_candidates.append({
                         "prop": "REB",
                         "line": f"{reb:.1f}",
                         "direction": "OVER",
-                        "strength": reb * 2.0,
+                        "strength": strength,
                         "note": f"Avg {reb:.1f} reb ({mpg:.0f} mpg)",
                     })
 
-                # PRA (pts+reb+ast) combo prop
+                # PRA — only if the player is truly elite and well-rounded
                 pra = pts + reb + ast
-                if pra >= 30:
+                if pra >= 35:
+                    # Normalize: 35 ≈ 55, 45 ≈ 75, 55 ≈ 95
+                    pra_score = min(100, (pra - 25) * 2.0)
+                    strength = pra_score + opp_def_bonus
                     prop_candidates.append({
                         "prop": "PRA",
                         "line": f"{pra:.1f}",
                         "direction": "OVER",
-                        "strength": pra * 0.7 + ds * 0.2,
+                        "strength": strength,
                         "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a",
                     })
 
-                # Stocks (steals + blocks) prop
+                # STOCKS (steals + blocks) — niche but high-value
                 stocks = stl + blk
                 if stocks >= 2.5:
+                    stocks_score = min(100, (stocks - 1) * 20)
+                    strength = stocks_score + opp_def_bonus
                     prop_candidates.append({
                         "prop": "STL+BLK",
                         "line": f"{stocks:.1f}",
                         "direction": "OVER",
-                        "strength": stocks * 4.0,
+                        "strength": strength,
                         "note": f"Avg {stl:.1f} stl + {blk:.1f} blk",
                     })
 
                 if not prop_candidates:
                     continue
 
-                # Pick the strongest prop for this player
+                # Pick the single best prop for this player
                 best = max(prop_candidates, key=lambda x: x["strength"])
+
+                # Final confidence: blend of dynamic score + prop strength
+                confidence = round(ds * 0.35 + best["strength"] * 0.65, 1)
 
                 all_props.append({
                     "player": short,
@@ -452,7 +474,7 @@ def get_best_props(matchups):
                     "line": best["line"],
                     "direction": best["direction"],
                     "note": best["note"],
-                    "confidence": round(ds * 0.4 + best["strength"] * 0.6, 1),
+                    "confidence": confidence,
                 })
 
     # Sort by confidence descending
