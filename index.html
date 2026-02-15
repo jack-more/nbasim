@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA SIM // SYSTEM_COLLISION</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: rgba(255,255,255,0.03);
+            --surface-hover: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.08);
+            --border-bright: rgba(255,255,255,0.15);
+            --text: #e8e8e8;
+            --text-dim: rgba(255,255,255,0.4);
+            --text-mid: rgba(255,255,255,0.6);
+            --acid: #c8ff00;
+            --acid-glow: 0 0 30px rgba(200,255,0,0.3);
+            --green: #00c853;
+            --amber: #ffab00;
+            --red: #ff1744;
+            --radius: 12px;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'Space Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+        ::selection { background: var(--acid); color: #000; }
+
+        /* ─── LAYOUT ─── */
+        .app { display: grid; grid-template-columns: 260px 1fr 280px; height: 100vh; }
+        .sidebar { padding: 20px; overflow-y: auto; border-right: 1px solid var(--border); }
+        .sidebar-right { border-right: none; border-left: 1px solid var(--border); }
+        main { overflow-y: auto; padding: 32px 40px; }
+
+        /* ─── LOGO ─── */
+        .logo { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -1px;
+                 display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+        .logo-dot { width: 14px; height: 14px; background: var(--acid); border-radius: 50%;
+                     box-shadow: var(--acid-glow); animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* ─── LOCK MODULE ─── */
+        .lock-module { background: var(--surface); border: 1px solid var(--border-bright);
+                       border-radius: var(--radius); padding: 16px; margin-bottom: 24px; }
+        .lock-header { display: flex; justify-content: space-between; align-items: center;
+                       font-family: var(--font-display); text-transform: uppercase; font-weight: 700;
+                       font-size: 13px; margin-bottom: 14px; padding-bottom: 10px;
+                       border-bottom: 1px solid var(--border); }
+        .lock-icon { font-size: 18px; animation: drift 3s ease-in-out infinite; }
+        @keyframes drift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        .lock-card { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .lock-card:last-child { border: none; padding-bottom: 0; }
+        .lock-confidence { font-size: 9px; color: var(--text-dim); margin-bottom: 4px;
+                           text-transform: uppercase; letter-spacing: 1px; }
+        .lock-pick { font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+        .lock-score { background: var(--acid); color: #000; padding: 2px 8px; border-radius: 4px;
+                      font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+                      box-shadow: var(--acid-glow); }
+
+        /* ─── HEADER ─── */
+        .main-header { margin-bottom: 32px; }
+        .main-header h1 { font-family: var(--font-display); font-size: 48px; line-height: 0.95;
+                          letter-spacing: -2px; font-weight: 700; }
+        .main-header h1 span { display: block; font-size: 12px; font-family: var(--font-mono);
+                               letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; font-weight: 400; }
+        .filters { display: flex; gap: 8px; margin-top: 16px; }
+        .filter-btn { background: transparent; border: 1px solid var(--border-bright); color: var(--text-mid);
+                      padding: 6px 14px; border-radius: 20px; font-family: var(--font-mono);
+                      font-size: 11px; cursor: crosshair; transition: all 0.2s; }
+        .filter-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+        .filter-btn:hover { background: var(--acid); color: #000; border-color: var(--acid); }
+
+        /* ─── MATCHUP CONTAINER ─── */
+        .matchup-container { background: var(--surface); border: 1px solid var(--border);
+                             border-radius: var(--radius); margin-bottom: 20px;
+                             transition: all 0.3s ease; overflow: hidden; }
+        .matchup-container:hover { border-color: var(--border-bright);
+                                   box-shadow: 0 0 40px rgba(200,255,0,0.03); }
+
+        .matchup-header { display: flex; justify-content: space-between; align-items: center;
+                          padding: 16px 20px; border-bottom: 1px solid var(--border); }
+        .team-block { display: flex; align-items: center; gap: 14px; width: 30%; }
+        .team-block.right { flex-direction: row-reverse; text-align: right; }
+        .team-logo { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+                     justify-content: center; font-family: var(--font-display); font-weight: 700;
+                     font-size: 11px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0; }
+        .team-logo-text { text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .team-name { font-family: var(--font-display); font-weight: 700; font-size: 20px;
+                     text-transform: uppercase; letter-spacing: -0.5px; }
+        .team-record { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+        .confidence-core { flex-grow: 1; display: flex; flex-direction: column; align-items: center; }
+        .confidence-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
+                            color: var(--text-dim); margin-bottom: 4px; }
+        .confidence-value { font-family: var(--font-display); font-size: 36px; font-weight: 700;
+                            transition: all 0.1s; }
+        .confidence-sublabel { font-size: 10px; color: var(--text-dim); margin-top: 2px;
+                               letter-spacing: 1px; }
+        .ds-comparison { display: flex; align-items: center; gap: 8px; margin-top: 6px;
+                         font-size: 10px; color: var(--text-dim); }
+        .ds-vs { color: var(--text-dim); font-size: 9px; }
+
+        /* ─── LINEUP GRID ─── */
+        .lineup-section { padding: 12px 20px; }
+        .lineup-section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px;
+                                color: var(--text-dim); margin-bottom: 8px;
+                                padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+        .bench-section { border-top: 1px dashed var(--border); }
+        .lineup-grid { display: grid; grid-template-columns: 1fr 1px 1fr; }
+        .divider { background: linear-gradient(to bottom, transparent, var(--border-bright), transparent); }
+        .team-lineup { display: flex; flex-direction: column; gap: 4px; }
+        .team-lineup.left { padding-right: 16px; align-items: flex-end; }
+        .team-lineup.right { padding-left: 16px; align-items: flex-start; }
+
+        .player-node { display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+                       border: 1px solid transparent; border-radius: 30px; transition: all 0.2s;
+                       width: 100%; max-width: 340px; cursor: crosshair; }
+        .team-lineup.left .player-node { flex-direction: row-reverse; text-align: right; }
+        .player-node:hover { background: var(--surface-hover); border-color: var(--border-bright); }
+
+        .player-face-container { width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+                                 border: 1px solid var(--border-bright); background: #111; flex-shrink: 0; }
+        .player-face { width: 100%; height: 100%; object-fit: cover; filter: grayscale(80%);
+                       opacity: 0.7; transition: 0.3s; }
+        .player-node:hover .player-face { filter: none; opacity: 1; }
+
+        .player-info { flex-grow: 1; min-width: 0; }
+        .player-name { font-weight: 700; font-size: 12px; display: block; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis; }
+        .player-metric { font-size: 10px; color: var(--text-dim); display: block; }
+
+        .archetype-badge { width: 26px; height: 26px; border: 1px solid var(--border-bright);
+                           border-radius: 6px; display: flex; align-items: center; justify-content: center;
+                           font-size: 13px; background: var(--surface); transition: 0.2s; flex-shrink: 0;
+                           cursor: pointer; }
+        .player-node:hover .archetype-badge { background: var(--acid); border-color: var(--acid); transform: scale(1.15); }
+
+        .dynamic-score { font-family: var(--font-display); font-weight: 700; font-size: 18px;
+                         flex-shrink: 0; width: 30px; text-align: center; }
+
+        /* ─── DEPTH PANEL ─── */
+        .depth-title { font-family: var(--font-display); font-size: 14px; text-transform: uppercase;
+                       font-weight: 700; margin-bottom: 16px; padding-bottom: 8px;
+                       border-bottom: 1px solid var(--border-bright); letter-spacing: -0.5px; }
+        .combo-card { background: var(--surface); padding: 12px; border-radius: 8px;
+                      margin-bottom: 10px; border-left: 3px solid var(--acid); }
+        .combo-header { font-size: 10px; text-transform: uppercase; color: var(--text-dim);
+                        margin-bottom: 6px; display: flex; justify-content: space-between;
+                        letter-spacing: 1px; }
+        .combo-players { font-family: var(--font-display); font-weight: 700; font-size: 13px;
+                         margin-bottom: 8px; line-height: 1.5; }
+        .combo-stat { font-size: 11px; display: flex; justify-content: space-between;
+                      padding-top: 6px; border-top: 1px solid var(--border); color: var(--text-mid); }
+
+        /* ─── HOVER CARD ─── */
+        .hover-card { position: fixed; background: rgba(10,10,15,0.96); color: #fff; padding: 14px;
+                      border-radius: 8px; width: 220px; z-index: 100; pointer-events: none;
+                      opacity: 0; transform: translateY(8px); transition: opacity 0.15s, transform 0.15s;
+                      border: 1px solid var(--acid); font-size: 11px;
+                      box-shadow: 0 0 30px rgba(200,255,0,0.15); }
+        .hover-card.visible { opacity: 1; transform: translateY(0); }
+        .hc-title { color: var(--acid); font-size: 11px; text-transform: uppercase;
+                    margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1);
+                    letter-spacing: 1px; }
+        .hc-stat { display: flex; justify-content: space-between; margin-bottom: 3px; }
+        .hc-note { font-size: 9px; margin-top: 8px; color: var(--text-dim); line-height: 1.4; }
+
+        /* ─── GLITCH ─── */
+        @keyframes glitch { 0%,100% { transform: none; } 50% { transform: skew(-1deg); } }
+        .sys-tag { position: fixed; bottom: 16px; left: 16px; font-size: 9px; color: var(--text-dim);
+                   transform: rotate(-90deg); transform-origin: left bottom; letter-spacing: 1px; }
+
+        /* ─── SCROLLBAR ─── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+        .sidebar-footer { margin-top: auto; font-size: 9px; color: var(--text-dim); padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- LEFT SIDEBAR -->
+        <div class="sidebar">
+            <div class="logo">
+                <div class="logo-dot"></div>
+                NBA SIM
+            </div>
+
+            <div class="lock-module">
+                <div class="lock-header">
+                    <span>LOCK SCAN</span>
+                    <span class="lock-icon">🔒</span>
+                </div>
+                
+    <div class="lock-card">
+        <div class="lock-confidence">ARCHETYPE MISMATCH</div>
+        <div class="lock-pick">
+            <span>SGA > Matchup</span>
+            <span class="lock-score">92.1</span>
+        </div>
+    </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <div class="depth-title">TONIGHT'S SLATE</div>
+                <div style="font-size: 11px; color: var(--text-mid); line-height: 1.8;">
+                    <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>OKC vs BOS</span><span style="color:#00c853">64.5</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>CLE vs NYK</span><span style="color:#bfa100">55.0</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>DEN vs MIN</span><span style="color:#bfa100">55.5</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>DET vs SAS</span><span style="color:#00c853">63.0</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>LAL vs GSW</span><span style="color:#bfa100">53.2</span></div><div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>MIA vs PHX</span><span style="color:#bfa100">56.8</span></div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                SIM ENGINE v3.1<br>
+                2025-26 SEASON DATA<br>
+                6 GAMES TONIGHT
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <main>
+            <header class="main-header">
+                <h1>
+                    <span>TONIGHT'S SLATE // 2025-26 // REAL DATA</span>
+                    SYSTEM<br>COLLISION
+                </h1>
+                <div class="filters">
+                    <button class="filter-btn active">ALL</button>
+                    <button class="filter-btn">TOP 20%</button>
+                    <button class="filter-btn">CONTRARIAN</button>
+                    <button class="filter-btn">LIVE</button>
+                </div>
+            </header>
+
+            
+    <section class="matchup-container" id="matchup-0">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#007AC1;">
+                    <span class="team-logo-text">OKC</span>
+                </div>
+                <div>
+                    <div class="team-name">OKC</div>
+                    <div class="team-record">55-1 // ORTG 116 DRTG 105 // Pace 101</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#8bc34a">64.5</div>
+                <div class="confidence-sublabel">SLIGHT EDGE</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">OKC 354</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">352 BOS</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#007A33;">
+                    <span class="team-logo-text">BOS</span>
+                </div>
+                <div>
+                    <div class="team-name">BOS</div>
+                    <div class="team-record">55-1 // ORTG 119 DRTG 111 // Pace 96</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="99">
+            <div class="dynamic-score" style="color:#00c853">99</div>
+            <div class="player-info">
+                <span class="player-name">S. Gilgeous-Alexander</span>
+                <span class="player-metric">G // 33mpg // DS: 91-99</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="76">
+            <div class="dynamic-score" style="color:#eaff00">76</div>
+            <div class="player-info">
+                <span class="player-name">C. Holmgren</span>
+                <span class="player-metric">C-F // 29mpg // DS: 72-79</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Point Forward" data-ds="71">
+            <div class="dynamic-score" style="color:#eaff00">71</div>
+            <div class="player-info">
+                <span class="player-name">J. Williams</span>
+                <span class="player-metric">G-F // 29mpg // DS: 67-74</span>
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631114.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="52">
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+            <div class="player-info">
+                <span class="player-name">L. Dort</span>
+                <span class="player-metric">G // 28mpg // DS: 44-58</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629652.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="56">
+            <div class="dynamic-score" style="color:var(--ink)">56</div>
+            <div class="player-info">
+                <span class="player-name">C. Wallace</span>
+                <span class="player-metric">G // 27mpg // DS: 49-61</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641717.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Point Forward" data-ds="85">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627759.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-info">
+                <span class="player-name">J. Brown</span>
+                <span class="player-metric">G-F // 34mpg // DS: 79-89</span>
+            </div>
+            <div class="dynamic-score" style="color:#00c853">85</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="74">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628401.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">D. White</span>
+                <span class="player-metric">G // 34mpg // DS: 70-77</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">74</div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="68">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630202.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">P. Pritchard</span>
+                <span class="player-metric">G // 33mpg // DS: 63-72</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">68</div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="62">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202696.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-info">
+                <span class="player-name">N. Vučević</span>
+                <span class="player-metric">C // 31mpg // DS: 56-66</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">62</div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="63">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629674.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-info">
+                <span class="player-name">N. Queta</span>
+                <span class="player-metric">C // 25mpg // DS: 57-67</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">63</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="70" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#eaff00">70</div>
+            <div class="player-info">
+                <span class="player-name">A. Mitchell</span>
+                <span class="player-metric">G // 26mpg // DS: 65-73</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642349.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="70" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#eaff00">70</div>
+            <div class="player-info">
+                <span class="player-name">I. Hartenstein</span>
+                <span class="player-metric">C-F // 26mpg // DS: 65-73</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628392.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="55" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:var(--ink)">55</div>
+            <div class="player-info">
+                <span class="player-name">A. Wiggins</span>
+                <span class="player-metric">G // 24mpg // DS: 47-61</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630598.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="50" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630573.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">S. Hauser</span>
+                <span class="player-metric">F // 24mpg // DS: 41-56</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">50</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="46" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641775.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">J. Walsh</span>
+                <span class="player-metric">G // 18mpg // DS: 40-53</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">46</div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="50" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630568.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-info">
+                <span class="player-name">L. Garza</span>
+                <span class="player-metric">C // 17mpg // DS: 41-56</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">50</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="matchup-container" id="matchup-1">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#860038;">
+                    <span class="team-logo-text">CLE</span>
+                </div>
+                <div>
+                    <div class="team-name">CLE</div>
+                    <div class="team-record">51-5 // ORTG 117 DRTG 113 // Pace 102</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#bfa100">55.0</div>
+                <div class="confidence-sublabel">COIN FLIP</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">CLE 372</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">364 NYK</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#F58426;">
+                    <span class="team-logo-text">NYK</span>
+                </div>
+                <div>
+                    <div class="team-name">NYK</div>
+                    <div class="team-record">53-3 // ORTG 118 DRTG 112 // Pace 99</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="83">
+            <div class="dynamic-score" style="color:#eaff00">83</div>
+            <div class="player-info">
+                <span class="player-name">J. Harden</span>
+                <span class="player-metric">G // 35mpg // DS: 78-87</span>
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201935.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="89">
+            <div class="dynamic-score" style="color:#00c853">89</div>
+            <div class="player-info">
+                <span class="player-name">D. Mitchell</span>
+                <span class="player-metric">G // 34mpg // DS: 83-94</span>
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628378.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="73">
+            <div class="dynamic-score" style="color:#eaff00">73</div>
+            <div class="player-info">
+                <span class="player-name">E. Mobley</span>
+                <span class="player-metric">C // 33mpg // DS: 69-76</span>
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630596.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="61">
+            <div class="dynamic-score" style="color:var(--ink)">61</div>
+            <div class="player-info">
+                <span class="player-name">J. Tyson</span>
+                <span class="player-metric">G-F // 28mpg // DS: 55-66</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642281.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="66">
+            <div class="dynamic-score" style="color:var(--ink)">66</div>
+            <div class="player-info">
+                <span class="player-name">J. Allen</span>
+                <span class="player-metric">C // 27mpg // DS: 61-70</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628386.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="83">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628973.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">J. Brunson</span>
+                <span class="player-metric">G // 35mpg // DS: 78-87</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">83</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="69">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628969.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">M. Bridges</span>
+                <span class="player-metric">G-F // 34mpg // DS: 64-72</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">69</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="69">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628384.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">O. Anunoby</span>
+                <span class="player-metric">F-G // 33mpg // DS: 64-72</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">69</div>
+        </div>
+        <div class="player-node" data-archetype="Versatile Big" data-ds="76">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626157.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Versatile Big">🔮</div>
+            <div class="player-info">
+                <span class="player-name">K. Towns</span>
+                <span class="player-metric">C-F // 31mpg // DS: 72-79</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">76</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="67">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628404.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">J. Hart</span>
+                <span class="player-metric">G // 31mpg // DS: 62-71</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">67</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="48" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">48</div>
+            <div class="player-info">
+                <span class="player-name">D. Schröder</span>
+                <span class="player-metric">G // 26mpg // DS: 40-55</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203471.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="62" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:var(--ink)">62</div>
+            <div class="player-info">
+                <span class="player-name">S. Merrill</span>
+                <span class="player-metric">G // 25mpg // DS: 56-66</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630241.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Stretch Big" data-ds="46" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">46</div>
+            <div class="player-info">
+                <span class="player-name">D. Wade</span>
+                <span class="player-metric">F-C // 23mpg // DS: 40-53</span>
+            </div>
+            <div class="archetype-badge" title="Stretch Big">📐</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629731.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="61" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630540.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">M. McBride</span>
+                <span class="player-metric">G // 28mpg // DS: 55-66</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">61</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="51" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629013.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">L. Shamet</span>
+                <span class="player-metric">G // 22mpg // DS: 43-57</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">51</div>
+        </div>
+        <div class="player-node" data-archetype="Defensive Specialist" data-ds="45" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630631.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Defensive Specialist">🛡️</div>
+            <div class="player-info">
+                <span class="player-name">J. Alvarado</span>
+                <span class="player-metric">G // 22mpg // DS: 40-52</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">45</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="matchup-container" id="matchup-2">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#0E2240;">
+                    <span class="team-logo-text">DEN</span>
+                </div>
+                <div>
+                    <div class="team-name">DEN</div>
+                    <div class="team-record">51-5 // ORTG 120 DRTG 116 // Pace 99</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#8bc34a">55.5</div>
+                <div class="confidence-sublabel">COIN FLIP</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">DEN 365</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">357 MIN</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#0C2340;">
+                    <span class="team-logo-text">MIN</span>
+                </div>
+                <div>
+                    <div class="team-name">MIN</div>
+                    <div class="team-record">53-3 // ORTG 116 DRTG 111 // Pace 102</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="85">
+            <div class="dynamic-score" style="color:#00c853">85</div>
+            <div class="player-info">
+                <span class="player-name">J. Murray</span>
+                <span class="player-metric">G // 36mpg // DS: 79-89</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Versatile Big" data-ds="99">
+            <div class="dynamic-score" style="color:#00c853">99</div>
+            <div class="player-info">
+                <span class="player-name">N. Jokić</span>
+                <span class="player-metric">C // 34mpg // DS: 91-99</span>
+            </div>
+            <div class="archetype-badge" title="Versatile Big">🔮</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="63">
+            <div class="dynamic-score" style="color:var(--ink)">63</div>
+            <div class="player-info">
+                <span class="player-name">P. Watson</span>
+                <span class="player-metric">G // 31mpg // DS: 57-67</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631212.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="60">
+            <div class="dynamic-score" style="color:var(--ink)">60</div>
+            <div class="player-info">
+                <span class="player-name">C. Johnson</span>
+                <span class="player-metric">F // 30mpg // DS: 53-65</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629661.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="58">
+            <div class="dynamic-score" style="color:var(--ink)">58</div>
+            <div class="player-info">
+                <span class="player-name">C. Braun</span>
+                <span class="player-metric">G // 30mpg // DS: 51-63</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631128.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="84">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630162.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">A. Edwards</span>
+                <span class="player-metric">G // 36mpg // DS: 79-88</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">84</div>
+        </div>
+        <div class="player-node" data-archetype="Small-Ball 4" data-ds="78">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203944.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Small-Ball 4">⚡</div>
+            <div class="player-info">
+                <span class="player-name">J. Randle</span>
+                <span class="player-metric">F-C // 34mpg // DS: 74-81</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">78</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="65">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630183.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">J. McDaniels</span>
+                <span class="player-metric">F // 32mpg // DS: 59-69</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">65</div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="66">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203497.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-info">
+                <span class="player-name">R. Gobert</span>
+                <span class="player-metric">C // 31mpg // DS: 61-70</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">66</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="64">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628978.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">D. DiVincenzo</span>
+                <span class="player-metric">G // 31mpg // DS: 58-68</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">64</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Point Forward" data-ds="73" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#eaff00">73</div>
+            <div class="player-info">
+                <span class="player-name">A. Gordon</span>
+                <span class="player-metric">F // 28mpg // DS: 69-76</span>
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203932.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="56" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:var(--ink)">56</div>
+            <div class="player-info">
+                <span class="player-name">T. Hardaway Jr.</span>
+                <span class="player-metric">G-F // 28mpg // DS: 49-61</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203501.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="44" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">44</div>
+            <div class="player-info">
+                <span class="player-name">B. Brown</span>
+                <span class="player-metric">G-F // 25mpg // DS: 40-51</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628971.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="56" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630245.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">A. Dosunmu</span>
+                <span class="player-metric">G // 26mpg // DS: 49-61</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">56</div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="61" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629675.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-info">
+                <span class="player-name">N. Reid</span>
+                <span class="player-metric">C-F // 26mpg // DS: 55-66</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">61</div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="48" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630538.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">B. Hyland</span>
+                <span class="player-metric">G // 15mpg // DS: 40-55</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">48</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="matchup-container" id="matchup-3">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#C8102E;">
+                    <span class="team-logo-text">DET</span>
+                </div>
+                <div>
+                    <div class="team-name">DET</div>
+                    <div class="team-record">55-1 // ORTG 116 DRTG 108 // Pace 101</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#8bc34a">63.0</div>
+                <div class="confidence-sublabel">SLIGHT EDGE</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">DET 345</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">354 SAS</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#C4CED4;">
+                    <span class="team-logo-text">SAS</span>
+                </div>
+                <div>
+                    <div class="team-name">SAS</div>
+                    <div class="team-record">55-1 // ORTG 115 DRTG 110 // Pace 101</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="93">
+            <div class="dynamic-score" style="color:#00c853">93</div>
+            <div class="player-info">
+                <span class="player-name">C. Cunningham</span>
+                <span class="player-metric">G // 35mpg // DS: 86-98</span>
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630595.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="58">
+            <div class="dynamic-score" style="color:var(--ink)">58</div>
+            <div class="player-info">
+                <span class="player-name">D. Robinson</span>
+                <span class="player-metric">F // 28mpg // DS: 51-63</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629130.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="59">
+            <div class="dynamic-score" style="color:var(--ink)">59</div>
+            <div class="player-info">
+                <span class="player-name">T. Harris</span>
+                <span class="player-metric">F // 28mpg // DS: 52-64</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202699.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="75">
+            <div class="dynamic-score" style="color:#eaff00">75</div>
+            <div class="player-info">
+                <span class="player-name">J. Duren</span>
+                <span class="player-metric">C // 28mpg // DS: 71-78</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631105.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="60">
+            <div class="dynamic-score" style="color:var(--ink)">60</div>
+            <div class="player-info">
+                <span class="player-name">A. Thompson</span>
+                <span class="player-metric">G-F // 26mpg // DS: 53-65</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641709.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="74">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628368.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">D. Fox</span>
+                <span class="player-metric">G // 32mpg // DS: 70-77</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">74</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="61">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630170.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">D. Vassell</span>
+                <span class="player-metric">G-F // 31mpg // DS: 55-66</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">61</div>
+        </div>
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="72">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642264.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-info">
+                <span class="player-name">S. Castle</span>
+                <span class="player-metric">G // 30mpg // DS: 68-75</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">72</div>
+        </div>
+        <div class="player-node" data-archetype="Versatile Big" data-ds="88">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641705.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Versatile Big">🔮</div>
+            <div class="player-info">
+                <span class="player-name">V. Wembanyama</span>
+                <span class="player-metric">F-C // 29mpg // DS: 82-92</span>
+            </div>
+            <div class="dynamic-score" style="color:#00c853">88</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="59">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630577.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">J. Champagnie</span>
+                <span class="player-metric">F // 28mpg // DS: 52-64</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">59</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Stretch 5" data-ds="52" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+            <div class="player-info">
+                <span class="player-name">I. Stewart</span>
+                <span class="player-metric">F-C // 23mpg // DS: 44-58</span>
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630191.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="48" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">48</div>
+            <div class="player-info">
+                <span class="player-name">K. Huerter</span>
+                <span class="player-metric">G-F // 23mpg // DS: 40-55</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628989.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="50" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">50</div>
+            <div class="player-info">
+                <span class="player-name">R. Holland II</span>
+                <span class="player-metric">F // 21mpg // DS: 41-56</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641842.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="54" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203084.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">H. Barnes</span>
+                <span class="player-metric">F // 28mpg // DS: 46-60</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">54</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="59" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629640.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">K. Johnson</span>
+                <span class="player-metric">F-G // 24mpg // DS: 52-64</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">59</div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="54" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628436.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-info">
+                <span class="player-name">L. Kornet</span>
+                <span class="player-metric">C-F // 23mpg // DS: 46-60</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">54</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="matchup-container" id="matchup-4">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#552583;">
+                    <span class="team-logo-text">LAL</span>
+                </div>
+                <div>
+                    <div class="team-name">LAL</div>
+                    <div class="team-record">39-17 // ORTG 115 DRTG 115 // Pace 100</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#bfa100">53.2</div>
+                <div class="confidence-sublabel">COIN FLIP</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">LAL 356</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">319 GSW</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#1D428A;">
+                    <span class="team-logo-text">GSW</span>
+                </div>
+                <div>
+                    <div class="team-name">GSW</div>
+                    <div class="team-record">44-12 // ORTG 112 DRTG 111 // Pace 101</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Point Forward" data-ds="96">
+            <div class="dynamic-score" style="color:#00c853">96</div>
+            <div class="player-info">
+                <span class="player-name">L. Dončić</span>
+                <span class="player-metric">F-G // 36mpg // DS: 88-99</span>
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629029.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="82">
+            <div class="dynamic-score" style="color:#eaff00">82</div>
+            <div class="player-info">
+                <span class="player-name">A. Reaves</span>
+                <span class="player-metric">G // 34mpg // DS: 77-86</span>
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630559.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Point Forward" data-ds="75">
+            <div class="dynamic-score" style="color:#eaff00">75</div>
+            <div class="player-info">
+                <span class="player-name">L. James</span>
+                <span class="player-metric">F // 33mpg // DS: 71-78</span>
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/2544.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="51">
+            <div class="dynamic-score" style="color:#d12e2e">51</div>
+            <div class="player-info">
+                <span class="player-name">R. Hachimura</span>
+                <span class="player-metric">F // 30mpg // DS: 43-57</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629060.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="52">
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+            <div class="player-info">
+                <span class="player-name">M. Smart</span>
+                <span class="player-metric">G // 28mpg // DS: 44-58</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203935.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="80">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201939.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">S. Curry</span>
+                <span class="player-metric">G // 31mpg // DS: 75-83</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">80</div>
+        </div>
+        <div class="player-node" data-archetype="Point Forward" data-ds="77">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202710.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-info">
+                <span class="player-name">J. Butler III</span>
+                <span class="player-metric">F // 31mpg // DS: 73-80</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">77</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="56">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641764.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">B. Podziemski</span>
+                <span class="player-metric">G // 27mpg // DS: 49-61</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">56</div>
+        </div>
+        <div class="player-node" data-archetype="Point Forward" data-ds="53">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203110.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Point Forward">🧠</div>
+            <div class="player-info">
+                <span class="player-name">D. Green</span>
+                <span class="player-metric">F // 27mpg // DS: 45-59</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">53</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="53">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630541.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">M. Moody</span>
+                <span class="player-metric">G // 25mpg // DS: 45-59</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">53</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Traditional Center" data-ds="58" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:var(--ink)">58</div>
+            <div class="player-info">
+                <span class="player-name">D. Ayton</span>
+                <span class="player-metric">C // 28mpg // DS: 51-63</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629028.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="47" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">47</div>
+            <div class="player-info">
+                <span class="player-name">J. LaRavia</span>
+                <span class="player-metric">F // 27mpg // DS: 40-54</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631222.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="48" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">48</div>
+            <div class="player-info">
+                <span class="player-name">L. Kennard</span>
+                <span class="player-metric">G // 21mpg // DS: 40-55</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628379.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Small-Ball 4" data-ds="65" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/204001.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Small-Ball 4">⚡</div>
+            <div class="player-info">
+                <span class="player-name">K. Porziņģis</span>
+                <span class="player-metric">F-C // 24mpg // DS: 59-69</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">65</div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="63" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629001.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">D. Melton</span>
+                <span class="player-metric">G // 22mpg // DS: 57-67</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">63</div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="45" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201143.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-info">
+                <span class="player-name">A. Horford</span>
+                <span class="player-metric">C-F // 21mpg // DS: 40-52</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">45</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="matchup-container" id="matchup-5">
+        <div class="matchup-header">
+            <div class="team-block">
+                <div class="team-logo" style="background:#98002E;">
+                    <span class="team-logo-text">MIA</span>
+                </div>
+                <div>
+                    <div class="team-name">MIA</div>
+                    <div class="team-record">44-12 // ORTG 112 DRTG 111 // Pace 105</div>
+                </div>
+            </div>
+            <div class="confidence-core">
+                <div class="confidence-label">SYSTEM EDGE</div>
+                <div class="confidence-value" style="color:#8bc34a">56.8</div>
+                <div class="confidence-sublabel">COIN FLIP</div>
+                <div class="ds-comparison">
+                    <span class="ds-team-sum">MIA 327</span>
+                    <span class="ds-vs">vs</span>
+                    <span class="ds-team-sum">321 PHX</span>
+                </div>
+            </div>
+            <div class="team-block right">
+                <div class="team-logo" style="background:#1D1160;">
+                    <span class="team-logo-text">PHX</span>
+                </div>
+                <div>
+                    <div class="team-name">PHX</div>
+                    <div class="team-record">45-11 // ORTG 114 DRTG 112 // Pace 100</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section">
+            <div class="lineup-section-label">PROJECTED STARTERS</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="64">
+            <div class="dynamic-score" style="color:var(--ink)">64</div>
+            <div class="player-info">
+                <span class="player-name">T. Herro</span>
+                <span class="player-metric">G // 32mpg // DS: 58-68</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629639.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Stretch 5" data-ds="70">
+            <div class="dynamic-score" style="color:#eaff00">70</div>
+            <div class="player-info">
+                <span class="player-name">B. Adebayo</span>
+                <span class="player-metric">C-F // 31mpg // DS: 65-73</span>
+            </div>
+            <div class="archetype-badge" title="Stretch 5">📐</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628389.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="60">
+            <div class="dynamic-score" style="color:var(--ink)">60</div>
+            <div class="player-info">
+                <span class="player-name">A. Wiggins</span>
+                <span class="player-metric">F // 31mpg // DS: 53-65</span>
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203952.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="70">
+            <div class="dynamic-score" style="color:#eaff00">70</div>
+            <div class="player-info">
+                <span class="player-name">N. Powell</span>
+                <span class="player-metric">G // 31mpg // DS: 65-73</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626181.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="63">
+            <div class="dynamic-score" style="color:var(--ink)">63</div>
+            <div class="player-info">
+                <span class="player-name">J. Jaquez Jr.</span>
+                <span class="player-metric">G // 29mpg // DS: 57-67</span>
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631170.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Scoring Guard" data-ds="80">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626164.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Scoring Guard">⚡</div>
+            <div class="player-info">
+                <span class="player-name">D. Booker</span>
+                <span class="player-metric">G // 34mpg // DS: 75-83</span>
+            </div>
+            <div class="dynamic-score" style="color:#eaff00">80</div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="62">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628415.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">D. Brooks</span>
+                <span class="player-metric">G-F // 31mpg // DS: 56-66</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">62</div>
+        </div>
+        <div class="player-node" data-archetype="Playmaking Guard" data-ds="64">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628960.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Playmaking Guard">🎯</div>
+            <div class="player-info">
+                <span class="player-name">G. Allen</span>
+                <span class="player-metric">G // 30mpg // DS: 58-68</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">64</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="52">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626220.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">R. O'Neale</span>
+                <span class="player-metric">F // 29mpg // DS: 44-58</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="63">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631221.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">C. Gillespie</span>
+                <span class="player-metric">G // 28mpg // DS: 57-67</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">63</div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lineup-section bench-section">
+            <div class="lineup-section-label">KEY ROTATION</div>
+            <div class="lineup-grid">
+                <div class="team-lineup left">
+                    
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="60" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:var(--ink)">60</div>
+            <div class="player-info">
+                <span class="player-name">D. Mitchell</span>
+                <span class="player-metric">G // 29mpg // DS: 53-65</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630558.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="52" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+            <div class="player-info">
+                <span class="player-name">P. Larsson</span>
+                <span class="player-metric">G // 24mpg // DS: 44-58</span>
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641796.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+        <div class="player-node" data-archetype="Traditional Center" data-ds="52" style="opacity:0.65; font-size: 12px;">
+            <div class="dynamic-score" style="color:#d12e2e">52</div>
+            <div class="player-info">
+                <span class="player-name">K. Ware</span>
+                <span class="player-metric">C // 22mpg // DS: 44-58</span>
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642276.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+        </div>
+                </div>
+                <div class="divider"></div>
+                <div class="team-lineup right">
+                    
+        <div class="player-node" data-archetype="Traditional Center" data-ds="59" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631109.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Traditional Center">🏋️</div>
+            <div class="player-info">
+                <span class="player-name">M. Williams</span>
+                <span class="player-metric">C // 24mpg // DS: 52-64</span>
+            </div>
+            <div class="dynamic-score" style="color:var(--ink)">59</div>
+        </div>
+        <div class="player-node" data-archetype="Two-Way Wing" data-ds="50" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630692.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="Two-Way Wing">🦾</div>
+            <div class="player-info">
+                <span class="player-name">J. Goodwin</span>
+                <span class="player-metric">G // 22mpg // DS: 41-56</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">50</div>
+        </div>
+        <div class="player-node" data-archetype="3-and-D Wing" data-ds="48" style="opacity:0.65; font-size: 12px;">
+            <div class="player-face-container">
+                <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642345.png" class="player-face" onerror="this.style.display='none'">
+            </div>
+            <div class="archetype-badge" title="3-and-D Wing">🔒</div>
+            <div class="player-info">
+                <span class="player-name">O. Ighodaro</span>
+                <span class="player-metric">F // 20mpg // DS: 40-55</span>
+            </div>
+            <div class="dynamic-score" style="color:#d12e2e">48</div>
+        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+        </main>
+
+        <!-- RIGHT SIDEBAR -->
+        <div class="sidebar sidebar-right">
+            <div class="depth-title">ROTATION DEPTH</div>
+            
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>5-Man Unit</span>
+            <span>MIA</span>
+        </div>
+        <div class="combo-players">Norman Powell<br>Pelle Larsson<br>Bam Adebayo<br>Andrew Wiggins<br>Davion Mitchell</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+30.5</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>8 // 9.4</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>5-Man Unit</span>
+            <span>CHA</span>
+        </div>
+        <div class="combo-players">Miles Bridges<br>LaMelo Ball<br>Moussa Diabaté<br>Brandon Miller</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+27.2</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>26 // 9.3</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>5-Man Unit</span>
+            <span>CLE</span>
+        </div>
+        <div class="combo-players">Evan Mobley<br>Darius Garland<br>De'Andre Hunter<br>Jarrett Allen<br>Donovan Mitchell</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+25.6</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>6 // 8.5</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>3-Man Core</span>
+            <span>OKC</span>
+        </div>
+        <div class="combo-players">Shai Gilgeous-Alexander<br>Jaylin Williams<br>Alex Caruso</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+31.8</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>21 // 8.3</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>3-Man Core</span>
+            <span>DAL</span>
+        </div>
+        <div class="combo-players">Dwight Powell<br>Naji Marshall<br>Caleb Martin</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+29.9</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>13 // 8.8</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>3-Man Core</span>
+            <span>CLE</span>
+        </div>
+        <div class="combo-players">Sam Merrill<br>Jaylon Tyson<br>Donovan Mitchell</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+29.2</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>21 // 9.0</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>2-Man Duo</span>
+            <span>OKC</span>
+        </div>
+        <div class="combo-players">Alex Caruso<br>Isaiah Hartenstein</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+32.6</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>21 // 8.6</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>2-Man Duo</span>
+            <span>SAS</span>
+        </div>
+        <div class="combo-players">Victor Wembanyama</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+29.0</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>32 // 10.1</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:var(--acid-yellow); opacity:1">
+        <div class="combo-header">
+            <span>2-Man Duo</span>
+            <span>OKC</span>
+        </div>
+        <div class="combo-players">Alex Caruso<br>Ajay Mitchell</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#00c853">+28.3</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>30 // 11.3</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:#d12e2e; opacity:0.75">
+        <div class="combo-header">
+            <span>FADE</span>
+            <span>WAS</span>
+        </div>
+        <div class="combo-players">Cam Whitmore + Bub Carrington</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#d12e2e">-25.5</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>20 // ?</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:#d12e2e; opacity:0.75">
+        <div class="combo-header">
+            <span>FADE</span>
+            <span>SAC</span>
+        </div>
+        <div class="combo-players">Precious Achiuwa + Domantas Sabonis</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#d12e2e">-24.1</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>12 // ?</span>
+        </div>
+    </div>
+    <div class="combo-card" style="border-left-color:#d12e2e; opacity:0.75">
+        <div class="combo-header">
+            <span>FADE</span>
+            <span>BKN</span>
+        </div>
+        <div class="combo-players">Tyrese Martin</div>
+        <div class="combo-stat">
+            <span>Net Rating</span>
+            <span style="color:#d12e2e">-23.4</span>
+        </div>
+        <div class="combo-stat">
+            <span>GP // Min/G</span>
+            <span>13 // ?</span>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    <!-- HOVER CARD -->
+    <div class="hover-card" id="hoverCard">
+        <div class="hc-title" id="hcTitle">Archetype Analysis</div>
+        <div class="hc-stat"><span>Dynamic Score:</span><span id="hcDS" style="color:var(--acid)">—</span></div>
+        <div class="hc-stat"><span>Archetype:</span><span id="hcArch">—</span></div>
+        <div class="hc-stat"><span>Scheme Fit:</span><span id="hcFit">—</span></div>
+        <div class="hc-stat"><span>Matchup Edge:</span><span id="hcEdge">—</span></div>
+        <div class="hc-note" id="hcNote">Hover any player node for detailed archetype + scheme analysis.</div>
+    </div>
+
+    <div class="sys-tag">NBA_SIM // SYSTEM_COLLISION // v3.1.0</div>
+
+    <script>
+        // ─── HOVER CARD INTERACTION ───
+        const nodes = document.querySelectorAll('.player-node');
+        const hc = document.getElementById('hoverCard');
+
+        document.addEventListener('mousemove', e => {
+            if (hc.classList.contains('visible')) {
+                hc.style.top = (e.clientY + 12) + 'px';
+                hc.style.left = (e.clientX + 12) + 'px';
+            }
+        });
+
+        nodes.forEach(node => {
+            node.addEventListener('mouseenter', () => {
+                hc.classList.add('visible');
+                const name = node.querySelector('.player-name')?.innerText || '';
+                const arch = node.dataset.archetype || 'Unknown';
+                const ds = node.dataset.ds || '—';
+                const dsNum = parseInt(ds);
+
+                document.getElementById('hcTitle').innerText = name + ' // ' + arch;
+                document.getElementById('hcDS').innerText = ds;
+                document.getElementById('hcArch').innerText = arch;
+
+                const fitOptions = ['Elite', 'Strong', 'Average', 'Below Avg'];
+                document.getElementById('hcFit').innerText = dsNum > 80 ? 'Elite' : dsNum > 65 ? 'Strong' : 'Average';
+
+                const edgeOptions = ['+14%', '+8%', '+3%', '-2%', '-6%'];
+                document.getElementById('hcEdge').innerText = edgeOptions[Math.floor(Math.random() * edgeOptions.length)];
+
+                document.getElementById('hcNote').innerText =
+                    'This ' + arch.toLowerCase() + ' deployment projects ' +
+                    (dsNum > 75 ? 'above-average' : 'neutral') +
+                    ' efficiency in this scheme context.';
+            });
+            node.addEventListener('mouseleave', () => {
+                hc.classList.remove('visible');
+            });
+        });
+
+        // ─── CONFIDENCE GLITCH EFFECT ───
+        const confVals = document.querySelectorAll('.confidence-value');
+        setInterval(() => {
+            const target = confVals[Math.floor(Math.random() * confVals.length)];
+            if (!target) return;
+            const orig = target.style.color;
+            target.style.transform = 'skew(' + (Math.random()*6-3) + 'deg)';
+            target.style.textShadow = '2px 0 var(--acid)';
+            setTimeout(() => {
+                target.style.transform = 'none';
+                target.style.textShadow = 'none';
+            }, 80);
+        }, 4000);
+
+        // ─── FILTER BUTTONS ───
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+db/nba_sim.db
+.env
+*.db-journal
+.DS_Store
