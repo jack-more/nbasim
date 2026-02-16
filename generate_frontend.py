@@ -491,6 +491,20 @@ def get_matchups():
         ORDER BY ts.net_rating DESC
     """, DB_PATH)
 
+    # ── Get real W-L records from games table ──
+    records = read_query("""
+        SELECT t.abbreviation,
+               COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
+                           OR (g.away_team_id = t.team_id AND g.away_score > g.home_score) THEN 1 END) as wins,
+               COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score)
+                           OR (g.away_team_id = t.team_id AND g.away_score < g.home_score) THEN 1 END) as losses
+        FROM teams t
+        LEFT JOIN games g ON (g.home_team_id = t.team_id OR g.away_team_id = t.team_id)
+            AND g.season_id = '2025-26'
+        GROUP BY t.abbreviation
+    """, DB_PATH)
+    record_map = {row["abbreviation"]: (int(row["wins"]), int(row["losses"])) for _, row in records.iterrows()}
+
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
@@ -569,13 +583,9 @@ def get_matchups():
                 pick_type = "spread"
                 pick_text = f"{away_abbr} {-spread:+.1f}" if spread > 0 else f"{away_abbr} ML"
 
-            # Win estimate
-            h_net = h.get("net_rating", 0) or 0
-            a_net = a.get("net_rating", 0) or 0
-            h_wins = max(5, min(55, int(41 + h_net * 2.5)))
-            h_losses = 56 - h_wins
-            a_wins = max(5, min(55, int(41 + a_net * 2.5)))
-            a_losses = 56 - a_wins
+            # Real W-L records from games table
+            h_wins, h_losses = record_map.get(home_abbr, (0, 0))
+            a_wins, a_losses = record_map.get(away_abbr, (0, 0))
 
             matchups.append({
                 "home": h, "away": a,
