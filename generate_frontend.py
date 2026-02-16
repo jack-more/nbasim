@@ -1461,9 +1461,26 @@ def render_matchup_card(m, idx, team_map):
         away_players_html += render_player_row(player, aa, team_map, is_starter=(i < 5))
 
     conf_pct = m["confidence"]
+    # Confidence grade: distance from 50 (toss-up), mapped to 0-100
+    conf_grade = min(100, int(abs(conf_pct - 50) * 2.5 + 20))
+    if conf_grade >= 80:
+        conf_color = "#00FF55"
+        conf_label = "A"
+    elif conf_grade >= 65:
+        conf_color = "#7FFF00"
+        conf_label = "B"
+    elif conf_grade >= 50:
+        conf_color = "#FFD600"
+        conf_label = "C"
+    elif conf_grade >= 35:
+        conf_color = "#FF8C00"
+        conf_label = "D"
+    else:
+        conf_color = "#FF3333"
+        conf_label = "F"
 
     return f"""
-    <div class="matchup-card" data-conf="{m['conf_class']}" data-edge="{abs(raw_edge):.1f}" data-total="{total}" data-idx="{idx}">
+    <div class="matchup-card" data-conf="{conf_grade}" data-edge="{abs(raw_edge):.1f}" data-total="{total}" data-idx="{idx}">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="{a_logo}" class="mc-logo" alt="{aa}" onerror="this.style.display='none'">
@@ -1477,6 +1494,7 @@ def render_matchup_card(m, idx, team_map):
                 <div class="mc-spread" style="color:{edge_color}">{spread_display}{spread_tag}</div>
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
                 <div class="mc-pick"><span class="pick-label">SIM PICK</span> {pick_text}</div>
+                <div class="mc-conf" style="color:{conf_color}">{conf_grade} <span class="conf-letter" style="background:{conf_color}">{conf_label}</span></div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2165,6 +2183,24 @@ def generate_css():
             letter-spacing: 1px;
             opacity: 0.6;
             margin-right: 4px;
+        }
+        .mc-conf {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 800;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .conf-letter {
+            font-family: var(--font-display);
+            font-size: 12px;
+            color: #000;
+            padding: 1px 6px;
+            border-radius: 3px;
+            letter-spacing: 1px;
         }
 
         /* Tug of war bar */
@@ -3093,7 +3129,7 @@ def generate_js():
                 const sort = btn.dataset.sort;
 
                 if (sort === 'value') {
-                    cards.sort((a, b) => parseFloat(b.dataset.edge) - parseFloat(a.dataset.edge));
+                    cards.sort((a, b) => parseFloat(b.dataset.conf) - parseFloat(a.dataset.conf));
                 } else if (sort === 'total') {
                     cards.sort((a, b) => parseFloat(b.dataset.total) - parseFloat(a.dataset.total));
                 } else {
