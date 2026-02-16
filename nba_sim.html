@@ -389,6 +389,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border: 1px solid rgba(0,0,0,0.15);
+            text-shadow: 0 0 3px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.3);
         }
         .scheme-divider {
             font-size: 10px;
@@ -624,6 +625,46 @@
         .conf-high { color: var(--green); }
         .conf-med { color: var(--amber); }
         .conf-low { color: var(--red); }
+
+        /* Last 5 games on prop cards */
+        .prop-last5 {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .l5-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .l5-val {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 28px;
+            text-align: center;
+        }
+        .l5-hit {
+            background: rgba(0,255,85,0.2);
+            color: #00FF55;
+        }
+        .l5-miss {
+            background: rgba(255,51,51,0.15);
+            color: #FF5555;
+        }
+        .l5-hit-rate {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            margin-left: 2px;
+        }
 
         /* ─── TRENDS ─── */
         .trends-grid {
@@ -5587,10 +5628,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">28.7 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">28.5 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 28.7 pts // 70% TS vs 114 DRTG // 📉 TRENDING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">26</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-hit">30</span><span class="l5-val l5-miss">24</span>
+            <span class="l5-hit-rate">(1/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5605,10 +5651,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">29.0 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">27.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 29.0 pts // 62% TS vs 117 DRTG // 📉 TRENDING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">30</span><span class="l5-val l5-hit">32</span><span class="l5-val l5-hit">35</span><span class="l5-val l5-hit">29</span><span class="l5-val l5-miss">14</span>
+            <span class="l5-hit-rate">(4/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5623,10 +5674,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">28.9 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">29.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 28.9 pts // 60% TS vs 114 DRTG</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">32</span><span class="l5-val l5-hit">30</span><span class="l5-val l5-hit">29</span><span class="l5-val l5-miss">26</span><span class="l5-val l5-miss">14</span>
+            <span class="l5-hit-rate">(3/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5641,10 +5697,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">27.9 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">28.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 27.9 pts // 62% TS vs 116 DRTG // 🔥 HEATING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">27</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">41</span><span class="l5-val l5-hit">31</span><span class="l5-val l5-miss">25</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-under">
@@ -5659,10 +5720,15 @@
             <div class="prop-pick prop-under">
                 <span class="prop-dir">▼ UNDER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">19.8 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">19.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 19.8 pts // 59% TS vs 108 DRTG // 🔥 HEATING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">21</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-hit">11</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">19</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5677,10 +5743,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">AST</span>
-                <span class="prop-line">9.6 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">8.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 9.6 ast // 35 mpg</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">9</span><span class="l5-val l5-miss">7</span><span class="l5-val l5-miss">7</span><span class="l5-val l5-miss">8</span><span class="l5-val l5-hit">10</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5695,10 +5766,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">26.6 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">29.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 26.6 pts // 61% TS vs 114 DRTG // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">0</span><span class="l5-val l5-hit">33</span><span class="l5-val l5-hit">35</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">40</span>
+            <span class="l5-hit-rate">(3/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5713,10 +5789,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">29.3 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">29.5 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 29.3 pts // 57% TS vs 111 DRTG</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">24</span><span class="l5-val l5-miss">26</span><span class="l5-val l5-miss">29</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-hit">33</span>
+            <span class="l5-hit-rate">(1/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-under">
@@ -5731,10 +5812,15 @@
             <div class="prop-pick prop-under">
                 <span class="prop-dir">▼ UNDER</span>
                 <span class="prop-type">AST</span>
-                <span class="prop-line">6.1 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">5.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 6.1 ast vs 108 DRTG // 🔥 HEATING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">4</span><span class="l5-val l5-miss">8</span><span class="l5-val l5-miss">8</span><span class="l5-val l5-hit">4</span><span class="l5-val l5-miss">9</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5749,10 +5835,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">27.2 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">27.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 27.2 pts // 64% TS vs 111 DRTG</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">23</span><span class="l5-val l5-hit">27</span><span class="l5-val l5-miss">26</span><span class="l5-val l5-hit">38</span><span class="l5-val l5-miss">16</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5767,10 +5858,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">25.7 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">25.5 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 25.7 pts // 62% TS vs 114 DRTG // 🔥 HEATING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">23</span><span class="l5-val l5-miss">17</span><span class="l5-val l5-hit">28</span><span class="l5-val l5-hit">39</span><span class="l5-val l5-hit">32</span>
+            <span class="l5-hit-rate">(3/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5785,10 +5881,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">25.0 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">20.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 25.0 pts // 60% TS vs 117 DRTG // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">13</span><span class="l5-val l5-hit">22</span><span class="l5-val l5-hit">23</span><span class="l5-val l5-hit">25</span><span class="l5-val l5-miss">16</span>
+            <span class="l5-hit-rate">(3/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5803,10 +5904,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">25.8 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">24.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 25.8 pts // 63% TS vs 113 DRTG // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">21</span><span class="l5-val l5-hit">26</span><span class="l5-val l5-miss">20</span><span class="l5-val l5-hit">31</span><span class="l5-val l5-miss">15</span>
+            <span class="l5-hit-rate">(2/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-under">
@@ -5821,10 +5927,15 @@
             <div class="prop-pick prop-under">
                 <span class="prop-dir">▼ UNDER</span>
                 <span class="prop-type">PTS</span>
-                <span class="prop-line">21.2 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">21.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 21.2 pts // 55% TS vs 110 DRTG // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">23</span><span class="l5-val l5-miss">28</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">11</span><span class="l5-val l5-miss">22</span>
+            <span class="l5-hit-rate">(1/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5839,10 +5950,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">REB</span>
-                <span class="prop-line">11.1 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">11.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 11.1 reb // 29 mpg // 📈 TRENDING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">9</span><span class="l5-val l5-hit">12</span><span class="l5-val l5-hit">11</span><span class="l5-val l5-hit">11</span><span class="l5-val l5-hit">14</span>
+            <span class="l5-hit-rate">(4/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-under">
@@ -5857,10 +5973,15 @@
             <div class="prop-pick prop-under">
                 <span class="prop-dir">▼ UNDER</span>
                 <span class="prop-type">AST</span>
-                <span class="prop-line">6.3 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">6.5 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 6.3 ast vs 110 DRTG</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">9</span><span class="l5-val l5-hit">3</span><span class="l5-val l5-hit">4</span><span class="l5-val l5-hit">4</span><span class="l5-val l5-hit">4</span>
+            <span class="l5-hit-rate">(4/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5875,10 +5996,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">AST</span>
-                <span class="prop-line">8.9 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">9.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 8.9 ast // 28 mpg // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-hit">10</span><span class="l5-val l5-miss">6</span>
+            <span class="l5-hit-rate">(1/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5893,10 +6019,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">REB</span>
-                <span class="prop-line">10.6 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">9.5</span>
             </div>
         </div>
         <div class="prop-note">Avg 10.6 reb // 36 mpg // 🔥 HEATING UP (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">13</span><span class="l5-val l5-miss">9</span><span class="l5-val l5-hit">16</span><span class="l5-val l5-hit">11</span><span class="l5-val l5-hit">11</span>
+            <span class="l5-hit-rate">(4/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5911,10 +6042,15 @@
             <div class="prop-pick prop-over">
                 <span class="prop-dir">▲ OVER</span>
                 <span class="prop-type">REB</span>
-                <span class="prop-line">11.1 <span class="proj-tag">(PROJ. LINE)</span></span>
+                <span class="prop-line">11.0 <span class="proj-tag">(PROJ. LINE)</span></span>
             </div>
         </div>
         <div class="prop-note">Avg 11.1 reb // 31 mpg // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-hit">11</span><span class="l5-val l5-hit">16</span><span class="l5-val l5-hit">12</span><span class="l5-val l5-miss">8</span><span class="l5-val l5-miss">3</span>
+            <span class="l5-hit-rate">(3/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
     <div class="prop-card prop-over">
@@ -5933,6 +6069,11 @@
             </div>
         </div>
         <div class="prop-note">Avg 11.0 reb // 31 mpg // ❄️ COOLING DOWN (5G)</div>
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            <span class="l5-val l5-miss">9</span><span class="l5-val l5-hit">20</span><span class="l5-val l5-miss">7</span><span class="l5-val l5-miss">7</span><span class="l5-val l5-miss">10</span>
+            <span class="l5-hit-rate">(1/5)</span>
+        </div>
         <div class="prop-conf conf-high">HIGH</div>
     </div>
             </div>

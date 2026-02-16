@@ -124,15 +124,16 @@ ODDS_TEAM_MAP = {
 def fetch_odds_api_lines():
     """Fetch real NBA spreads and totals from The Odds API.
 
-    Returns (lines_dict, matchup_pairs, slate_date_str).
+    Returns (lines_dict, matchup_pairs, slate_date_str, event_ids).
       lines_dict: keyed by (home_abbr, away_abbr) with consensus spread and total
       matchup_pairs: list of (home_abbr, away_abbr) in game order from API
       slate_date_str: e.g. "FEB 20" derived from first game's commence_time
-    Returns ({}, [], None) if no API key or if request fails.
+      event_ids: list of Odds API event IDs for player prop lookups
+    Returns ({}, [], None, []) if no API key or if request fails.
     """
     if not ODDS_API_KEY:
         print("[Odds API] No ODDS_API_KEY set — using projected lines")
-        return {}, [], None
+        return {}, [], None, []
 
     url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
     params = {
@@ -151,10 +152,11 @@ def fetch_odds_api_lines():
         print(f"[Odds API] Fetched {len(data)} games — {remaining} requests remaining this month")
     except Exception as e:
         print(f"[Odds API] Failed to fetch: {e} — using projected lines")
-        return {}, [], None
+        return {}, [], None, []
 
     lines = {}
     matchup_pairs = []
+    event_ids = []
     slate_date_str = None
 
     for game in data:
@@ -167,6 +169,11 @@ def fetch_odds_api_lines():
             continue
 
         matchup_pairs.append((home_abbr, away_abbr))
+
+        # Capture event ID for player props lookup
+        eid = game.get("id", "")
+        if eid:
+            event_ids.append(eid)
 
         # Parse date from first game
         if slate_date_str is None:
@@ -211,8 +218,8 @@ def fetch_odds_api_lines():
         if result:
             lines[(home_abbr, away_abbr)] = result
 
-    print(f"[Odds API] Parsed lines for {len(lines)} matchups | Slate: {slate_date_str} | {len(matchup_pairs)} games")
-    return lines, matchup_pairs, slate_date_str
+    print(f"[Odds API] Parsed lines for {len(lines)} matchups | Slate: {slate_date_str} | {len(matchup_pairs)} games | {len(event_ids)} event IDs")
+    return lines, matchup_pairs, slate_date_str, event_ids
 
 
 def fetch_odds_api_player_props(event_ids):
@@ -538,7 +545,7 @@ def get_matchups():
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
     # ── Try to fetch real sportsbook lines + game slate ──
-    real_lines, api_pairs, slate_date = fetch_odds_api_lines()
+    real_lines, api_pairs, slate_date, event_ids = fetch_odds_api_lines()
     has_any_real = len(real_lines) > 0
 
     # Use API games if available, otherwise fall back to hardcoded
@@ -640,7 +647,7 @@ def get_matchups():
                 "h_ds_rank": h_ds_rank, "a_ds_rank": a_ds_rank,
             })
 
-    return matchups, team_map, slate_date
+    return matchups, team_map, slate_date, event_ids
 
 
 def get_team_roster(abbreviation, limit=8):
@@ -821,8 +828,53 @@ def get_lock_picks(matchups):
     return picks[:5]
 
 
-def get_best_props(matchups, team_map):
-    """Generate best player prop suggestions ranked by confidence."""
+def get_last5_prop_stats(player_id, prop_type):
+    """Get last 5 game values for a specific prop stat.
+
+    prop_type: 'PTS', 'AST', 'REB', 'PRA', 'STL+BLK'
+    Returns list of values (most recent first), e.g. [32, 25, 31, 28, 35]
+    """
+    games = read_query("""
+        SELECT pgs.pts, pgs.ast, pgs.reb, pgs.stl, pgs.blk, g.game_date
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE pgs.player_id = ?
+        ORDER BY g.game_date DESC
+        LIMIT 5
+    """, DB_PATH, [player_id])
+
+    if games.empty:
+        return []
+
+    values = []
+    for _, g in games.iterrows():
+        if prop_type == "PTS":
+            values.append(int(g["pts"]))
+        elif prop_type == "AST":
+            values.append(int(g["ast"]))
+        elif prop_type == "REB":
+            values.append(int(g["reb"]))
+        elif prop_type == "PRA":
+            values.append(int(g["pts"] + g["reb"] + g["ast"]))
+        elif prop_type == "STL+BLK":
+            values.append(int(g["stl"] + g["blk"]))
+        else:
+            values.append(0)
+    return values
+
+
+def round_to_half(val):
+    """Round a value to the nearest 0.5 like real sportsbook lines."""
+    return round(val * 2) / 2
+
+def get_best_props(matchups, team_map, real_player_props=None):
+    """Generate best player prop suggestions ranked by confidence.
+
+    real_player_props: dict from fetch_odds_api_player_props() keyed by player name
+        with sub-dict of prop_type -> line value.
+    """
+    if real_player_props is None:
+        real_player_props = {}
     all_props = []
 
     for m in matchups:
@@ -872,50 +924,68 @@ def get_best_props(matchups, team_map):
 
                 prop_candidates = []
 
+                # Check if we have real sportsbook lines for this player
+                # Map our prop types to Odds API prop types
+                PROP_MAP = {"PTS": "POINTS", "AST": "ASSISTS", "REB": "REBOUNDS", "PRA": "PRA"}
+                player_real = real_player_props.get(name, {})
+
                 # POINTS
                 if pts >= 15:
+                    # Use real sportsbook line if available, else round projected to nearest 0.5
+                    real_pts_line = player_real.get("POINTS")
+                    line_val = real_pts_line if real_pts_line is not None else round_to_half(pts)
+                    is_real = real_pts_line is not None
+
                     base = min(100, (pts - 10) * 4.0)
                     ts_mod = (ts - 0.55) * 160
                     raw = base + ts_mod + matchup_signal
                     if raw >= 55:
                         prop_candidates.append({
-                            "prop": "PTS", "line": f"{pts:.1f}",
+                            "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "OVER", "strength": raw,
                             "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
                     elif pts >= 18 and (matchup_signal < -4 or ts < 0.53):
                         under_strength = 60 + abs(matchup_signal) * 2 + max(0, (0.53 - ts) * 200)
                         prop_candidates.append({
-                            "prop": "PTS", "line": f"{pts:.1f}",
+                            "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "UNDER", "strength": min(95, under_strength),
                             "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
 
                 # ASSISTS
                 if ast >= 5:
+                    real_ast_line = player_real.get("ASSISTS")
+                    line_val = real_ast_line if real_ast_line is not None else round_to_half(ast)
+                    is_real = real_ast_line is not None
+
                     base = min(100, (ast - 2) * 10)
                     raw = base + matchup_signal
                     if raw >= 50:
                         prop_candidates.append({
-                            "prop": "AST", "line": f"{ast:.1f}",
+                            "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "OVER", "strength": raw,
                             "note": f"Avg {ast:.1f} ast // {mpg:.0f} mpg{trend_note}",
                         })
                     elif ast >= 6 and matchup_signal < -4:
                         under_strength = 55 + abs(matchup_signal) * 2
                         prop_candidates.append({
-                            "prop": "AST", "line": f"{ast:.1f}",
+                            "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "UNDER", "strength": min(90, under_strength),
                             "note": f"Avg {ast:.1f} ast vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
 
                 # REBOUNDS
                 if reb >= 7:
+                    real_reb_line = player_real.get("REBOUNDS")
+                    line_val = real_reb_line if real_reb_line is not None else round_to_half(reb)
+                    is_real = real_reb_line is not None
+
                     base = min(100, (reb - 4) * 10)
                     raw = base + matchup_signal * 0.5
                     if raw >= 50:
                         prop_candidates.append({
-                            "prop": "REB", "line": f"{reb:.1f}",
+                            "prop": "REB", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "OVER", "strength": raw,
                             "note": f"Avg {reb:.1f} reb // {mpg:.0f} mpg{trend_note}",
                         })
@@ -923,18 +993,22 @@ def get_best_props(matchups, team_map):
                 # PRA
                 pra = pts + reb + ast
                 if pra >= 35:
+                    real_pra_line = player_real.get("PRA")
+                    line_val = real_pra_line if real_pra_line is not None else round_to_half(pra)
+                    is_real = real_pra_line is not None
+
                     base = min(100, (pra - 25) * 2.0)
                     raw = base + matchup_signal
                     if raw >= 60 and matchup_signal > 0:
                         prop_candidates.append({
-                            "prop": "PRA", "line": f"{pra:.1f}",
+                            "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "OVER", "strength": raw,
                             "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a{trend_note}",
                         })
                     elif pra >= 30 and matchup_signal < -5:
                         under_strength = 55 + abs(matchup_signal) * 1.5
                         prop_candidates.append({
-                            "prop": "PRA", "line": f"{pra:.1f}",
+                            "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
                             "direction": "UNDER", "strength": min(90, under_strength),
                             "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a vs elite D{trend_note}",
                         })
@@ -942,11 +1016,12 @@ def get_best_props(matchups, team_map):
                 # STOCKS
                 stocks = stl + blk
                 if stocks >= 2.5:
+                    line_val = round_to_half(stocks)  # No real line for STL+BLK typically
                     base = min(100, (stocks - 1) * 20)
                     raw = base + matchup_signal * 0.3
                     if raw >= 50:
                         prop_candidates.append({
-                            "prop": "STL+BLK", "line": f"{stocks:.1f}",
+                            "prop": "STL+BLK", "line": f"{line_val:.1f}", "is_real_line": False,
                             "direction": "OVER", "strength": raw,
                             "note": f"Avg {stl:.1f} stl + {blk:.1f} blk{trend_note}",
                         })
@@ -962,6 +1037,9 @@ def get_best_props(matchups, team_map):
 
                 low, high = compute_ds_range(ds)
 
+                # Get last 5 games for this specific prop stat
+                last5 = get_last5_prop_stats(player_id, best["prop"])
+
                 all_props.append({
                     "player": short,
                     "full_name": name,
@@ -976,7 +1054,8 @@ def get_best_props(matchups, team_map):
                     "direction": best["direction"],
                     "note": best["note"],
                     "confidence": confidence,
-                    "line_is_projected": True,  # Will be False when real props from Odds API
+                    "line_is_projected": not best.get("is_real_line", False),
+                    "last5": last5,
                 })
 
     all_props.sort(key=lambda x: x["confidence"], reverse=True)
@@ -1096,12 +1175,18 @@ def get_projected_player_lines(team_abbr, opponent_abbr, team_map):
 
 def generate_html():
     """Generate the complete NBA SIM HTML — mobile-first with all features."""
-    matchups, team_map, slate_date = get_matchups()
+    matchups, team_map, slate_date, event_ids = get_matchups()
     slate_date = slate_date or "TODAY"
     combos = get_top_combos()
     fades = get_fade_combos()
     locks = get_lock_picks(matchups)
-    props = get_best_props(matchups, team_map)
+
+    # Fetch real player props from Odds API (costs ~20 credits for 5 games × 4 markets)
+    real_player_props = {}
+    if event_ids and ODDS_API_KEY:
+        real_player_props = fetch_odds_api_player_props(event_ids)
+
+    props = get_best_props(matchups, team_map, real_player_props)
     top50 = get_top_50_ds()
 
     # Check if any games have real sportsbook lines
@@ -1617,6 +1702,24 @@ def render_prop_card(prop, rank):
     else:
         conf_class = "conf-low"
 
+    # Build last 5 games display
+    last5 = prop.get("last5", [])
+    line_val = float(prop["line"])
+    last5_html = ""
+    if last5:
+        dots = []
+        for val in last5:
+            hit = (val >= line_val and not is_under) or (val < line_val and is_under)
+            dot_cls = "l5-hit" if hit else "l5-miss"
+            dots.append(f'<span class="l5-val {dot_cls}">{val}</span>')
+        hits = sum(1 for v in last5 if (v >= line_val and not is_under) or (v < line_val and is_under))
+        last5_html = f"""
+        <div class="prop-last5">
+            <span class="l5-label">LAST 5:</span>
+            {"".join(dots)}
+            <span class="l5-hit-rate">({hits}/5)</span>
+        </div>"""
+
     return f"""
     <div class="prop-card {dir_class}">
         <div class="prop-rank-watermark">{rank}</div>
@@ -1633,7 +1736,7 @@ def render_prop_card(prop, rank):
                 <span class="prop-line">{prop['line']}{"" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">(PROJ. LINE)</span>'}</span>
             </div>
         </div>
-        <div class="prop-note">{prop['note']}</div>
+        <div class="prop-note">{prop['note']}</div>{last5_html}
         <div class="prop-conf {conf_class}">{'HIGH' if conf >= 55 else 'MED' if conf >= 45 else 'LOW'}</div>
     </div>"""
 
@@ -2262,6 +2365,7 @@ def generate_css():
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border: 1px solid rgba(0,0,0,0.15);
+            text-shadow: 0 0 3px rgba(255,255,255,0.5), 0 0 1px rgba(255,255,255,0.3);
         }
         .scheme-divider {
             font-size: 10px;
@@ -2497,6 +2601,46 @@ def generate_css():
         .conf-high { color: var(--green); }
         .conf-med { color: var(--amber); }
         .conf-low { color: var(--red); }
+
+        /* Last 5 games on prop cards */
+        .prop-last5 {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .l5-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .l5-val {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 28px;
+            text-align: center;
+        }
+        .l5-hit {
+            background: rgba(0,255,85,0.2);
+            color: #00FF55;
+        }
+        .l5-miss {
+            background: rgba(255,51,51,0.15);
+            color: #FF5555;
+        }
+        .l5-hit-rate {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            margin-left: 2px;
+        }
 
         /* ─── TRENDS ─── */
         .trends-grid {
