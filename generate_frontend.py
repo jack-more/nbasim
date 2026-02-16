@@ -1370,7 +1370,6 @@ def generate_html():
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
                 <button class="sort-btn" data-sort="value">Best Value</button>
-                <button class="sort-btn" data-sort="total">High Total</button>
             </div>
             <div class="matchup-list" id="matchupList">
                 {matchup_cards}
@@ -3316,8 +3315,6 @@ def generate_js():
 
                 if (sort === 'value') {
                     cards.sort((a, b) => parseFloat(b.dataset.conf) - parseFloat(a.dataset.conf));
-                } else if (sort === 'total') {
-                    cards.sort((a, b) => parseFloat(b.dataset.total) - parseFloat(a.dataset.total));
                 } else {
                     cards.sort((a, b) => parseInt(a.dataset.idx) - parseInt(b.dataset.idx));
                 }
