@@ -1687,22 +1687,28 @@ def render_player_row(player, team_abbr, team_map, is_starter=True):
 
 
 def render_prop_card(prop, rank):
-    """Render a player prop card."""
+    """Render a compact player prop card — single-row layout for mobile."""
     is_under = prop["direction"] == "UNDER"
     dir_class = "prop-under" if is_under else "prop-over"
     dir_icon = "▼" if is_under else "▲"
     team_logo = get_team_logo_url(prop["team"])
     headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{prop['player_id']}.png"
+    tc = TEAM_COLORS.get(prop["team"], "#333")
 
     conf = prop["confidence"]
     if conf >= 55:
         conf_class = "conf-high"
+        conf_label = "HIGH"
     elif conf >= 45:
         conf_class = "conf-med"
+        conf_label = "MED"
     else:
         conf_class = "conf-low"
+        conf_label = "LOW"
 
-    # Build last 5 games display
+    proj_tag = "" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">PROJ</span>'
+
+    # Build last 5 games display — compact inline
     last5 = prop.get("last5", [])
     line_val = float(prop["line"])
     last5_html = ""
@@ -1715,29 +1721,32 @@ def render_prop_card(prop, rank):
         hits = sum(1 for v in last5 if (v >= line_val and not is_under) or (v < line_val and is_under))
         last5_html = f"""
         <div class="prop-last5">
-            <span class="l5-label">LAST 5:</span>
             {"".join(dots)}
-            <span class="l5-hit-rate">({hits}/5)</span>
+            <span class="l5-hit-rate">{hits}/5</span>
         </div>"""
 
     return f"""
-    <div class="prop-card {dir_class}">
-        <div class="prop-rank-watermark">{rank}</div>
-        <div class="prop-top">
+    <div class="prop-card {dir_class}" style="border-left: 3px solid {tc};">
+        <div class="prop-rank-num">{rank}</div>
+        <div class="prop-row">
             <img src="{headshot}" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-player">
-                <span class="prop-name">{prop['player']}</span>
-                <span class="prop-matchup">{prop['team']} vs {prop['opponent']}</span>
-                <span class="prop-arch">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} // DS {prop['ds']} ({prop['ds_range']})</span>
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">{prop['player']}</span>
+                    <span class="prop-team-opp">{prop['team']} vs {prop['opponent']}</span>
+                </div>
+                <div class="prop-meta">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} · DS {prop['ds']}</div>
             </div>
-            <div class="prop-pick {dir_class}">
-                <span class="prop-dir">{dir_icon} {prop['direction']}</span>
-                <span class="prop-type">{prop['prop']}</span>
-                <span class="prop-line">{prop['line']}{"" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">(PROJ. LINE)</span>'}</span>
+            <div class="prop-pick-compact {dir_class}">
+                <span class="prop-dir-line"><span class="prop-dir-icon">{dir_icon}</span> {prop['line']}{proj_tag}</span>
+                <span class="prop-type-label">{prop['direction']} {prop['prop']}</span>
             </div>
+            <div class="prop-conf-pill {conf_class}">{conf_label}</div>
         </div>
-        <div class="prop-note">{prop['note']}</div>{last5_html}
-        <div class="prop-conf {conf_class}">{'HIGH' if conf >= 55 else 'MED' if conf >= 45 else 'LOW'}</div>
+        <div class="prop-bottom">
+            <div class="prop-note">{prop['note']}</div>
+            {last5_html}
+        </div>
     </div>"""
 
 
@@ -2494,152 +2503,175 @@ def generate_css():
 
         /* ─── PROPS ─── */
         .props-list { display: flex; flex-direction: column; gap: 10px; }
+        /* ─── PROP CARDS — Compact Row Layout ─── */
         .prop-card {
             background: var(--surface-dark);
             color: #fff;
-            border: var(--border);
             border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 16px;
+            padding: 10px 12px;
             position: relative;
             overflow: hidden;
         }
-        .prop-rank-watermark {
+        .prop-rank-num {
             position: absolute;
-            top: -10px;
-            right: 8px;
-            font-family: var(--font-display);
-            font-size: 72px;
-            color: rgba(255,255,255,0.06);
-            line-height: 1;
-            pointer-events: none;
+            top: 0;
+            left: 0;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.06);
+            padding: 2px 6px;
+            border-radius: 0 0 6px 0;
         }
-        .prop-top {
+        .prop-row {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
         .prop-face {
-            width: 44px;
-            height: 44px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.15);
             background: #222;
             flex-shrink: 0;
         }
-        .prop-player {
+        .prop-info {
             flex: 1;
             min-width: 0;
         }
+        .prop-name-row {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
         .prop-name {
             font-weight: 700;
-            font-size: 15px;
-            display: block;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .prop-matchup {
+        .prop-team-opp {
             font-family: var(--font-mono);
-            font-size: 11px;
-            color: rgba(255,255,255,0.4);
-        }
-        .prop-arch {
             font-size: 10px;
             color: rgba(255,255,255,0.35);
-            display: block;
+            white-space: nowrap;
         }
-        .prop-pick {
+        .prop-meta {
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .prop-pick-compact {
             text-align: center;
             flex-shrink: 0;
-            padding: 8px 14px;
+            padding: 6px 10px;
             border-radius: 8px;
+            min-width: 68px;
         }
-        .prop-pick.prop-over {
-            background: rgba(0,255,85,0.15);
-            border: 1px solid rgba(0,255,85,0.3);
+        .prop-pick-compact.prop-over {
+            background: rgba(0,255,85,0.12);
+            border: 1px solid rgba(0,255,85,0.25);
         }
-        .prop-pick.prop-under {
-            background: rgba(255,51,51,0.15);
-            border: 1px solid rgba(255,51,51,0.3);
+        .prop-pick-compact.prop-under {
+            background: rgba(255,51,51,0.12);
+            border: 1px solid rgba(255,51,51,0.25);
         }
-        .prop-dir {
+        .prop-dir-line {
             font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 16px;
+            font-weight: 800;
             display: block;
+            line-height: 1.1;
         }
-        .prop-over .prop-dir { color: var(--green); }
-        .prop-under .prop-dir { color: var(--red); }
-        .prop-type {
-            font-family: var(--font-display);
-            font-size: 18px;
-            display: block;
-            margin-top: 2px;
+        .prop-dir-icon { font-size: 11px; }
+        .prop-over .prop-dir-line { color: var(--green); }
+        .prop-under .prop-dir-line { color: var(--red); }
+        .prop-dir-line .proj-tag {
+            color: rgba(255,255,255,0.3);
+            font-size: 7px;
+            vertical-align: middle;
+            margin-left: 2px;
         }
-        .prop-line {
+        .prop-type-label {
             font-family: var(--font-mono);
-            font-size: 12px;
+            font-size: 9px;
+            font-weight: 600;
+            display: block;
             color: rgba(255,255,255,0.5);
+            margin-top: 1px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .prop-note {
+        .prop-conf-pill {
             font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(255,255,255,0.35);
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.08);
-        }
-        .prop-conf {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            font-family: var(--font-mono);
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
         }
-        .conf-high { color: var(--green); }
-        .conf-med { color: var(--amber); }
-        .conf-low { color: var(--red); }
-
-        /* Last 5 games on prop cards */
-        .prop-last5 {
+        .prop-conf-pill.conf-high { color: var(--green); background: rgba(0,255,85,0.1); }
+        .prop-conf-pill.conf-med { color: var(--amber); background: rgba(255,214,0,0.1); }
+        .prop-conf-pill.conf-low { color: var(--red); background: rgba(255,51,51,0.1); }
+        .prop-bottom {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             margin-top: 6px;
             padding-top: 6px;
             border-top: 1px solid rgba(255,255,255,0.06);
         }
-        .l5-label {
+        .prop-note {
             font-family: var(--font-mono);
-            font-size: 9px;
-            color: rgba(255,255,255,0.35);
-            letter-spacing: 0.5px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Last 5 games — compact inline */
+        .prop-last5 {
+            display: flex;
+            align-items: center;
+            gap: 3px;
             flex-shrink: 0;
         }
         .l5-val {
             font-family: var(--font-mono);
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
-            min-width: 28px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            min-width: 22px;
             text-align: center;
         }
         .l5-hit {
-            background: rgba(0,255,85,0.2);
+            background: rgba(0,255,85,0.15);
             color: #00FF55;
         }
         .l5-miss {
-            background: rgba(255,51,51,0.15);
+            background: rgba(255,51,51,0.1);
             color: #FF5555;
         }
         .l5-hit-rate {
             font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(255,255,255,0.4);
-            margin-left: 2px;
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            margin-left: 1px;
         }
 
         /* ─── TRENDS ─── */
