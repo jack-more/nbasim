@@ -477,6 +477,32 @@ def get_player_context(player, opponent_abbr, team_map):
     return " // ".join(notes[:2]) if notes else f"{arch} averaging {pts:.0f}p/{ast:.0f}a"
 
 
+def get_team_ds_rankings():
+    """Rank all 30 teams by minutes-weighted average Dynamic Score across rotation."""
+    all_teams = read_query("""
+        SELECT t.abbreviation FROM teams t
+        JOIN team_season_stats ts ON t.team_id = ts.team_id
+        WHERE ts.season_id = '2025-26'
+    """, DB_PATH)
+
+    team_ds = []
+    for _, row in all_teams.iterrows():
+        abbr = row["abbreviation"]
+        roster = get_team_roster(abbr, 10)  # top 10 by minutes
+        total_weighted = 0
+        total_minutes = 0
+        for _, p in roster.iterrows():
+            ds, _ = compute_dynamic_score(p)
+            mpg = p.get("minutes_per_game", 0) or 0
+            total_weighted += ds * mpg
+            total_minutes += mpg
+        avg_ds = total_weighted / total_minutes if total_minutes > 0 else 40
+        team_ds.append((abbr, round(avg_ds, 1)))
+
+    team_ds.sort(key=lambda x: x[1], reverse=True)
+    return {abbr: rank + 1 for rank, (abbr, _) in enumerate(team_ds)}
+
+
 def get_matchups():
     """Generate matchups from the Odds API slate (or fallback to hardcoded)."""
     teams = read_query("""
@@ -504,6 +530,9 @@ def get_matchups():
         GROUP BY t.abbreviation
     """, DB_PATH)
     record_map = {row["abbreviation"]: (int(row["wins"]), int(row["losses"])) for _, row in records.iterrows()}
+
+    # ── Get team DS rankings (1-30) ──
+    ds_rank_map = get_team_ds_rankings()
 
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
@@ -587,6 +616,10 @@ def get_matchups():
             h_wins, h_losses = record_map.get(home_abbr, (0, 0))
             a_wins, a_losses = record_map.get(away_abbr, (0, 0))
 
+            # DS rankings (1-30)
+            h_ds_rank = ds_rank_map.get(home_abbr, 30)
+            a_ds_rank = ds_rank_map.get(away_abbr, 30)
+
             matchups.append({
                 "home": h, "away": a,
                 "home_abbr": home_abbr, "away_abbr": away_abbr,
@@ -604,6 +637,7 @@ def get_matchups():
                 "pick_text": pick_text,
                 "h_wins": h_wins, "h_losses": h_losses,
                 "a_wins": a_wins, "a_losses": a_losses,
+                "h_ds_rank": h_ds_rank, "a_ds_rank": a_ds_rank,
             })
 
     return matchups, team_map, slate_date
@@ -1435,6 +1469,7 @@ def render_matchup_card(m, idx, team_map):
                 <img src="{a_logo}" class="mc-logo" alt="{aa}" onerror="this.style.display='none'">
                 <div class="mc-team-info">
                     <span class="mc-abbr">{aa}</span>
+                    <span class="mc-ds-rank">DS #{m['a_ds_rank']}</span>
                     <span class="mc-record">{m['a_wins']}-{m['a_losses']}</span>
                 </div>
             </div>
@@ -1446,6 +1481,7 @@ def render_matchup_card(m, idx, team_map):
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
                     <span class="mc-abbr">{ha}</span>
+                    <span class="mc-ds-rank">DS #{m['h_ds_rank']}</span>
                     <span class="mc-record">{m['h_wins']}-{m['h_losses']}</span>
                 </div>
                 <img src="{h_logo}" class="mc-logo" alt="{ha}" onerror="this.style.display='none'">
@@ -1711,6 +1747,12 @@ def render_info_page():
                 <strong>Dynamic Range</strong> shows the expected floor-to-ceiling for each player based on
                 their score volatility. Elite players (DS 85+) have tighter ranges, while mid-tier players
                 have wider variance.
+            </p>
+            <p class="info-text">
+                <strong>Team DS Ranking (1-30)</strong> is the minutes-weighted average Dynamic Score across
+                each team's top 10 rotation players. Each player's DS is weighted by their minutes per game,
+                so high-minute stars influence the team rank more than bench players. This gives a roster-strength
+                ranking that accounts for how much each player actually plays.
             </p>
         </div>
 
@@ -2071,6 +2113,13 @@ def generate_css():
             font-family: var(--font-display);
             font-size: 24px;
             letter-spacing: 1px;
+        }
+        .mc-ds-rank {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--green-dark);
+            letter-spacing: 0.5px;
         }
         .mc-record {
             font-family: var(--font-mono);
