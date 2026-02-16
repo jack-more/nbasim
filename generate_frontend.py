@@ -124,12 +124,15 @@ ODDS_TEAM_MAP = {
 def fetch_odds_api_lines():
     """Fetch real NBA spreads and totals from The Odds API.
 
-    Returns dict keyed by (home_abbr, away_abbr) with consensus spread and total.
-    Returns empty dict if no API key or if request fails.
+    Returns (lines_dict, matchup_pairs, slate_date_str).
+      lines_dict: keyed by (home_abbr, away_abbr) with consensus spread and total
+      matchup_pairs: list of (home_abbr, away_abbr) in game order from API
+      slate_date_str: e.g. "FEB 20" derived from first game's commence_time
+    Returns ({}, [], None) if no API key or if request fails.
     """
     if not ODDS_API_KEY:
         print("[Odds API] No ODDS_API_KEY set — using projected lines")
-        return {}
+        return {}, [], None
 
     url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
     params = {
@@ -148,9 +151,12 @@ def fetch_odds_api_lines():
         print(f"[Odds API] Fetched {len(data)} games — {remaining} requests remaining this month")
     except Exception as e:
         print(f"[Odds API] Failed to fetch: {e} — using projected lines")
-        return {}
+        return {}, [], None
 
     lines = {}
+    matchup_pairs = []
+    slate_date_str = None
+
     for game in data:
         home_full = game.get("home_team", "")
         away_full = game.get("away_team", "")
@@ -159,6 +165,22 @@ def fetch_odds_api_lines():
 
         if not home_abbr or not away_abbr:
             continue
+
+        matchup_pairs.append((home_abbr, away_abbr))
+
+        # Parse date from first game
+        if slate_date_str is None:
+            commence = game.get("commence_time", "")
+            if commence:
+                from datetime import datetime, timezone, timedelta
+                try:
+                    dt = datetime.fromisoformat(commence.replace("Z", "+00:00"))
+                    # Convert UTC to Eastern (games listed in ET)
+                    et = dt - timedelta(hours=5)
+                    months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+                    slate_date_str = f"{months[et.month-1]} {et.day}"
+                except Exception:
+                    pass
 
         # Average spread and total across all bookmakers for consensus line
         spreads = []
@@ -189,8 +211,8 @@ def fetch_odds_api_lines():
         if result:
             lines[(home_abbr, away_abbr)] = result
 
-    print(f"[Odds API] Parsed lines for {len(lines)} matchups")
-    return lines
+    print(f"[Odds API] Parsed lines for {len(lines)} matchups | Slate: {slate_date_str} | {len(matchup_pairs)} games")
+    return lines, matchup_pairs, slate_date_str
 
 
 def fetch_odds_api_player_props(event_ids):
@@ -456,7 +478,7 @@ def get_player_context(player, opponent_abbr, team_map):
 
 
 def get_matchups():
-    """Generate matchups from the real Feb 20, 2026 slate with spreads and totals."""
+    """Generate matchups from the Odds API slate (or fallback to hardcoded)."""
     teams = read_query("""
         SELECT t.team_id, t.abbreviation, t.full_name,
                ts.pace, ts.off_rating, ts.def_rating, ts.net_rating, ts.fg3a_rate,
@@ -469,24 +491,31 @@ def get_matchups():
         ORDER BY ts.net_rating DESC
     """, DB_PATH)
 
-    matchup_pairs = [
-        ("WAS", "IND"),
-        ("MEM", "UTA"),
-        ("CHA", "CLE"),
-        ("ATL", "MIA"),
-        ("MIN", "DAL"),
-        ("NOP", "MIL"),
-        ("OKC", "BKN"),
-        ("LAL", "LAC"),
-        ("POR", "DEN"),
-    ]
-
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
-    # ── Try to fetch real sportsbook lines ──
-    real_lines = fetch_odds_api_lines()
+    # ── Try to fetch real sportsbook lines + game slate ──
+    real_lines, api_pairs, slate_date = fetch_odds_api_lines()
     has_any_real = len(real_lines) > 0
+
+    # Use API games if available, otherwise fall back to hardcoded
+    if api_pairs:
+        matchup_pairs = api_pairs
+        print(f"[Matchups] Using {len(matchup_pairs)} games from Odds API ({slate_date})")
+    else:
+        matchup_pairs = [
+            ("WAS", "IND"),
+            ("MEM", "UTA"),
+            ("CHA", "CLE"),
+            ("ATL", "MIA"),
+            ("MIN", "DAL"),
+            ("NOP", "MIL"),
+            ("OKC", "BKN"),
+            ("LAL", "LAC"),
+            ("POR", "DEN"),
+        ]
+        slate_date = "FEB 20"
+        print(f"[Matchups] Using hardcoded fallback slate ({len(matchup_pairs)} games)")
 
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
@@ -567,7 +596,7 @@ def get_matchups():
                 "a_wins": a_wins, "a_losses": a_losses,
             })
 
-    return matchups, team_map
+    return matchups, team_map, slate_date
 
 
 def get_team_roster(abbreviation, limit=8):
@@ -1023,7 +1052,8 @@ def get_projected_player_lines(team_abbr, opponent_abbr, team_map):
 
 def generate_html():
     """Generate the complete NBA SIM HTML — mobile-first with all features."""
-    matchups, team_map = get_matchups()
+    matchups, team_map, slate_date = get_matchups()
+    slate_date = slate_date or "TODAY"
     combos = get_top_combos()
     fades = get_fade_combos()
     locks = get_lock_picks(matchups)
@@ -1162,7 +1192,7 @@ def generate_html():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NBA SIM // FEB 20</title>
+    <title>NBA SIM // {slate_date}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1177,7 +1207,7 @@ def generate_html():
             <div class="logo">
                 <span class="logo-icon">◉</span>
                 <span class="logo-text">NBA SIM</span>
-                <span class="logo-date">FEB 20</span>
+                <span class="logo-date">{slate_date}</span>
             </div>
             <div class="top-picks">
                 {lock_cards}
@@ -1201,8 +1231,8 @@ def generate_html():
         <!-- SLATE TAB -->
         <div class="tab-content active" id="tab-slate">
             <div class="section-header">
-                <h2>FEBRUARY 20 SLATE</h2>
-                <span class="section-sub">{len(matchups)} games // Post All-Star</span>
+                <h2>{slate_date} SLATE</h2>
+                <span class="section-sub">{len(matchups)} games</span>
             </div>
             <div class="proj-disclaimer" style="margin-bottom:12px">
                 {"Lines from sportsbooks via The Odds API. Projected lines marked (PROJ. SPREAD) / (PROJ O/U) where real data unavailable." if has_some_real else "All lines marked <strong>(PROJ. SPREAD)</strong> and <strong>(PROJ O/U)</strong> are SIM-projected from team net ratings + home court advantage. Real sportsbook lines will replace projections when available."}
