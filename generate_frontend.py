@@ -2611,15 +2611,16 @@ def generate_css():
         }
         .prop-conf-pill {
             font-family: var(--font-mono);
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 4px 6px;
-            border-radius: 4px;
+            padding: 3px 5px;
+            border-radius: 3px;
             flex-shrink: 0;
             writing-mode: vertical-rl;
             text-orientation: mixed;
+            line-height: 1;
         }
         .prop-conf-pill.conf-high { color: var(--green); background: rgba(0,255,85,0.1); }
         .prop-conf-pill.conf-med { color: var(--amber); background: rgba(255,214,0,0.1); }
