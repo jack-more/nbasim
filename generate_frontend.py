@@ -1337,6 +1337,7 @@ def generate_html():
                 <span class="logo-icon">◉</span>
                 <span class="logo-text">NBA SIM</span>
                 <span class="logo-date">{slate_date}</span>
+                <span class="logo-credit">by Jack Morello</span>
             </div>
             <div class="top-picks">
                 {lock_cards}
@@ -2062,6 +2063,13 @@ def generate_css():
             background: rgba(0,255,85,0.15);
             padding: 2px 8px;
             border-radius: 4px;
+        }
+        .logo-credit {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-style: italic;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 0.5px;
         }
         .top-picks {
             display: flex;
