@@ -5,11 +5,18 @@ import sys
 import os
 import json
 import math
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, os.path.dirname(__file__))
 
 from db.connection import read_query
 from config import DB_PATH
+
+ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
+ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
 # ─── NBA Team Colors ───────────────────────────────────────────────
 TEAM_COLORS = {
@@ -96,6 +103,152 @@ ARCHETYPE_DESCRIPTIONS = {
     "Traditional Center": "Classic big man. Rebounds, protects the rim, and finishes inside.",
     "Versatile Big": "Multi-skilled center. Can pass, shoot, and defend at an above-average level.",
 }
+
+# ─── The Odds API: team name → abbreviation mapping ──────────────
+ODDS_TEAM_MAP = {
+    "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
+    "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
+    "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
+    "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
+    "Los Angeles Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
+    "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
+    "New Orleans Pelicans": "NOP", "New York Knicks": "NYK",
+    "Oklahoma City Thunder": "OKC", "Orlando Magic": "ORL",
+    "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
+    "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC",
+    "San Antonio Spurs": "SAS", "Toronto Raptors": "TOR",
+    "Utah Jazz": "UTA", "Washington Wizards": "WAS",
+}
+
+
+def fetch_odds_api_lines():
+    """Fetch real NBA spreads and totals from The Odds API.
+
+    Returns dict keyed by (home_abbr, away_abbr) with consensus spread and total.
+    Returns empty dict if no API key or if request fails.
+    """
+    if not ODDS_API_KEY:
+        print("[Odds API] No ODDS_API_KEY set — using projected lines")
+        return {}
+
+    url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
+    params = {
+        "apiKey": ODDS_API_KEY,
+        "regions": "us",
+        "markets": "spreads,totals",
+        "oddsFormat": "american",
+    }
+
+    try:
+        resp = requests.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+
+        remaining = resp.headers.get("x-requests-remaining", "?")
+        print(f"[Odds API] Fetched {len(data)} games — {remaining} requests remaining this month")
+    except Exception as e:
+        print(f"[Odds API] Failed to fetch: {e} — using projected lines")
+        return {}
+
+    lines = {}
+    for game in data:
+        home_full = game.get("home_team", "")
+        away_full = game.get("away_team", "")
+        home_abbr = ODDS_TEAM_MAP.get(home_full, "")
+        away_abbr = ODDS_TEAM_MAP.get(away_full, "")
+
+        if not home_abbr or not away_abbr:
+            continue
+
+        # Average spread and total across all bookmakers for consensus line
+        spreads = []
+        totals = []
+        for bk in game.get("bookmakers", []):
+            for market in bk.get("markets", []):
+                if market["key"] == "spreads":
+                    for outcome in market.get("outcomes", []):
+                        if ODDS_TEAM_MAP.get(outcome.get("name", ""), "") == home_abbr:
+                            pt = outcome.get("point")
+                            if pt is not None:
+                                spreads.append(float(pt))
+                elif market["key"] == "totals":
+                    for outcome in market.get("outcomes", []):
+                        if outcome.get("name", "") == "Over":
+                            pt = outcome.get("point")
+                            if pt is not None:
+                                totals.append(float(pt))
+
+        result = {}
+        if spreads:
+            avg_spread = sum(spreads) / len(spreads)
+            result["spread"] = round(avg_spread * 2) / 2  # round to nearest 0.5
+        if totals:
+            avg_total = sum(totals) / len(totals)
+            result["total"] = round(avg_total * 2) / 2
+
+        if result:
+            lines[(home_abbr, away_abbr)] = result
+
+    print(f"[Odds API] Parsed lines for {len(lines)} matchups")
+    return lines
+
+
+def fetch_odds_api_player_props(event_ids):
+    """Fetch player props from The Odds API for given event IDs.
+
+    Returns dict keyed by player_name with prop lines.
+    Requires event IDs from the main odds endpoint.
+    """
+    if not ODDS_API_KEY or not event_ids:
+        return {}
+
+    all_props = {}
+    prop_markets = ["player_points", "player_assists", "player_rebounds",
+                    "player_points_rebounds_assists"]
+
+    for eid in event_ids[:5]:  # Limit to 5 events to conserve API credits
+        for market in prop_markets:
+            url = f"{ODDS_API_BASE}/sports/basketball_nba/events/{eid}/odds"
+            params = {
+                "apiKey": ODDS_API_KEY,
+                "regions": "us",
+                "markets": market,
+                "oddsFormat": "american",
+            }
+            try:
+                resp = requests.get(url, params=params, timeout=15)
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+
+                for bk in data.get("bookmakers", []):
+                    for mkt in bk.get("markets", []):
+                        for outcome in mkt.get("outcomes", []):
+                            pname = outcome.get("description", "")
+                            point = outcome.get("point")
+                            side = outcome.get("name", "")  # Over/Under
+                            if pname and point is not None and side == "Over":
+                                prop_key = market.replace("player_", "").upper()
+                                if prop_key == "POINTS_REBOUNDS_ASSISTS":
+                                    prop_key = "PRA"
+                                if pname not in all_props:
+                                    all_props[pname] = {}
+                                if prop_key not in all_props[pname]:
+                                    all_props[pname][prop_key] = []
+                                all_props[pname][prop_key].append(float(point))
+            except Exception:
+                continue
+
+    # Average across bookmakers
+    result = {}
+    for pname, props in all_props.items():
+        result[pname] = {}
+        for prop_type, values in props.items():
+            result[pname][prop_type] = round(sum(values) / len(values), 1)
+
+    if result:
+        print(f"[Odds API] Fetched player props for {len(result)} players")
+    return result
 
 
 def compute_dynamic_score(row):
@@ -331,6 +484,10 @@ def get_matchups():
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
+    # ── Try to fetch real sportsbook lines ──
+    real_lines = fetch_odds_api_lines()
+    has_any_real = len(real_lines) > 0
+
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
             h = team_map[home_abbr]
@@ -339,8 +496,14 @@ def get_matchups():
             net_diff = (h["net_rating"] or 0) - (a["net_rating"] or 0)
             raw_edge = net_diff + 3.0
 
-            # Compute spread and total
-            spread, total = compute_spread_and_total(h, a)
+            # Check for real sportsbook lines first
+            real = real_lines.get((home_abbr, away_abbr), {})
+            proj_spread, proj_total = compute_spread_and_total(h, a)
+
+            spread = real.get("spread", proj_spread)
+            total = real.get("total", proj_total)
+            spread_is_projected = "spread" not in real
+            total_is_projected = "total" not in real
 
             confidence = min(96, max(35, 50 + raw_edge * 2.5))
 
@@ -396,6 +559,8 @@ def get_matchups():
                 "raw_edge": round(raw_edge, 1),
                 "spread": spread,
                 "total": total,
+                "spread_is_projected": spread_is_projected,
+                "total_is_projected": total_is_projected,
                 "pick_type": pick_type,
                 "pick_text": pick_text,
                 "h_wins": h_wins, "h_losses": h_losses,
@@ -738,6 +903,7 @@ def get_best_props(matchups, team_map):
                     "direction": best["direction"],
                     "note": best["note"],
                     "confidence": confidence,
+                    "line_is_projected": True,  # Will be False when real props from Odds API
                 })
 
     all_props.sort(key=lambda x: x["confidence"], reverse=True)
@@ -863,6 +1029,10 @@ def generate_html():
     locks = get_lock_picks(matchups)
     props = get_best_props(matchups, team_map)
     top50 = get_top_50_ds()
+
+    # Check if any games have real sportsbook lines
+    all_projected = all(m.get("spread_is_projected", True) for m in matchups)
+    has_some_real = not all_projected
 
     # ── Build matchup cards HTML (with projected player lines) ──
     matchup_cards = ""
@@ -1035,8 +1205,7 @@ def generate_html():
                 <span class="section-sub">{len(matchups)} games // Post All-Star</span>
             </div>
             <div class="proj-disclaimer" style="margin-bottom:12px">
-                Spreads and totals are SIM-projected from team net ratings + home court advantage — NOT from sportsbooks.
-                Actual lines will be released closer to game time.
+                {"Lines from sportsbooks via The Odds API. Projected lines marked (PROJ. SPREAD) / (PROJ O/U) where real data unavailable." if has_some_real else "All lines marked <strong>(PROJ. SPREAD)</strong> and <strong>(PROJ O/U)</strong> are SIM-projected from team net ratings + home court advantage. Real sportsbook lines will replace projections when available."}
             </div>
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
@@ -1059,12 +1228,12 @@ def generate_html():
             </div>
 
             <div class="section-header" style="margin-top:32px">
-                <h2>PROJECTED PLAYER LINES</h2>
+                <h2>PLAYER STAT LINES <span class="proj-tag">(PROJ. LINE)</span></h2>
                 <span class="section-sub">Season averages adjusted for opponent defense + pace</span>
             </div>
             <div class="proj-disclaimer">
-                These are SIM-projected lines based on season stats adjusted for the specific matchup.
-                Lines are NOT from sportsbooks — use as reference only.
+                All lines marked <strong>(PROJ. LINE)</strong> are SIM-projected from season stats adjusted for matchup.
+                Real player props will replace projections when available via sportsbook API.
             </div>
             <div class="proj-lines-list">
                 {proj_lines_html}
@@ -1167,12 +1336,17 @@ def render_matchup_card(m, idx, team_map):
     total = m["total"]
     raw_edge = m["raw_edge"]
     pick_text = m["pick_text"]
+    spread_proj = m.get("spread_is_projected", True)
+    total_proj = m.get("total_is_projected", True)
 
     # Spread display
     if spread <= 0:
         spread_display = f"{ha} {spread:+.1f}"
     else:
         spread_display = f"{aa} {-spread:+.1f}"
+
+    spread_tag = ' <span class="proj-tag">(PROJ. SPREAD)</span>' if spread_proj else ""
+    total_tag = ' <span class="proj-tag">(PROJ O/U)</span>' if total_proj else ""
 
     # Tug of war bar
     home_ds_sum = 0
@@ -1225,9 +1399,8 @@ def render_matchup_card(m, idx, team_map):
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-projected-label">PROJECTED</div>
-                <div class="mc-spread" style="color:{edge_color}">{spread_display}</div>
-                <div class="mc-total">O/U {total:.1f}</div>
+                <div class="mc-spread" style="color:{edge_color}">{spread_display}{spread_tag}</div>
+                <div class="mc-total">O/U {total:.1f}{total_tag}</div>
                 <div class="mc-pick"><span class="pick-label">SIM PICK</span> {pick_text}</div>
             </div>
             <div class="mc-team mc-home">
@@ -1363,7 +1536,7 @@ def render_prop_card(prop, rank):
             <div class="prop-pick {dir_class}">
                 <span class="prop-dir">{dir_icon} {prop['direction']}</span>
                 <span class="prop-type">{prop['prop']}</span>
-                <span class="prop-line">{prop['line']}</span>
+                <span class="prop-line">{prop['line']}{"" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">(PROJ. LINE)</span>'}</span>
             </div>
         </div>
         <div class="prop-note">{prop['note']}</div>
@@ -1548,14 +1721,22 @@ def render_info_page():
         <div class="info-section">
             <h2 class="info-title">SPREAD & TOTAL METHODOLOGY</h2>
             <p class="info-text">
-                Spreads are derived from team net rating differentials plus a 3-point home court advantage adjustment.
-                Totals use offensive/defensive rating matchups combined with pace estimates for the expected number of
-                possessions. All values rounded to nearest 0.5 to match standard sportsbook lines.
+                <strong>Real lines</strong> are pulled from sportsbooks via The Odds API when available.
+                When no sportsbook lines exist (e.g. pre-release, All-Star break), the SIM generates
+                <strong>projected lines</strong> marked as (PROJ. SPREAD) and (PROJ O/U).
+            </p>
+            <p class="info-text">
+                Projected spreads use team net rating differentials + a 3-point home court advantage.
+                Projected totals use offensive/defensive rating matchups × pace. All rounded to nearest 0.5.
             </p>
             <div class="info-formula">
-                <div class="formula-row"><span>Spread</span><span>= -(Home Net Rtg − Away Net Rtg + 3.0 HCA)</span></div>
-                <div class="formula-row"><span>Total</span><span>= ((ORtg+DRtg)/2 × MatchupPace/100) × 2</span></div>
+                <div class="formula-row"><span>Proj. Spread</span><span>= -(Home Net Rtg − Away Net Rtg + 3.0 HCA)</span></div>
+                <div class="formula-row"><span>Proj. Total</span><span>= ((ORtg+DRtg)/2 × MatchupPace/100) × 2</span></div>
             </div>
+            <p class="info-text" style="margin-top:8px; font-size:12px; color: rgba(0,0,0,0.5);">
+                Player props marked (PROJ. LINE) are season averages adjusted for opponent defense and pace.
+                Real player props replace projections when released by sportsbooks.
+            </p>
         </div>
 
         <div class="info-section">
@@ -1861,13 +2042,13 @@ def generate_css():
             flex-shrink: 0;
             min-width: 100px;
         }
-        .mc-projected-label {
+        .proj-tag {
             font-family: var(--font-mono);
-            font-size: 9px;
+            font-size: 8px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            color: rgba(0,0,0,0.3);
-            margin-bottom: 2px;
+            letter-spacing: 1px;
+            color: rgba(0,0,0,0.35);
+            font-weight: 500;
         }
         .mc-spread {
             font-family: var(--font-display);
