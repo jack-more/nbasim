@@ -2392,7 +2392,7 @@ def generate_css():
             background: rgba(0,255,85,0.1);
             color: #000;
         }
-        .expand-btn.open span { display: inline-block; transform: rotate(180deg); }
+        /* No rotation — arrow text is swapped in JS already */
 
         /* Expanded lineup */
         .mc-expanded {
