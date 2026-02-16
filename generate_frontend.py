@@ -1455,11 +1455,11 @@ def render_matchup_card(m, idx, team_map):
 
         <!-- Schemes row -->
         <div class="mc-schemes">
-            <div class="scheme-tag">{a_off}</div>
-            <div class="scheme-tag">{a_def}</div>
+            <div class="scheme-tag" style="background:{ac}; color:{TEAM_SECONDARY.get(aa, '#fff')}">{a_off}</div>
+            <div class="scheme-tag" style="background:{ac}; color:{TEAM_SECONDARY.get(aa, '#fff')}">{a_def}</div>
             <div class="scheme-divider">vs</div>
-            <div class="scheme-tag">{h_off}</div>
-            <div class="scheme-tag">{h_def}</div>
+            <div class="scheme-tag" style="background:{hc}; color:{TEAM_SECONDARY.get(ha, '#fff')}">{h_off}</div>
+            <div class="scheme-tag" style="background:{hc}; color:{TEAM_SECONDARY.get(ha, '#fff')}">{h_def}</div>
         </div>
 
         <!-- Expand button -->
@@ -2161,12 +2161,12 @@ def generate_css():
         .scheme-tag {
             font-family: var(--font-mono);
             font-size: 9px;
-            background: rgba(0,0,0,0.06);
-            padding: 2px 8px;
+            font-weight: 600;
+            padding: 3px 10px;
             border-radius: 4px;
-            color: rgba(0,0,0,0.5);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border: 1px solid rgba(0,0,0,0.15);
         }
         .scheme-divider {
             font-size: 10px;
