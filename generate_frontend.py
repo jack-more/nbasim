@@ -2068,8 +2068,9 @@ def generate_css():
             font-family: var(--font-mono);
             font-size: 9px;
             font-style: italic;
-            color: rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.45);
             letter-spacing: 0.5px;
+            text-shadow: 0 0 8px rgba(0,255,85,0.4), 0 0 3px rgba(0,255,85,0.25);
         }
         .top-picks {
             display: flex;
