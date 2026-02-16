@@ -744,6 +744,113 @@ def get_best_props(matchups, team_map):
     return all_props[:20]
 
 
+def get_top_50_ds():
+    """Get top 50 players league-wide ranked by Dynamic Score."""
+    players = read_query("""
+        SELECT p.player_id, p.full_name, t.abbreviation,
+               ps.pts_pg, ps.ast_pg, ps.reb_pg,
+               ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
+               ps.minutes_per_game,
+               pa.archetype_label
+        FROM player_season_stats ps
+        JOIN players p ON ps.player_id = p.player_id
+        JOIN teams t ON ps.team_id = t.team_id
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
+        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 20
+        ORDER BY (ps.pts_pg * 1.2 + ps.ast_pg * 1.8 + ps.reb_pg * 0.8
+                  + ps.stl_pg * 2.0 + ps.blk_pg * 1.5
+                  + ps.ts_pct * 40 + ps.net_rating * 0.8
+                  + ps.usg_pct * 15 + ps.minutes_per_game * 0.3) DESC
+        LIMIT 50
+    """, DB_PATH)
+
+    ranked = []
+    for _, p in players.iterrows():
+        ds, breakdown = compute_dynamic_score(p)
+        low, high = compute_ds_range(ds)
+        ranked.append({
+            "rank": len(ranked) + 1,
+            "name": p["full_name"],
+            "player_id": p["player_id"],
+            "team": p["abbreviation"],
+            "ds": ds,
+            "low": low, "high": high,
+            "pts": round(p.get("pts_pg", 0) or 0, 1),
+            "ast": round(p.get("ast_pg", 0) or 0, 1),
+            "reb": round(p.get("reb_pg", 0) or 0, 1),
+            "stl": round(p.get("stl_pg", 0) or 0, 1),
+            "blk": round(p.get("blk_pg", 0) or 0, 1),
+            "ts": round((p.get("ts_pct", 0) or 0) * 100, 1) if (p.get("ts_pct", 0) or 0) < 1 else round(p.get("ts_pct", 0) or 0, 1),
+            "net": round(p.get("net_rating", 0) or 0, 1),
+            "mpg": round(p.get("minutes_per_game", 0) or 0, 1),
+            "archetype": p.get("archetype_label", "") or "Unclassified",
+            "breakdown": breakdown,
+        })
+    return ranked
+
+
+def get_projected_player_lines(team_abbr, opponent_abbr, team_map):
+    """Generate projected stat lines for each player in a matchup.
+    Uses season averages adjusted by opponent defensive quality."""
+    roster = get_team_roster(team_abbr, 8)
+    opp_data = team_map.get(opponent_abbr, {})
+    opp_drtg = (opp_data.get("def_rating", 112) or 112)
+    opp_pace = (opp_data.get("pace", 100) or 100)
+    own_data = team_map.get(team_abbr, {})
+    own_pace = (own_data.get("pace", 100) or 100)
+
+    # Matchup pace factor — faster games = more stats
+    league_pace = 99.87
+    pace_factor = ((opp_pace + own_pace) / 2) / league_pace
+
+    # Defense factor — bad defense = boost, elite defense = suppress
+    # 112 is league avg DRTG
+    def_factor = opp_drtg / 112.0
+
+    projections = []
+    for _, p in roster.iterrows():
+        pts = (p.get("pts_pg", 0) or 0)
+        ast = (p.get("ast_pg", 0) or 0)
+        reb = (p.get("reb_pg", 0) or 0)
+        stl = (p.get("stl_pg", 0) or 0)
+        blk = (p.get("blk_pg", 0) or 0)
+        mpg = (p.get("minutes_per_game", 0) or 0)
+        ts = (p.get("ts_pct", 0) or 0)
+        name = p.get("full_name", "?")
+        player_id = p.get("player_id", 0)
+
+        if mpg < 10:
+            continue
+
+        # Adjust scoring stats by defense/pace matchup
+        proj_pts = round(pts * def_factor * pace_factor, 1)
+        proj_ast = round(ast * pace_factor, 1)
+        proj_reb = round(reb * pace_factor * 0.98, 1)  # Reb less matchup-dependent
+        proj_pra = round(proj_pts + proj_ast + proj_reb, 1)
+
+        parts = name.split()
+        short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else name
+
+        projections.append({
+            "player": short,
+            "full_name": name,
+            "player_id": player_id,
+            "team": team_abbr,
+            "opponent": opponent_abbr,
+            "proj_pts": proj_pts,
+            "proj_ast": proj_ast,
+            "proj_reb": proj_reb,
+            "proj_pra": proj_pra,
+            "season_pts": round(pts, 1),
+            "season_ast": round(ast, 1),
+            "season_reb": round(reb, 1),
+            "mpg": round(mpg, 1),
+            "ts": round(ts * 100, 1) if ts < 1 else round(ts, 1),
+        })
+
+    return projections
+
+
 # ────────────────────────────────────────────────────────────────────
 # HTML GENERATION
 # ────────────────────────────────────────────────────────────────────
@@ -755,8 +862,9 @@ def generate_html():
     fades = get_fade_combos()
     locks = get_lock_picks(matchups)
     props = get_best_props(matchups, team_map)
+    top50 = get_top_50_ds()
 
-    # ── Build matchup cards HTML ──
+    # ── Build matchup cards HTML (with projected player lines) ──
     matchup_cards = ""
     for idx, m in enumerate(matchups):
         matchup_cards += render_matchup_card(m, idx, team_map)
@@ -779,6 +887,102 @@ def generate_html():
     lock_cards = ""
     for pick in locks:
         lock_cards += render_lock_card(pick)
+
+    # ── Build Top 50 DS Rankings ──
+    top50_rows = ""
+    for p in top50:
+        ds = p["ds"]
+        if ds >= 85:
+            ds_cls = "ds-elite"
+        elif ds >= 70:
+            ds_cls = "ds-good"
+        elif ds >= 55:
+            ds_cls = "ds-avg"
+        else:
+            ds_cls = "ds-low"
+        icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
+        headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+        net_color = "#00CC44" if p["net"] >= 0 else "#FF3333"
+        net_sign = "+" if p["net"] >= 0 else ""
+        team_logo = get_team_logo_url(p["team"])
+
+        bd = p["breakdown"]
+        top50_rows += f"""
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="{p['name']}" data-arch="{p['archetype']}" data-ds="{ds}" data-range="{p['low']}-{p['high']}"
+             data-pts="{p['pts']}" data-ast="{p['ast']}" data-reb="{p['reb']}"
+             data-stl="{p['stl']}" data-blk="{p['blk']}" data-ts="{p['ts']}"
+             data-net="{p['net']}" data-usg="{bd.get('usg_pct', 0)}" data-mpg="{p['mpg']}"
+             data-team="{p['team']}" data-pid="{p['player_id']}"
+             data-scoring-pct="{bd.get('scoring_c', 0)}" data-playmaking-pct="{bd.get('playmaking_c', 0)}"
+             data-defense-pct="{bd.get('defense_c', 0)}" data-efficiency-pct="{bd.get('efficiency_c', 0)}"
+             data-impact-pct="{bd.get('impact_c', 0)}">
+            <span class="rank-num">#{p['rank']}</span>
+            <img src="{headshot}" class="rank-face" onerror="this.style.display='none'">
+            <img src="{team_logo}" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">{p['name']}</span>
+                <span class="rank-meta">{p['team']} // {icon} {p['archetype']}</span>
+            </div>
+            <div class="rank-stats">
+                <span>{p['pts']}p {p['ast']}a {p['reb']}r</span>
+                <span style="color:{net_color}">{net_sign}{p['net']}</span>
+            </div>
+            <div class="rank-ds {ds_cls}">
+                <span class="rank-ds-num">{ds}</span>
+                <span class="rank-ds-range">{p['low']}-{p['high']}</span>
+            </div>
+        </div>"""
+
+    # ── Build projected player lines for Props tab ──
+    proj_lines_html = ""
+    for m in matchups:
+        ha = m["home_abbr"]
+        aa = m["away_abbr"]
+        h_logo = get_team_logo_url(ha)
+        a_logo = get_team_logo_url(aa)
+
+        away_projs = get_projected_player_lines(aa, ha, team_map)
+        home_projs = get_projected_player_lines(ha, aa, team_map)
+
+        proj_lines_html += f"""
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="{a_logo}" class="proj-logo" onerror="this.style.display='none'">
+                <span>{aa} @ {ha}</span>
+                <img src="{h_logo}" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">"""
+
+        for p in away_projs:
+            proj_lines_html += f"""
+                    <div class="proj-row">
+                        <span class="proj-name">{p['player']}</span>
+                        <span class="proj-line">{p['proj_pts']}p</span>
+                        <span class="proj-line">{p['proj_ast']}a</span>
+                        <span class="proj-line">{p['proj_reb']}r</span>
+                        <span class="proj-pra">{p['proj_pra']}</span>
+                    </div>"""
+
+        proj_lines_html += """
+                </div>
+                <div class="proj-half">"""
+
+        for p in home_projs:
+            proj_lines_html += f"""
+                    <div class="proj-row">
+                        <span class="proj-name">{p['player']}</span>
+                        <span class="proj-line">{p['proj_pts']}p</span>
+                        <span class="proj-line">{p['proj_ast']}a</span>
+                        <span class="proj-line">{p['proj_reb']}r</span>
+                        <span class="proj-pra">{p['proj_pra']}</span>
+                    </div>"""
+
+        proj_lines_html += """
+                </div>
+            </div>
+        </div>"""
 
     # ── Build INFO page content ──
     info_content = render_info_page()
@@ -816,7 +1020,7 @@ def generate_html():
         <div class="filter-bar-inner">
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Props</button>
-            <button class="filter-btn" data-tab="trends">Trends</button>
+            <button class="filter-btn" data-tab="trends">Trends + Stats</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
     </div>
@@ -829,6 +1033,10 @@ def generate_html():
             <div class="section-header">
                 <h2>FEBRUARY 20 SLATE</h2>
                 <span class="section-sub">{len(matchups)} games // Post All-Star</span>
+            </div>
+            <div class="proj-disclaimer" style="margin-bottom:12px">
+                Spreads and totals are SIM-projected from team net ratings + home court advantage — NOT from sportsbooks.
+                Actual lines will be released closer to game time.
             </div>
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
@@ -849,11 +1057,43 @@ def generate_html():
             <div class="props-list">
                 {props_cards}
             </div>
+
+            <div class="section-header" style="margin-top:32px">
+                <h2>PROJECTED PLAYER LINES</h2>
+                <span class="section-sub">Season averages adjusted for opponent defense + pace</span>
+            </div>
+            <div class="proj-disclaimer">
+                These are SIM-projected lines based on season stats adjusted for the specific matchup.
+                Lines are NOT from sportsbooks — use as reference only.
+            </div>
+            <div class="proj-lines-list">
+                {proj_lines_html}
+            </div>
         </div>
 
-        <!-- TRENDS TAB -->
+        <!-- TRENDS + STATS TAB -->
         <div class="tab-content" id="tab-trends">
-            <div class="section-header">
+            <!-- Top 50 DS Rankings — collapsible -->
+            <div class="rankings-section">
+                <div class="rankings-header" onclick="toggleRankings()">
+                    <div>
+                        <h2 class="rankings-title">TOP 50 DYNAMIC SCORE</h2>
+                        <span class="section-sub">League-wide player rankings by DS</span>
+                    </div>
+                    <span class="rankings-toggle" id="rankingsToggle">▼</span>
+                </div>
+                <div class="rankings-body" id="rankingsBody" style="display:none">
+                    <div class="rankings-col-headers">
+                        <span class="rch-rank">#</span>
+                        <span class="rch-player">PLAYER</span>
+                        <span class="rch-stats">STATS</span>
+                        <span class="rch-ds">DS</span>
+                    </div>
+                    {top50_rows}
+                </div>
+            </div>
+
+            <div class="section-header" style="margin-top:24px">
                 <h2>LINEUP TRENDS</h2>
                 <span class="section-sub">Hot combos + fades with full player details</span>
             </div>
@@ -985,9 +1225,10 @@ def render_matchup_card(m, idx, team_map):
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:{edge_color}">{spread_display}</div>
                 <div class="mc-total">O/U {total:.1f}</div>
-                <div class="mc-pick">{pick_text}</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> {pick_text}</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1620,6 +1861,14 @@ def generate_css():
             flex-shrink: 0;
             min-width: 100px;
         }
+        .mc-projected-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(0,0,0,0.3);
+            margin-bottom: 2px;
+        }
         .mc-spread {
             font-family: var(--font-display);
             font-size: 20px;
@@ -1641,33 +1890,52 @@ def generate_css():
             margin-top: 4px;
             display: inline-block;
         }
+        .pick-label {
+            font-size: 8px;
+            letter-spacing: 1px;
+            opacity: 0.6;
+            margin-right: 4px;
+        }
 
         /* Tug of war bar */
         .tow-bar {
-            height: 6px;
+            height: 16px;
             display: flex;
             margin: 0 16px;
-            border-radius: 3px;
+            border-radius: 8px;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 2px solid #000;
             position: relative;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
         }
-        .tow-fill { height: 100%; }
+        .tow-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .tow-fill.tow-away {
+            border-right: 2px solid #000;
+        }
+        .tow-fill.tow-home {
+            border-left: none;
+        }
         .tow-mid {
             position: absolute;
             left: 50%;
-            top: -2px;
-            width: 2px;
-            height: 10px;
+            top: -3px;
+            width: 3px;
+            height: 22px;
             background: #000;
+            border-radius: 1px;
+            z-index: 1;
         }
         .tow-labels {
             display: flex;
             justify-content: space-between;
-            padding: 4px 16px 0;
+            padding: 6px 16px 0;
             font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.4);
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.55);
         }
 
         /* Schemes */
@@ -2302,6 +2570,173 @@ def generate_css():
             color: rgba(255,255,255,0.4);
         }
 
+        /* ─── TOP 50 RANKINGS ─── */
+        .rankings-section {
+            background: var(--surface);
+            border: var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .rankings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .rankings-header:hover { background: rgba(0,255,85,0.06); }
+        .rankings-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+        .rankings-toggle {
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+        .rankings-toggle.open { transform: rotate(180deg); }
+        .rankings-body {
+            border-top: var(--border-thin);
+        }
+        .rankings-col-headers {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(0,0,0,0.35);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            gap: 8px;
+        }
+        .rch-rank { width: 30px; }
+        .rch-player { flex: 1; }
+        .rch-stats { width: 120px; text-align: right; }
+        .rch-ds { width: 50px; text-align: center; }
+        .rank-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .rank-row:hover { background: rgba(0,255,85,0.08); }
+        .rank-row:nth-child(even) { background: rgba(0,0,0,0.015); }
+        .rank-row:nth-child(even):hover { background: rgba(0,255,85,0.08); }
+        .rank-num {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(0,0,0,0.3);
+            width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .rank-face {
+            width: 32px; height: 32px; border-radius: 50%;
+            object-fit: cover; border: 2px solid #000;
+            background: #eee; flex-shrink: 0;
+        }
+        .rank-team-logo {
+            width: 20px; height: 20px; object-fit: contain; flex-shrink: 0;
+        }
+        .rank-info { flex: 1; min-width: 0; }
+        .rank-name {
+            font-weight: 700; font-size: 13px; display: block;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .rank-meta {
+            font-size: 10px; color: rgba(0,0,0,0.4); display: block;
+        }
+        .rank-stats {
+            font-family: var(--font-mono); font-size: 11px;
+            display: flex; flex-direction: column; align-items: flex-end;
+            gap: 1px; flex-shrink: 0; color: rgba(0,0,0,0.5);
+        }
+        .rank-ds {
+            display: flex; flex-direction: column; align-items: center;
+            flex-shrink: 0; width: 44px;
+        }
+        .rank-ds-num {
+            font-family: var(--font-display); font-size: 22px;
+        }
+        .rank-ds-range {
+            font-family: var(--font-mono); font-size: 9px; color: rgba(0,0,0,0.35);
+        }
+        .rank-ds.ds-elite .rank-ds-num { color: #00CC44; }
+        .rank-ds.ds-good .rank-ds-num { color: #0a0a0a; }
+        .rank-ds.ds-avg .rank-ds-num { color: #888; }
+        .rank-ds.ds-low .rank-ds-num { color: #FF3333; }
+
+        /* ─── PROJECTED PLAYER LINES ─── */
+        .proj-disclaimer {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: rgba(0,0,0,0.45);
+            background: rgba(0,0,0,0.04);
+            border: 1px dashed rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .proj-matchup {
+            background: var(--surface);
+            border: var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .proj-matchup-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--surface-dark);
+            color: #fff;
+            font-family: var(--font-display);
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        .proj-logo { width: 24px; height: 24px; object-fit: contain; }
+        .proj-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        .proj-half {
+            padding: 8px;
+        }
+        .proj-half:first-child { border-right: 1px solid rgba(0,0,0,0.08); }
+        .proj-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 6px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .proj-name {
+            flex: 1; font-weight: 600; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .proj-line {
+            font-family: var(--font-mono); font-size: 11px;
+            color: rgba(0,0,0,0.55); width: 32px; text-align: right;
+        }
+        .proj-pra {
+            font-family: var(--font-mono); font-size: 11px;
+            font-weight: 700; color: var(--ink);
+            width: 36px; text-align: right;
+            background: rgba(0,255,85,0.1); padding: 2px 4px; border-radius: 3px;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 768px) {
             .top-bar { padding: 8px 12px; }
@@ -2319,6 +2754,10 @@ def generate_css():
             .info-schemes { grid-template-columns: 1fr; }
             .info-arch-grid { grid-template-columns: 1fr; }
             .pr-stats { display: none; }
+            .rank-stats { display: none; }
+            .rank-team-logo { display: none; }
+            .proj-grid { grid-template-columns: 1fr; }
+            .proj-half:first-child { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
         }
 
         @media (min-width: 769px) {
@@ -2331,6 +2770,16 @@ def generate_css():
 def generate_js():
     """Generate all JavaScript for tab switching, sorting, expand, bottom sheet."""
     return """
+        // ─── RANKINGS TOGGLE ───
+        function toggleRankings() {
+            const body = document.getElementById('rankingsBody');
+            const toggle = document.getElementById('rankingsToggle');
+            const isOpen = body.style.display !== 'none';
+            body.style.display = isOpen ? 'none' : 'block';
+            toggle.classList.toggle('open', !isOpen);
+            toggle.textContent = isOpen ? '▼' : '▲';
+        }
+
         // ─── TAB SWITCHING ───
         const filterBtns = document.querySelectorAll('.filter-btn[data-tab]');
         const navBtns = document.querySelectorAll('.nav-btn[data-tab]');

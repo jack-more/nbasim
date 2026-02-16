@@ -269,6 +269,14 @@
             flex-shrink: 0;
             min-width: 100px;
         }
+        .mc-projected-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(0,0,0,0.3);
+            margin-bottom: 2px;
+        }
         .mc-spread {
             font-family: var(--font-display);
             font-size: 20px;
@@ -290,33 +298,52 @@
             margin-top: 4px;
             display: inline-block;
         }
+        .pick-label {
+            font-size: 8px;
+            letter-spacing: 1px;
+            opacity: 0.6;
+            margin-right: 4px;
+        }
 
         /* Tug of war bar */
         .tow-bar {
-            height: 6px;
+            height: 16px;
             display: flex;
             margin: 0 16px;
-            border-radius: 3px;
+            border-radius: 8px;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 2px solid #000;
             position: relative;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
         }
-        .tow-fill { height: 100%; }
+        .tow-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .tow-fill.tow-away {
+            border-right: 2px solid #000;
+        }
+        .tow-fill.tow-home {
+            border-left: none;
+        }
         .tow-mid {
             position: absolute;
             left: 50%;
-            top: -2px;
-            width: 2px;
-            height: 10px;
+            top: -3px;
+            width: 3px;
+            height: 22px;
             background: #000;
+            border-radius: 1px;
+            z-index: 1;
         }
         .tow-labels {
             display: flex;
             justify-content: space-between;
-            padding: 4px 16px 0;
+            padding: 6px 16px 0;
             font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.4);
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.55);
         }
 
         /* Schemes */
@@ -951,6 +978,173 @@
             color: rgba(255,255,255,0.4);
         }
 
+        /* ─── TOP 50 RANKINGS ─── */
+        .rankings-section {
+            background: var(--surface);
+            border: var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .rankings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .rankings-header:hover { background: rgba(0,255,85,0.06); }
+        .rankings-title {
+            font-family: var(--font-display);
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+        .rankings-toggle {
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+        .rankings-toggle.open { transform: rotate(180deg); }
+        .rankings-body {
+            border-top: var(--border-thin);
+        }
+        .rankings-col-headers {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(0,0,0,0.35);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            gap: 8px;
+        }
+        .rch-rank { width: 30px; }
+        .rch-player { flex: 1; }
+        .rch-stats { width: 120px; text-align: right; }
+        .rch-ds { width: 50px; text-align: center; }
+        .rank-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .rank-row:hover { background: rgba(0,255,85,0.08); }
+        .rank-row:nth-child(even) { background: rgba(0,0,0,0.015); }
+        .rank-row:nth-child(even):hover { background: rgba(0,255,85,0.08); }
+        .rank-num {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(0,0,0,0.3);
+            width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .rank-face {
+            width: 32px; height: 32px; border-radius: 50%;
+            object-fit: cover; border: 2px solid #000;
+            background: #eee; flex-shrink: 0;
+        }
+        .rank-team-logo {
+            width: 20px; height: 20px; object-fit: contain; flex-shrink: 0;
+        }
+        .rank-info { flex: 1; min-width: 0; }
+        .rank-name {
+            font-weight: 700; font-size: 13px; display: block;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .rank-meta {
+            font-size: 10px; color: rgba(0,0,0,0.4); display: block;
+        }
+        .rank-stats {
+            font-family: var(--font-mono); font-size: 11px;
+            display: flex; flex-direction: column; align-items: flex-end;
+            gap: 1px; flex-shrink: 0; color: rgba(0,0,0,0.5);
+        }
+        .rank-ds {
+            display: flex; flex-direction: column; align-items: center;
+            flex-shrink: 0; width: 44px;
+        }
+        .rank-ds-num {
+            font-family: var(--font-display); font-size: 22px;
+        }
+        .rank-ds-range {
+            font-family: var(--font-mono); font-size: 9px; color: rgba(0,0,0,0.35);
+        }
+        .rank-ds.ds-elite .rank-ds-num { color: #00CC44; }
+        .rank-ds.ds-good .rank-ds-num { color: #0a0a0a; }
+        .rank-ds.ds-avg .rank-ds-num { color: #888; }
+        .rank-ds.ds-low .rank-ds-num { color: #FF3333; }
+
+        /* ─── PROJECTED PLAYER LINES ─── */
+        .proj-disclaimer {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: rgba(0,0,0,0.45);
+            background: rgba(0,0,0,0.04);
+            border: 1px dashed rgba(0,0,0,0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .proj-matchup {
+            background: var(--surface);
+            border: var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .proj-matchup-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: var(--surface-dark);
+            color: #fff;
+            font-family: var(--font-display);
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        .proj-logo { width: 24px; height: 24px; object-fit: contain; }
+        .proj-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        .proj-half {
+            padding: 8px;
+        }
+        .proj-half:first-child { border-right: 1px solid rgba(0,0,0,0.08); }
+        .proj-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 6px;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .proj-name {
+            flex: 1; font-weight: 600; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .proj-line {
+            font-family: var(--font-mono); font-size: 11px;
+            color: rgba(0,0,0,0.55); width: 32px; text-align: right;
+        }
+        .proj-pra {
+            font-family: var(--font-mono); font-size: 11px;
+            font-weight: 700; color: var(--ink);
+            width: 36px; text-align: right;
+            background: rgba(0,255,85,0.1); padding: 2px 4px; border-radius: 3px;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 768px) {
             .top-bar { padding: 8px 12px; }
@@ -968,6 +1162,10 @@
             .info-schemes { grid-template-columns: 1fr; }
             .info-arch-grid { grid-template-columns: 1fr; }
             .pr-stats { display: none; }
+            .rank-stats { display: none; }
+            .rank-team-logo { display: none; }
+            .proj-grid { grid-template-columns: 1fr; }
+            .proj-half:first-child { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
         }
 
         @media (min-width: 769px) {
@@ -1012,7 +1210,7 @@
         <div class="filter-bar-inner">
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Props</button>
-            <button class="filter-btn" data-tab="trends">Trends</button>
+            <button class="filter-btn" data-tab="trends">Trends + Stats</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
     </div>
@@ -1025,6 +1223,10 @@
             <div class="section-header">
                 <h2>FEBRUARY 20 SLATE</h2>
                 <span class="section-sub">9 games // Post All-Star</span>
+            </div>
+            <div class="proj-disclaimer" style="margin-bottom:12px">
+                Spreads and totals are SIM-projected from team net ratings + home court advantage — NOT from sportsbooks.
+                Actual lines will be released closer to game time.
             </div>
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
@@ -1043,9 +1245,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">IND -0.5</div>
                 <div class="mc-total">O/U 236.5</div>
-                <div class="mc-pick">O 236.5</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> O 236.5</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1471,9 +1674,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#FFD600">MEM -8.0</div>
                 <div class="mc-total">O/U 242.0</div>
-                <div class="mc-pick">MEM -8.0</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> MEM -8.0</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1899,9 +2103,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">CHA -2.0</div>
                 <div class="mc-total">O/U 232.0</div>
-                <div class="mc-pick">U 232.0</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> U 232.0</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2327,9 +2532,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">ATL -0.5</div>
                 <div class="mc-total">O/U 244.5</div>
-                <div class="mc-pick">O 244.5</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> O 244.5</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2755,9 +2961,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#00FF55">MIN -11.0</div>
                 <div class="mc-total">O/U 234.5</div>
-                <div class="mc-pick">MIN -11.0</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> MIN -11.0</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3183,9 +3390,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">NOP -0.5</div>
                 <div class="mc-total">O/U 230.0</div>
-                <div class="mc-pick">O 230.0</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> O 230.0</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3611,9 +3819,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#00FF55">OKC -20.5</div>
                 <div class="mc-total">O/U 221.5</div>
-                <div class="mc-pick">OKC -20.5</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> OKC -20.5</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -4039,9 +4248,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">LAL -3.0</div>
                 <div class="mc-total">O/U 222.5</div>
-                <div class="mc-pick">U 222.5</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> U 222.5</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -4467,9 +4677,10 @@
                 </div>
             </div>
             <div class="mc-center">
+                <div class="mc-projected-label">PROJECTED</div>
                 <div class="mc-spread" style="color:#888">DEN -2.5</div>
                 <div class="mc-total">O/U 234.5</div>
-                <div class="mc-pick">O 234.5</div>
+                <div class="mc-pick"><span class="pick-label">SIM PICK</span> O 234.5</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -5257,11 +5468,2418 @@
         <div class="prop-conf conf-high">HIGH</div>
     </div>
             </div>
+
+            <div class="section-header" style="margin-top:32px">
+                <h2>PROJECTED PLAYER LINES</h2>
+                <span class="section-sub">Season averages adjusted for opponent defense + pace</span>
+            </div>
+            <div class="proj-disclaimer">
+                These are SIM-projected lines based on season stats adjusted for the specific matchup.
+                Lines are NOT from sportsbooks — use as reference only.
+            </div>
+            <div class="proj-lines-list">
+                
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>IND @ WAS</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">P. Siakam</span>
+                        <span class="proj-line">25.7p</span>
+                        <span class="proj-line">4.0a</span>
+                        <span class="proj-line">6.7r</span>
+                        <span class="proj-pra">36.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Nembhard</span>
+                        <span class="proj-line">18.9p</span>
+                        <span class="proj-line">7.7a</span>
+                        <span class="proj-line">3.0r</span>
+                        <span class="proj-pra">29.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">I. Zubac</span>
+                        <span class="proj-line">15.6p</span>
+                        <span class="proj-line">2.3a</span>
+                        <span class="proj-line">11.0r</span>
+                        <span class="proj-pra">28.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Nesmith</span>
+                        <span class="proj-line">14.8p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">4.8r</span>
+                        <span class="proj-pra">21.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">O. Toppin</span>
+                        <span class="proj-line">15.2p</span>
+                        <span class="proj-line">1.7a</span>
+                        <span class="proj-line">6.7r</span>
+                        <span class="proj-pra">23.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Walker</span>
+                        <span class="proj-line">11.4p</span>
+                        <span class="proj-line">2.0a</span>
+                        <span class="proj-line">4.5r</span>
+                        <span class="proj-pra">17.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Sheppard</span>
+                        <span class="proj-line">7.1p</span>
+                        <span class="proj-line">1.8a</span>
+                        <span class="proj-line">3.1r</span>
+                        <span class="proj-pra">12.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Huff</span>
+                        <span class="proj-line">9.4p</span>
+                        <span class="proj-line">1.3a</span>
+                        <span class="proj-line">3.8r</span>
+                        <span class="proj-pra">14.5</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">A. Davis</span>
+                        <span class="proj-line">21.6p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">11.1r</span>
+                        <span class="proj-pra">35.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. George</span>
+                        <span class="proj-line">16.0p</span>
+                        <span class="proj-line">4.9a</span>
+                        <span class="proj-line">5.4r</span>
+                        <span class="proj-pra">26.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Sarr</span>
+                        <span class="proj-line">18.2p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">7.8r</span>
+                        <span class="proj-pra">28.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Young</span>
+                        <span class="proj-line">20.5p</span>
+                        <span class="proj-line">9.1a</span>
+                        <span class="proj-line">1.5r</span>
+                        <span class="proj-pra">31.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Carrington</span>
+                        <span class="proj-line">10.8p</span>
+                        <span class="proj-line">4.7a</span>
+                        <span class="proj-line">3.5r</span>
+                        <span class="proj-pra">19.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Coulibaly</span>
+                        <span class="proj-line">10.4p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">4.4r</span>
+                        <span class="proj-pra">17.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Champagnie</span>
+                        <span class="proj-line">8.3p</span>
+                        <span class="proj-line">1.1a</span>
+                        <span class="proj-line">5.8r</span>
+                        <span class="proj-pra">15.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Russell</span>
+                        <span class="proj-line">10.8p</span>
+                        <span class="proj-line">4.1a</span>
+                        <span class="proj-line">2.3r</span>
+                        <span class="proj-pra">17.2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>UTA @ MEM</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">L. Markkanen</span>
+                        <span class="proj-line">28.0p</span>
+                        <span class="proj-line">2.2a</span>
+                        <span class="proj-line">7.1r</span>
+                        <span class="proj-pra">37.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. George</span>
+                        <span class="proj-line">25.0p</span>
+                        <span class="proj-line">6.7a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">35.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">W. Kessler</span>
+                        <span class="proj-line">15.1p</span>
+                        <span class="proj-line">3.1a</span>
+                        <span class="proj-line">10.9r</span>
+                        <span class="proj-pra">29.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Jackson Jr.</span>
+                        <span class="proj-line">20.4p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">5.7r</span>
+                        <span class="proj-pra">28.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Nurkić</span>
+                        <span class="proj-line">11.4p</span>
+                        <span class="proj-line">4.9a</span>
+                        <span class="proj-line">10.5r</span>
+                        <span class="proj-pra">26.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">I. Collier</span>
+                        <span class="proj-line">10.9p</span>
+                        <span class="proj-line">7.6a</span>
+                        <span class="proj-line">2.6r</span>
+                        <span class="proj-pra">21.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">S. Mykhailiuk</span>
+                        <span class="proj-line">9.4p</span>
+                        <span class="proj-line">2.0a</span>
+                        <span class="proj-line">2.5r</span>
+                        <span class="proj-pra">13.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Filipowski</span>
+                        <span class="proj-line">10.2p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">6.8r</span>
+                        <span class="proj-pra">19.1</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">J. Morant</span>
+                        <span class="proj-line">21.3p</span>
+                        <span class="proj-line">8.3a</span>
+                        <span class="proj-line">3.3r</span>
+                        <span class="proj-pra">32.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">S. Aldama</span>
+                        <span class="proj-line">15.3p</span>
+                        <span class="proj-line">3.0a</span>
+                        <span class="proj-line">6.8r</span>
+                        <span class="proj-pra">25.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Wells</span>
+                        <span class="proj-line">13.2p</span>
+                        <span class="proj-line">1.7a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">18.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">Z. Edey</span>
+                        <span class="proj-line">14.9p</span>
+                        <span class="proj-line">1.1a</span>
+                        <span class="proj-line">11.2r</span>
+                        <span class="proj-pra">27.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Spencer</span>
+                        <span class="proj-line">12.7p</span>
+                        <span class="proj-line">5.8a</span>
+                        <span class="proj-line">2.7r</span>
+                        <span class="proj-pra">21.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Caldwell-Pope</span>
+                        <span class="proj-line">9.2p</span>
+                        <span class="proj-line">2.8a</span>
+                        <span class="proj-line">2.5r</span>
+                        <span class="proj-pra">14.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Anderson</span>
+                        <span class="proj-line">8.0p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">14.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Jerome</span>
+                        <span class="proj-line">21.6p</span>
+                        <span class="proj-line">6.2a</span>
+                        <span class="proj-line">2.2r</span>
+                        <span class="proj-pra">30.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>CLE @ CHA</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">J. Harden</span>
+                        <span class="proj-line">25.4p</span>
+                        <span class="proj-line">8.2a</span>
+                        <span class="proj-line">4.8r</span>
+                        <span class="proj-pra">38.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Mitchell</span>
+                        <span class="proj-line">29.5p</span>
+                        <span class="proj-line">5.9a</span>
+                        <span class="proj-line">4.4r</span>
+                        <span class="proj-pra">39.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">E. Mobley</span>
+                        <span class="proj-line">18.2p</span>
+                        <span class="proj-line">4.0a</span>
+                        <span class="proj-line">8.7r</span>
+                        <span class="proj-pra">30.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Tyson</span>
+                        <span class="proj-line">14.1p</span>
+                        <span class="proj-line">2.3a</span>
+                        <span class="proj-line">5.3r</span>
+                        <span class="proj-pra">21.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Allen</span>
+                        <span class="proj-line">14.8p</span>
+                        <span class="proj-line">2.0a</span>
+                        <span class="proj-line">8.2r</span>
+                        <span class="proj-pra">25.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Schröder</span>
+                        <span class="proj-line">12.5p</span>
+                        <span class="proj-line">5.1a</span>
+                        <span class="proj-line">3.0r</span>
+                        <span class="proj-pra">20.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">S. Merrill</span>
+                        <span class="proj-line">13.8p</span>
+                        <span class="proj-line">2.3a</span>
+                        <span class="proj-line">2.3r</span>
+                        <span class="proj-pra">18.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Wade</span>
+                        <span class="proj-line">5.9p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">4.0r</span>
+                        <span class="proj-pra">11.5</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">M. Bridges</span>
+                        <span class="proj-line">18.4p</span>
+                        <span class="proj-line">3.5a</span>
+                        <span class="proj-line">6.0r</span>
+                        <span class="proj-pra">27.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Miller</span>
+                        <span class="proj-line">20.9p</span>
+                        <span class="proj-line">3.3a</span>
+                        <span class="proj-line">4.6r</span>
+                        <span class="proj-pra">28.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. White</span>
+                        <span class="proj-line">18.8p</span>
+                        <span class="proj-line">4.7a</span>
+                        <span class="proj-line">3.6r</span>
+                        <span class="proj-pra">27.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">L. Ball</span>
+                        <span class="proj-line">19.5p</span>
+                        <span class="proj-line">7.4a</span>
+                        <span class="proj-line">4.7r</span>
+                        <span class="proj-pra">31.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">M. Diabaté</span>
+                        <span class="proj-line">8.3p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">8.5r</span>
+                        <span class="proj-pra">18.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">G. Williams</span>
+                        <span class="proj-line">6.5p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">12.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Green</span>
+                        <span class="proj-line">4.7p</span>
+                        <span class="proj-line">1.0a</span>
+                        <span class="proj-line">1.9r</span>
+                        <span class="proj-pra">7.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Mann</span>
+                        <span class="proj-line">7.2p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">2.3r</span>
+                        <span class="proj-pra">11.6</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>MIA @ ATL</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">T. Herro</span>
+                        <span class="proj-line">23.3p</span>
+                        <span class="proj-line">2.8a</span>
+                        <span class="proj-line">4.8r</span>
+                        <span class="proj-pra">30.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Adebayo</span>
+                        <span class="proj-line">19.6p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">10.1r</span>
+                        <span class="proj-pra">32.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Wiggins</span>
+                        <span class="proj-line">16.9p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">5.1r</span>
+                        <span class="proj-pra">24.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Powell</span>
+                        <span class="proj-line">24.5p</span>
+                        <span class="proj-line">2.7a</span>
+                        <span class="proj-line">3.7r</span>
+                        <span class="proj-pra">30.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Jaquez Jr.</span>
+                        <span class="proj-line">16.2p</span>
+                        <span class="proj-line">4.9a</span>
+                        <span class="proj-line">5.5r</span>
+                        <span class="proj-pra">26.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Mitchell</span>
+                        <span class="proj-line">9.6p</span>
+                        <span class="proj-line">7.3a</span>
+                        <span class="proj-line">2.6r</span>
+                        <span class="proj-pra">19.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">P. Larsson</span>
+                        <span class="proj-line">10.8p</span>
+                        <span class="proj-line">3.4a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">17.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Ware</span>
+                        <span class="proj-line">12.0p</span>
+                        <span class="proj-line">0.6a</span>
+                        <span class="proj-line">9.4r</span>
+                        <span class="proj-pra">22.0</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">J. Johnson</span>
+                        <span class="proj-line">24.0p</span>
+                        <span class="proj-line">8.5a</span>
+                        <span class="proj-line">10.8r</span>
+                        <span class="proj-pra">43.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Daniels</span>
+                        <span class="proj-line">12.0p</span>
+                        <span class="proj-line">6.5a</span>
+                        <span class="proj-line">6.6r</span>
+                        <span class="proj-pra">25.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Alexander-Walker</span>
+                        <span class="proj-line">20.7p</span>
+                        <span class="proj-line">3.9a</span>
+                        <span class="proj-line">3.7r</span>
+                        <span class="proj-pra">28.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">O. Okongwu</span>
+                        <span class="proj-line">16.7p</span>
+                        <span class="proj-line">3.3a</span>
+                        <span class="proj-line">7.9r</span>
+                        <span class="proj-pra">27.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. McCollum</span>
+                        <span class="proj-line">19.4p</span>
+                        <span class="proj-line">3.8a</span>
+                        <span class="proj-line">3.5r</span>
+                        <span class="proj-pra">26.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">Z. Risacher</span>
+                        <span class="proj-line">10.8p</span>
+                        <span class="proj-line">1.4a</span>
+                        <span class="proj-line">3.6r</span>
+                        <span class="proj-pra">15.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Kuminga</span>
+                        <span class="proj-line">12.5p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">6.0r</span>
+                        <span class="proj-pra">21.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Landale</span>
+                        <span class="proj-line">11.8p</span>
+                        <span class="proj-line">1.8a</span>
+                        <span class="proj-line">6.5r</span>
+                        <span class="proj-pra">20.1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612742/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>DAL @ MIN</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">P. Washington</span>
+                        <span class="proj-line">14.3p</span>
+                        <span class="proj-line">1.9a</span>
+                        <span class="proj-line">7.0r</span>
+                        <span class="proj-pra">23.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">M. Christie</span>
+                        <span class="proj-line">13.5p</span>
+                        <span class="proj-line">2.4a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">19.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Marshall</span>
+                        <span class="proj-line">15.3p</span>
+                        <span class="proj-line">3.1a</span>
+                        <span class="proj-line">4.9r</span>
+                        <span class="proj-pra">23.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Middleton</span>
+                        <span class="proj-line">10.5p</span>
+                        <span class="proj-line">3.3a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">17.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Thompson</span>
+                        <span class="proj-line">11.8p</span>
+                        <span class="proj-line">1.4a</span>
+                        <span class="proj-line">2.4r</span>
+                        <span class="proj-pra">15.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Williams</span>
+                        <span class="proj-line">12.9p</span>
+                        <span class="proj-line">3.8a</span>
+                        <span class="proj-line">2.9r</span>
+                        <span class="proj-pra">19.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Gafford</span>
+                        <span class="proj-line">8.1p</span>
+                        <span class="proj-line">0.9a</span>
+                        <span class="proj-line">6.5r</span>
+                        <span class="proj-pra">15.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">M. Bagley III</span>
+                        <span class="proj-line">10.4p</span>
+                        <span class="proj-line">1.5a</span>
+                        <span class="proj-line">5.9r</span>
+                        <span class="proj-pra">17.8</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">A. Edwards</span>
+                        <span class="proj-line">30.1p</span>
+                        <span class="proj-line">3.8a</span>
+                        <span class="proj-line">5.2r</span>
+                        <span class="proj-pra">39.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Randle</span>
+                        <span class="proj-line">22.9p</span>
+                        <span class="proj-line">5.5a</span>
+                        <span class="proj-line">7.0r</span>
+                        <span class="proj-pra">35.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. McDaniels</span>
+                        <span class="proj-line">15.4p</span>
+                        <span class="proj-line">3.0a</span>
+                        <span class="proj-line">4.3r</span>
+                        <span class="proj-pra">22.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">R. Gobert</span>
+                        <span class="proj-line">11.3p</span>
+                        <span class="proj-line">1.7a</span>
+                        <span class="proj-line">11.1r</span>
+                        <span class="proj-pra">24.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. DiVincenzo</span>
+                        <span class="proj-line">13.1p</span>
+                        <span class="proj-line">4.3a</span>
+                        <span class="proj-line">4.5r</span>
+                        <span class="proj-pra">21.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Dosunmu</span>
+                        <span class="proj-line">15.4p</span>
+                        <span class="proj-line">3.7a</span>
+                        <span class="proj-line">2.9r</span>
+                        <span class="proj-pra">22.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Reid</span>
+                        <span class="proj-line">14.6p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">6.4r</span>
+                        <span class="proj-pra">23.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Hyland</span>
+                        <span class="proj-line">7.5p</span>
+                        <span class="proj-line">2.7a</span>
+                        <span class="proj-line">1.7r</span>
+                        <span class="proj-pra">11.9</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>MIL @ NOP</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">K. Porter Jr.</span>
+                        <span class="proj-line">18.2p</span>
+                        <span class="proj-line">7.6a</span>
+                        <span class="proj-line">5.1r</span>
+                        <span class="proj-pra">30.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">R. Rollins</span>
+                        <span class="proj-line">17.7p</span>
+                        <span class="proj-line">5.5a</span>
+                        <span class="proj-line">4.5r</span>
+                        <span class="proj-pra">27.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Green</span>
+                        <span class="proj-line">11.2p</span>
+                        <span class="proj-line">2.0a</span>
+                        <span class="proj-line">2.6r</span>
+                        <span class="proj-pra">15.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">G. Antetokounmpo</span>
+                        <span class="proj-line">29.4p</span>
+                        <span class="proj-line">5.6a</span>
+                        <span class="proj-line">9.8r</span>
+                        <span class="proj-pra">44.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">M. Turner</span>
+                        <span class="proj-line">13.3p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">5.6r</span>
+                        <span class="proj-pra">20.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Kuzma</span>
+                        <span class="proj-line">13.5p</span>
+                        <span class="proj-line">2.5a</span>
+                        <span class="proj-line">4.9r</span>
+                        <span class="proj-pra">20.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Portis</span>
+                        <span class="proj-line">13.9p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">6.5r</span>
+                        <span class="proj-pra">22.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Thomas</span>
+                        <span class="proj-line">16.5p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">1.8r</span>
+                        <span class="proj-pra">21.2</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">T. Murphy III</span>
+                        <span class="proj-line">23.0p</span>
+                        <span class="proj-line">3.8a</span>
+                        <span class="proj-line">5.6r</span>
+                        <span class="proj-pra">32.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">S. Bey</span>
+                        <span class="proj-line">17.3p</span>
+                        <span class="proj-line">2.5a</span>
+                        <span class="proj-line">5.8r</span>
+                        <span class="proj-pra">25.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">Z. Williamson</span>
+                        <span class="proj-line">22.5p</span>
+                        <span class="proj-line">3.5a</span>
+                        <span class="proj-line">6.0r</span>
+                        <span class="proj-pra">32.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">H. Jones</span>
+                        <span class="proj-line">9.3p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">3.5r</span>
+                        <span class="proj-pra">15.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Poole</span>
+                        <span class="proj-line">15.1p</span>
+                        <span class="proj-line">3.1a</span>
+                        <span class="proj-line">1.8r</span>
+                        <span class="proj-pra">20.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. McGowens</span>
+                        <span class="proj-line">8.2p</span>
+                        <span class="proj-line">1.5a</span>
+                        <span class="proj-line">1.9r</span>
+                        <span class="proj-pra">11.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">Y. Missi</span>
+                        <span class="proj-line">5.8p</span>
+                        <span class="proj-line">1.2a</span>
+                        <span class="proj-line">5.5r</span>
+                        <span class="proj-pra">12.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Looney</span>
+                        <span class="proj-line">3.0p</span>
+                        <span class="proj-line">1.4a</span>
+                        <span class="proj-line">5.2r</span>
+                        <span class="proj-pra">9.6</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>BKN @ OKC</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">M. Porter Jr.</span>
+                        <span class="proj-line">23.4p</span>
+                        <span class="proj-line">3.2a</span>
+                        <span class="proj-line">7.0r</span>
+                        <span class="proj-pra">33.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Claxton</span>
+                        <span class="proj-line">11.7p</span>
+                        <span class="proj-line">4.0a</span>
+                        <span class="proj-line">7.1r</span>
+                        <span class="proj-pra">22.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Clowney</span>
+                        <span class="proj-line">12.2p</span>
+                        <span class="proj-line">1.8a</span>
+                        <span class="proj-line">4.2r</span>
+                        <span class="proj-pra">18.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Mann</span>
+                        <span class="proj-line">7.0p</span>
+                        <span class="proj-line">3.4a</span>
+                        <span class="proj-line">3.2r</span>
+                        <span class="proj-pra">13.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">Z. Williams</span>
+                        <span class="proj-line">9.1p</span>
+                        <span class="proj-line">0.8a</span>
+                        <span class="proj-line">2.5r</span>
+                        <span class="proj-pra">12.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Sharpe</span>
+                        <span class="proj-line">8.0p</span>
+                        <span class="proj-line">2.3a</span>
+                        <span class="proj-line">6.5r</span>
+                        <span class="proj-pra">16.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Minott</span>
+                        <span class="proj-line">5.4p</span>
+                        <span class="proj-line">1.0a</span>
+                        <span class="proj-line">3.5r</span>
+                        <span class="proj-pra">9.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">O. Agbaji</span>
+                        <span class="proj-line">3.9p</span>
+                        <span class="proj-line">0.7a</span>
+                        <span class="proj-line">2.2r</span>
+                        <span class="proj-pra">6.8</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">S. Gilgeous-Alexander</span>
+                        <span class="proj-line">33.0p</span>
+                        <span class="proj-line">6.4a</span>
+                        <span class="proj-line">4.3r</span>
+                        <span class="proj-pra">43.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Holmgren</span>
+                        <span class="proj-line">18.0p</span>
+                        <span class="proj-line">1.6a</span>
+                        <span class="proj-line">8.5r</span>
+                        <span class="proj-pra">28.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Williams</span>
+                        <span class="proj-line">18.1p</span>
+                        <span class="proj-line">5.4a</span>
+                        <span class="proj-line">4.6r</span>
+                        <span class="proj-pra">28.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">L. Dort</span>
+                        <span class="proj-line">9.0p</span>
+                        <span class="proj-line">1.2a</span>
+                        <span class="proj-line">3.7r</span>
+                        <span class="proj-pra">13.9</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Wallace</span>
+                        <span class="proj-line">8.4p</span>
+                        <span class="proj-line">2.2a</span>
+                        <span class="proj-line">3.0r</span>
+                        <span class="proj-pra">13.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Mitchell</span>
+                        <span class="proj-line">14.6p</span>
+                        <span class="proj-line">3.7a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">21.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">I. Hartenstein</span>
+                        <span class="proj-line">11.0p</span>
+                        <span class="proj-line">3.6a</span>
+                        <span class="proj-line">9.5r</span>
+                        <span class="proj-pra">24.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Wiggins</span>
+                        <span class="proj-line">11.0p</span>
+                        <span class="proj-line">1.8a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">16.2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>LAC @ LAL</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">K. Leonard</span>
+                        <span class="proj-line">28.3p</span>
+                        <span class="proj-line">3.6a</span>
+                        <span class="proj-line">6.2r</span>
+                        <span class="proj-pra">38.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Mathurin</span>
+                        <span class="proj-line">17.6p</span>
+                        <span class="proj-line">2.3a</span>
+                        <span class="proj-line">5.2r</span>
+                        <span class="proj-pra">25.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Garland</span>
+                        <span class="proj-line">18.2p</span>
+                        <span class="proj-line">6.8a</span>
+                        <span class="proj-line">2.3r</span>
+                        <span class="proj-pra">27.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Collins</span>
+                        <span class="proj-line">14.0p</span>
+                        <span class="proj-line">0.9a</span>
+                        <span class="proj-line">4.9r</span>
+                        <span class="proj-pra">19.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Dunn</span>
+                        <span class="proj-line">8.1p</span>
+                        <span class="proj-line">3.4a</span>
+                        <span class="proj-line">2.8r</span>
+                        <span class="proj-pra">14.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Jones Jr.</span>
+                        <span class="proj-line">10.1p</span>
+                        <span class="proj-line">1.2a</span>
+                        <span class="proj-line">2.4r</span>
+                        <span class="proj-pra">13.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Bogdanović</span>
+                        <span class="proj-line">7.7p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">2.7r</span>
+                        <span class="proj-pra">13.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Beal</span>
+                        <span class="proj-line">8.3p</span>
+                        <span class="proj-line">1.7a</span>
+                        <span class="proj-line">0.8r</span>
+                        <span class="proj-pra">10.8</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">L. Dončić</span>
+                        <span class="proj-line">33.0p</span>
+                        <span class="proj-line">8.5a</span>
+                        <span class="proj-line">7.5r</span>
+                        <span class="proj-pra">49.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Reaves</span>
+                        <span class="proj-line">25.5p</span>
+                        <span class="proj-line">5.9a</span>
+                        <span class="proj-line">4.8r</span>
+                        <span class="proj-pra">36.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">L. James</span>
+                        <span class="proj-line">22.1p</span>
+                        <span class="proj-line">7.0a</span>
+                        <span class="proj-line">5.6r</span>
+                        <span class="proj-pra">34.7</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">R. Hachimura</span>
+                        <span class="proj-line">12.2p</span>
+                        <span class="proj-line">0.9a</span>
+                        <span class="proj-line">3.4r</span>
+                        <span class="proj-pra">16.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">M. Smart</span>
+                        <span class="proj-line">9.8p</span>
+                        <span class="proj-line">2.9a</span>
+                        <span class="proj-line">2.9r</span>
+                        <span class="proj-pra">15.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Ayton</span>
+                        <span class="proj-line">13.3p</span>
+                        <span class="proj-line">0.9a</span>
+                        <span class="proj-line">8.2r</span>
+                        <span class="proj-pra">22.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. LaRavia</span>
+                        <span class="proj-line">9.5p</span>
+                        <span class="proj-line">1.9a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">15.3</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">L. Kennard</span>
+                        <span class="proj-line">8.1p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">2.1r</span>
+                        <span class="proj-pra">12.3</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="proj-matchup">
+            <div class="proj-matchup-header">
+                <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+                <span>DEN @ POR</span>
+                <img src="https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
+            </div>
+            <div class="proj-grid">
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">J. Murray</span>
+                        <span class="proj-line">26.4p</span>
+                        <span class="proj-line">7.7a</span>
+                        <span class="proj-line">4.3r</span>
+                        <span class="proj-pra">38.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">N. Jokić</span>
+                        <span class="proj-line">29.5p</span>
+                        <span class="proj-line">10.8a</span>
+                        <span class="proj-line">12.1r</span>
+                        <span class="proj-pra">52.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">P. Watson</span>
+                        <span class="proj-line">15.3p</span>
+                        <span class="proj-line">2.0a</span>
+                        <span class="proj-line">4.8r</span>
+                        <span class="proj-pra">22.1</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Johnson</span>
+                        <span class="proj-line">11.8p</span>
+                        <span class="proj-line">2.2a</span>
+                        <span class="proj-line">3.6r</span>
+                        <span class="proj-pra">17.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">C. Braun</span>
+                        <span class="proj-line">10.2p</span>
+                        <span class="proj-line">2.8a</span>
+                        <span class="proj-line">4.2r</span>
+                        <span class="proj-pra">17.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">A. Gordon</span>
+                        <span class="proj-line">18.2p</span>
+                        <span class="proj-line">2.5a</span>
+                        <span class="proj-line">6.1r</span>
+                        <span class="proj-pra">26.8</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Hardaway Jr.</span>
+                        <span class="proj-line">14.5p</span>
+                        <span class="proj-line">1.3a</span>
+                        <span class="proj-line">2.6r</span>
+                        <span class="proj-pra">18.4</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">B. Brown</span>
+                        <span class="proj-line">7.7p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">13.7</span>
+                    </div>
+                </div>
+                <div class="proj-half">
+                    <div class="proj-row">
+                        <span class="proj-name">D. Avdija</span>
+                        <span class="proj-line">26.3p</span>
+                        <span class="proj-line">6.6a</span>
+                        <span class="proj-line">7.1r</span>
+                        <span class="proj-pra">40.0</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">T. Camara</span>
+                        <span class="proj-line">13.7p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">5.3r</span>
+                        <span class="proj-pra">21.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">S. Sharpe</span>
+                        <span class="proj-line">22.3p</span>
+                        <span class="proj-line">2.6a</span>
+                        <span class="proj-line">4.3r</span>
+                        <span class="proj-pra">29.2</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Grant</span>
+                        <span class="proj-line">19.6p</span>
+                        <span class="proj-line">2.4a</span>
+                        <span class="proj-line">3.5r</span>
+                        <span class="proj-pra">25.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">J. Holiday</span>
+                        <span class="proj-line">16.4p</span>
+                        <span class="proj-line">6.5a</span>
+                        <span class="proj-line">4.6r</span>
+                        <span class="proj-pra">27.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">D. Clingan</span>
+                        <span class="proj-line">12.1p</span>
+                        <span class="proj-line">2.1a</span>
+                        <span class="proj-line">11.4r</span>
+                        <span class="proj-pra">25.6</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">K. Murray</span>
+                        <span class="proj-line">6.4p</span>
+                        <span class="proj-line">1.2a</span>
+                        <span class="proj-line">3.9r</span>
+                        <span class="proj-pra">11.5</span>
+                    </div>
+                    <div class="proj-row">
+                        <span class="proj-name">V. Krejčí</span>
+                        <span class="proj-line">9.5p</span>
+                        <span class="proj-line">1.5a</span>
+                        <span class="proj-line">2.1r</span>
+                        <span class="proj-pra">13.1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
         </div>
 
-        <!-- TRENDS TAB -->
+        <!-- TRENDS + STATS TAB -->
         <div class="tab-content" id="tab-trends">
-            <div class="section-header">
+            <!-- Top 50 DS Rankings — collapsible -->
+            <div class="rankings-section">
+                <div class="rankings-header" onclick="toggleRankings()">
+                    <div>
+                        <h2 class="rankings-title">TOP 50 DYNAMIC SCORE</h2>
+                        <span class="section-sub">League-wide player rankings by DS</span>
+                    </div>
+                    <span class="rankings-toggle" id="rankingsToggle">▼</span>
+                </div>
+                <div class="rankings-body" id="rankingsBody" style="display:none">
+                    <div class="rankings-col-headers">
+                        <span class="rch-rank">#</span>
+                        <span class="rch-player">PLAYER</span>
+                        <span class="rch-stats">STATS</span>
+                        <span class="rch-ds">DS</span>
+                    </div>
+                    
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Nikola Jokić" data-arch="Versatile Big" data-ds="99" data-range="91-99"
+             data-pts="28.7" data-ast="10.7" data-reb="12.3"
+             data-stl="1.4" data-blk="0.8" data-ts="69.9"
+             data-net="11.7" data-usg="29.3" data-mpg="34.3"
+             data-team="DEN" data-pid="203999"
+             data-scoring-pct="29.0" data-playmaking-pct="16.0"
+             data-defense-pct="3.0" data-efficiency-pct="23.0"
+             data-impact-pct="8.0">
+            <span class="rank-num">#1</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Nikola Jokić</span>
+                <span class="rank-meta">DEN // 🔮 Versatile Big</span>
+            </div>
+            <div class="rank-stats">
+                <span>28.7p 10.7a 12.3r</span>
+                <span style="color:#00CC44">+11.7</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">99</span>
+                <span class="rank-ds-range">91-99</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Shai Gilgeous-Alexander" data-arch="Scoring Guard" data-ds="99" data-range="91-99"
+             data-pts="31.8" data-ast="6.4" data-reb="4.4"
+             data-stl="1.3" data-blk="0.8" data-ts="67.0"
+             data-net="15.5" data-usg="32.2" data-mpg="33.3"
+             data-team="OKC" data-pid="1628983"
+             data-scoring-pct="34.0" data-playmaking-pct="10.0"
+             data-defense-pct="3.0" data-efficiency-pct="24.0"
+             data-impact-pct="11.0">
+            <span class="rank-num">#2</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Shai Gilgeous-Alexander</span>
+                <span class="rank-meta">OKC // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>31.8p 6.4a 4.4r</span>
+                <span style="color:#00CC44">+15.5</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">99</span>
+                <span class="rank-ds-range">91-99</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Luka Dončić" data-arch="Point Forward" data-ds="96" data-range="88-99"
+             data-pts="32.8" data-ast="8.6" data-reb="7.8"
+             data-stl="1.5" data-blk="0.5" data-ts="61.4"
+             data-net="0.9" data-usg="36.6" data-mpg="35.5"
+             data-team="LAL" data-pid="1629029"
+             data-scoring-pct="37.0" data-playmaking-pct="15.0"
+             data-defense-pct="4.0" data-efficiency-pct="23.0"
+             data-impact-pct="1.0">
+            <span class="rank-num">#3</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629029.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Luka Dončić</span>
+                <span class="rank-meta">LAL // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>32.8p 8.6a 7.8r</span>
+                <span style="color:#00CC44">+0.9</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">96</span>
+                <span class="rank-ds-range">88-99</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Cade Cunningham" data-arch="Scoring Guard" data-ds="93" data-range="86-98"
+             data-pts="25.3" data-ast="9.6" data-reb="5.6"
+             data-stl="1.5" data-blk="0.8" data-ts="56.8"
+             data-net="11.0" data-usg="29.9" data-mpg="34.9"
+             data-team="DET" data-pid="1630595"
+             data-scoring-pct="30.0" data-playmaking-pct="17.0"
+             data-defense-pct="4.0" data-efficiency-pct="22.0"
+             data-impact-pct="9.0">
+            <span class="rank-num">#4</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630595.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612765/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Cade Cunningham</span>
+                <span class="rank-meta">DET // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.3p 9.6a 5.6r</span>
+                <span style="color:#00CC44">+11.0</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">93</span>
+                <span class="rank-ds-range">86-98</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Giannis Antetokounmpo" data-arch="Small-Ball 4" data-ds="91" data-range="84-96"
+             data-pts="28.0" data-ast="5.6" data-reb="10.0"
+             data-stl="0.9" data-blk="0.7" data-ts="67.9"
+             data-net="6.1" data-usg="34.9" data-mpg="29.2"
+             data-team="MIL" data-pid="203507"
+             data-scoring-pct="33.0" data-playmaking-pct="10.0"
+             data-defense-pct="3.0" data-efficiency-pct="27.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#5</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203507.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Giannis Antetokounmpo</span>
+                <span class="rank-meta">MIL // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>28.0p 5.6a 10.0r</span>
+                <span style="color:#00CC44">+6.1</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">91</span>
+                <span class="rank-ds-range">84-96</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Donovan Mitchell" data-arch="Scoring Guard" data-ds="89" data-range="83-94"
+             data-pts="29.0" data-ast="5.9" data-reb="4.5"
+             data-stl="1.5" data-blk="0.3" data-ts="61.9"
+             data-net="8.0" data-usg="31.6" data-mpg="33.7"
+             data-team="CLE" data-pid="1628378"
+             data-scoring-pct="35.0" data-playmaking-pct="11.0"
+             data-defense-pct="4.0" data-efficiency-pct="25.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#6</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628378.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Donovan Mitchell</span>
+                <span class="rank-meta">CLE // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>29.0p 5.9a 4.5r</span>
+                <span style="color:#00CC44">+8.0</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">89</span>
+                <span class="rank-ds-range">83-94</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Victor Wembanyama" data-arch="Rim Protector" data-ds="88" data-range="82-92"
+             data-pts="24.4" data-ast="2.8" data-reb="11.1"
+             data-stl="1.0" data-blk="2.7" data-ts="62.4"
+             data-net="12.6" data-usg="31.7" data-mpg="29.0"
+             data-team="SAS" data-pid="1641705"
+             data-scoring-pct="30.0" data-playmaking-pct="5.0"
+             data-defense-pct="6.0" data-efficiency-pct="26.0"
+             data-impact-pct="10.0">
+            <span class="rank-num">#7</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641705.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Victor Wembanyama</span>
+                <span class="rank-meta">SAS // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>24.4p 2.8a 11.1r</span>
+                <span style="color:#00CC44">+12.6</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">88</span>
+                <span class="rank-ds-range">82-92</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Tyrese Maxey" data-arch="Scoring Guard" data-ds="87" data-range="81-91"
+             data-pts="28.9" data-ast="6.8" data-reb="4.1"
+             data-stl="2.0" data-blk="0.8" data-ts="59.8"
+             data-net="1.8" data-usg="28.3" data-mpg="38.6"
+             data-team="PHI" data-pid="1630178"
+             data-scoring-pct="36.0" data-playmaking-pct="13.0"
+             data-defense-pct="5.0" data-efficiency-pct="25.0"
+             data-impact-pct="1.0">
+            <span class="rank-num">#8</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630178.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Tyrese Maxey</span>
+                <span class="rank-meta">PHI // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>28.9p 6.8a 4.1r</span>
+                <span style="color:#00CC44">+1.8</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">87</span>
+                <span class="rank-ds-range">81-91</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jamal Murray" data-arch="Scoring Guard" data-ds="85" data-range="79-89"
+             data-pts="25.7" data-ast="7.6" data-reb="4.4"
+             data-stl="1.0" data-blk="0.4" data-ts="61.5"
+             data-net="5.3" data-usg="27.6" data-mpg="35.6"
+             data-team="DEN" data-pid="1627750"
+             data-scoring-pct="33.0" data-playmaking-pct="15.0"
+             data-defense-pct="3.0" data-efficiency-pct="26.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#9</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jamal Murray</span>
+                <span class="rank-meta">DEN // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.7p 7.6a 4.4r</span>
+                <span style="color:#00CC44">+5.3</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">85</span>
+                <span class="rank-ds-range">79-89</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jaylen Brown" data-arch="Point Forward" data-ds="85" data-range="79-89"
+             data-pts="29.3" data-ast="4.7" data-reb="6.9"
+             data-stl="1.0" data-blk="0.4" data-ts="57.1"
+             data-net="4.3" data-usg="36.0" data-mpg="34.2"
+             data-team="BOS" data-pid="1627759"
+             data-scoring-pct="38.0" data-playmaking-pct="9.0"
+             data-defense-pct="3.0" data-efficiency-pct="24.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#10</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627759.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612738/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jaylen Brown</span>
+                <span class="rank-meta">BOS // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>29.3p 4.7a 6.9r</span>
+                <span style="color:#00CC44">+4.3</span>
+            </div>
+            <div class="rank-ds ds-elite">
+                <span class="rank-ds-num">85</span>
+                <span class="rank-ds-range">79-89</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Kawhi Leonard" data-arch="Point Forward" data-ds="84" data-range="79-88"
+             data-pts="27.9" data-ast="3.7" data-reb="6.4"
+             data-stl="2.1" data-blk="0.5" data-ts="61.9"
+             data-net="4.5" data-usg="32.9" data-mpg="32.8"
+             data-team="LAC" data-pid="202695"
+             data-scoring-pct="36.0" data-playmaking-pct="7.0"
+             data-defense-pct="5.0" data-efficiency-pct="27.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#11</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202695.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Kawhi Leonard</span>
+                <span class="rank-meta">LAC // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>27.9p 3.7a 6.4r</span>
+                <span style="color:#00CC44">+4.5</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">84</span>
+                <span class="rank-ds-range">79-88</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Anthony Edwards" data-arch="Scoring Guard" data-ds="84" data-range="79-88"
+             data-pts="29.3" data-ast="3.7" data-reb="5.2"
+             data-stl="1.3" data-blk="0.8" data-ts="62.0"
+             data-net="4.1" data-usg="30.4" data-mpg="35.5"
+             data-team="MIN" data-pid="1630162"
+             data-scoring-pct="38.0" data-playmaking-pct="7.0"
+             data-defense-pct="4.0" data-efficiency-pct="27.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#12</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630162.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Anthony Edwards</span>
+                <span class="rank-meta">MIN // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>29.3p 3.7a 5.2r</span>
+                <span style="color:#00CC44">+4.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">84</span>
+                <span class="rank-ds-range">79-88</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jalen Johnson" data-arch="Point Forward" data-ds="84" data-range="79-88"
+             data-pts="23.3" data-ast="8.2" data-reb="10.6"
+             data-stl="1.3" data-blk="0.5" data-ts="59.2"
+             data-net="0.2" data-usg="26.4" data-mpg="35.7"
+             data-team="ATL" data-pid="1630552"
+             data-scoring-pct="30.0" data-playmaking-pct="16.0"
+             data-defense-pct="4.0" data-efficiency-pct="25.0"
+             data-impact-pct="0.0">
+            <span class="rank-num">#13</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630552.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jalen Johnson</span>
+                <span class="rank-meta">ATL // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>23.3p 8.2a 10.6r</span>
+                <span style="color:#00CC44">+0.2</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">84</span>
+                <span class="rank-ds-range">79-88</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jalen Brunson" data-arch="Scoring Guard" data-ds="83" data-range="78-87"
+             data-pts="27.0" data-ast="6.1" data-reb="3.3"
+             data-stl="0.7" data-blk="0.1" data-ts="58.7"
+             data-net="7.1" data-usg="30.2" data-mpg="34.6"
+             data-team="NYK" data-pid="1628973"
+             data-scoring-pct="35.0" data-playmaking-pct="12.0"
+             data-defense-pct="2.0" data-efficiency-pct="26.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#14</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628973.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jalen Brunson</span>
+                <span class="rank-meta">NYK // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>27.0p 6.1a 3.3r</span>
+                <span style="color:#00CC44">+7.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">83</span>
+                <span class="rank-ds-range">78-87</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="James Harden" data-arch="Scoring Guard" data-ds="83" data-range="78-87"
+             data-pts="25.0" data-ast="8.2" data-reb="4.9"
+             data-stl="1.2" data-blk="0.4" data-ts="60.1"
+             data-net="0.8" data-usg="29.6" data-mpg="35.2"
+             data-team="CLE" data-pid="201935"
+             data-scoring-pct="33.0" data-playmaking-pct="16.0"
+             data-defense-pct="3.0" data-efficiency-pct="26.0"
+             data-impact-pct="1.0">
+            <span class="rank-num">#15</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201935.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">James Harden</span>
+                <span class="rank-meta">CLE // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.0p 8.2a 4.9r</span>
+                <span style="color:#00CC44">+0.8</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">83</span>
+                <span class="rank-ds-range">78-87</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Joel Embiid" data-arch="Rim Protector" data-ds="83" data-range="78-87"
+             data-pts="26.6" data-ast="3.9" data-reb="7.5"
+             data-stl="0.6" data-blk="1.1" data-ts="60.6"
+             data-net="6.1" data-usg="33.7" data-mpg="31.3"
+             data-team="PHI" data-pid="203954"
+             data-scoring-pct="35.0" data-playmaking-pct="8.0"
+             data-defense-pct="3.0" data-efficiency-pct="27.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#16</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203954.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Joel Embiid</span>
+                <span class="rank-meta">PHI // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>26.6p 3.9a 7.5r</span>
+                <span style="color:#00CC44">+6.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">83</span>
+                <span class="rank-ds-range">78-87</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Austin Reaves" data-arch="Scoring Guard" data-ds="82" data-range="77-86"
+             data-pts="25.4" data-ast="6.0" data-reb="5.0"
+             data-stl="1.0" data-blk="0.2" data-ts="66.5"
+             data-net="3.1" data-usg="28.0" data-mpg="33.5"
+             data-team="LAL" data-pid="1630559"
+             data-scoring-pct="34.0" data-playmaking-pct="12.0"
+             data-defense-pct="3.0" data-efficiency-pct="29.0"
+             data-impact-pct="3.0">
+            <span class="rank-num">#17</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630559.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Austin Reaves</span>
+                <span class="rank-meta">LAL // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.4p 6.0a 5.0r</span>
+                <span style="color:#00CC44">+3.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">82</span>
+                <span class="rank-ds-range">77-86</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Kevin Durant" data-arch="Small-Ball 4" data-ds="82" data-range="77-86"
+             data-pts="25.8" data-ast="4.4" data-reb="5.3"
+             data-stl="0.8" data-blk="0.9" data-ts="62.7"
+             data-net="6.0" data-usg="26.3" data-mpg="36.7"
+             data-team="HOU" data-pid="201142"
+             data-scoring-pct="34.0" data-playmaking-pct="9.0"
+             data-defense-pct="3.0" data-efficiency-pct="28.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#18</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201142.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612745/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Kevin Durant</span>
+                <span class="rank-meta">HOU // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.8p 4.4a 5.3r</span>
+                <span style="color:#00CC44">+6.0</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">82</span>
+                <span class="rank-ds-range">77-86</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Deni Avdija" data-arch="Point Forward" data-ds="80" data-range="75-83"
+             data-pts="25.2" data-ast="6.6" data-reb="7.2"
+             data-stl="0.8" data-blk="0.6" data-ts="60.6"
+             data-net="-0.7" data-usg="28.3" data-mpg="34.3"
+             data-team="POR" data-pid="1630166"
+             data-scoring-pct="34.0" data-playmaking-pct="13.0"
+             data-defense-pct="3.0" data-efficiency-pct="27.0"
+             data-impact-pct="-1.0">
+            <span class="rank-num">#19</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630166.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Deni Avdija</span>
+                <span class="rank-meta">POR // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.2p 6.6a 7.2r</span>
+                <span style="color:#FF3333">-0.7</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">80</span>
+                <span class="rank-ds-range">75-83</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Devin Booker" data-arch="Scoring Guard" data-ds="80" data-range="75-83"
+             data-pts="25.2" data-ast="6.3" data-reb="4.0"
+             data-stl="0.9" data-blk="0.3" data-ts="58.0"
+             data-net="4.6" data-usg="29.8" data-mpg="33.9"
+             data-team="PHX" data-pid="1626164"
+             data-scoring-pct="34.0" data-playmaking-pct="13.0"
+             data-defense-pct="3.0" data-efficiency-pct="26.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#20</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626164.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612756/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Devin Booker</span>
+                <span class="rank-meta">PHX // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.2p 6.3a 4.0r</span>
+                <span style="color:#00CC44">+4.6</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">80</span>
+                <span class="rank-ds-range">75-83</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Stephen Curry" data-arch="Scoring Guard" data-ds="80" data-range="75-83"
+             data-pts="27.2" data-ast="4.8" data-reb="3.5"
+             data-stl="1.1" data-blk="0.4" data-ts="63.6"
+             data-net="2.3" data-usg="31.1" data-mpg="31.3"
+             data-team="GSW" data-pid="201939"
+             data-scoring-pct="37.0" data-playmaking-pct="10.0"
+             data-defense-pct="3.0" data-efficiency-pct="29.0"
+             data-impact-pct="2.0">
+            <span class="rank-num">#21</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201939.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612744/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Stephen Curry</span>
+                <span class="rank-meta">GSW // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>27.2p 4.8a 3.5r</span>
+                <span style="color:#00CC44">+2.3</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">80</span>
+                <span class="rank-ds-range">75-83</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Alperen Sengun" data-arch="Versatile Big" data-ds="79" data-range="75-82"
+             data-pts="20.7" data-ast="6.3" data-reb="9.4"
+             data-stl="1.3" data-blk="1.0" data-ts="55.2"
+             data-net="4.3" data-usg="26.5" data-mpg="33.9"
+             data-team="HOU" data-pid="1630578"
+             data-scoring-pct="28.0" data-playmaking-pct="13.0"
+             data-defense-pct="5.0" data-efficiency-pct="25.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#22</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630578.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612745/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Alperen Sengun</span>
+                <span class="rank-meta">HOU // 🔮 Versatile Big</span>
+            </div>
+            <div class="rank-stats">
+                <span>20.7p 6.3a 9.4r</span>
+                <span style="color:#00CC44">+4.3</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">79</span>
+                <span class="rank-ds-range">75-82</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Julius Randle" data-arch="Small-Ball 4" data-ds="78" data-range="74-81"
+             data-pts="22.3" data-ast="5.4" data-reb="7.0"
+             data-stl="1.1" data-blk="0.3" data-ts="59.9"
+             data-net="5.1" data-usg="25.9" data-mpg="33.6"
+             data-team="MIN" data-pid="203944"
+             data-scoring-pct="31.0" data-playmaking-pct="11.0"
+             data-defense-pct="3.0" data-efficiency-pct="28.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#23</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203944.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Julius Randle</span>
+                <span class="rank-meta">MIN // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>22.3p 5.4a 7.0r</span>
+                <span style="color:#00CC44">+5.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">78</span>
+                <span class="rank-ds-range">74-81</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Scottie Barnes" data-arch="Point Forward" data-ds="77" data-range="73-80"
+             data-pts="19.3" data-ast="5.6" data-reb="8.4"
+             data-stl="1.3" data-blk="1.6" data-ts="57.7"
+             data-net="3.8" data-usg="23.2" data-mpg="34.4"
+             data-team="TOR" data-pid="1630567"
+             data-scoring-pct="27.0" data-playmaking-pct="12.0"
+             data-defense-pct="6.0" data-efficiency-pct="27.0"
+             data-impact-pct="4.0">
+            <span class="rank-num">#24</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630567.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Scottie Barnes</span>
+                <span class="rank-meta">TOR // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>19.3p 5.6a 8.4r</span>
+                <span style="color:#00CC44">+3.8</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">77</span>
+                <span class="rank-ds-range">73-80</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jimmy Butler III" data-arch="Point Forward" data-ds="77" data-range="73-80"
+             data-pts="20.0" data-ast="4.9" data-reb="5.6"
+             data-stl="1.4" data-blk="0.2" data-ts="64.6"
+             data-net="7.3" data-usg="22.6" data-mpg="31.1"
+             data-team="GSW" data-pid="202710"
+             data-scoring-pct="28.0" data-playmaking-pct="10.0"
+             data-defense-pct="4.0" data-efficiency-pct="30.0"
+             data-impact-pct="7.0">
+            <span class="rank-num">#25</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202710.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612744/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jimmy Butler III</span>
+                <span class="rank-meta">GSW // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>20.0p 4.9a 5.6r</span>
+                <span style="color:#00CC44">+7.3</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">77</span>
+                <span class="rank-ds-range">73-80</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Karl-Anthony Towns" data-arch="Rim Protector" data-ds="76" data-range="72-79"
+             data-pts="19.8" data-ast="2.9" data-reb="11.9"
+             data-stl="0.9" data-blk="0.6" data-ts="59.4"
+             data-net="7.9" data-usg="25.1" data-mpg="31.3"
+             data-team="NYK" data-pid="1626157"
+             data-scoring-pct="28.0" data-playmaking-pct="6.0"
+             data-defense-pct="3.0" data-efficiency-pct="28.0"
+             data-impact-pct="7.0">
+            <span class="rank-num">#26</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626157.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Karl-Anthony Towns</span>
+                <span class="rank-meta">NYK // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>19.8p 2.9a 11.9r</span>
+                <span style="color:#00CC44">+7.9</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">76</span>
+                <span class="rank-ds-range">72-79</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Chet Holmgren" data-arch="Rim Protector" data-ds="76" data-range="72-79"
+             data-pts="17.4" data-ast="1.6" data-reb="8.7"
+             data-stl="0.5" data-blk="1.9" data-ts="65.1"
+             data-net="14.2" data-usg="21.7" data-mpg="29.2"
+             data-team="OKC" data-pid="1631096"
+             data-scoring-pct="25.0" data-playmaking-pct="3.0"
+             data-defense-pct="5.0" data-efficiency-pct="31.0"
+             data-impact-pct="14.0">
+            <span class="rank-num">#27</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Chet Holmgren</span>
+                <span class="rank-meta">OKC // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.4p 1.6a 8.7r</span>
+                <span style="color:#00CC44">+14.2</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">76</span>
+                <span class="rank-ds-range">72-79</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Walker Kessler" data-arch="Unclassified" data-ds="76" data-range="72-79"
+             data-pts="14.4" data-ast="3.0" data-reb="10.8"
+             data-stl="1.4" data-blk="1.8" data-ts="78.6"
+             data-net="4.8" data-usg="16.7" data-mpg="30.8"
+             data-team="UTA" data-pid="1631117"
+             data-scoring-pct="21.0" data-playmaking-pct="6.0"
+             data-defense-pct="7.0" data-efficiency-pct="37.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#28</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631117.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Walker Kessler</span>
+                <span class="rank-meta">UTA // ◆ Unclassified</span>
+            </div>
+            <div class="rank-stats">
+                <span>14.4p 3.0a 10.8r</span>
+                <span style="color:#00CC44">+4.8</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">76</span>
+                <span class="rank-ds-range">72-79</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Ty Jerome" data-arch="Unclassified" data-ds="75" data-range="71-78"
+             data-pts="19.7" data-ast="6.0" data-reb="2.2"
+             data-stl="1.2" data-blk="0.3" data-ts="69.0"
+             data-net="7.4" data-usg="33.0" data-mpg="20.2"
+             data-team="MEM" data-pid="1629660"
+             data-scoring-pct="28.0" data-playmaking-pct="13.0"
+             data-defense-pct="3.0" data-efficiency-pct="33.0"
+             data-impact-pct="7.0">
+            <span class="rank-num">#29</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629660.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Ty Jerome</span>
+                <span class="rank-meta">MEM // ◆ Unclassified</span>
+            </div>
+            <div class="rank-stats">
+                <span>19.7p 6.0a 2.2r</span>
+                <span style="color:#00CC44">+7.4</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">75</span>
+                <span class="rank-ds-range">71-78</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Amen Thompson" data-arch="Point Forward" data-ds="75" data-range="71-78"
+             data-pts="17.6" data-ast="5.4" data-reb="7.6"
+             data-stl="1.4" data-blk="0.6" data-ts="56.8"
+             data-net="7.4" data-usg="19.6" data-mpg="37.3"
+             data-team="HOU" data-pid="1641708"
+             data-scoring-pct="25.0" data-playmaking-pct="12.0"
+             data-defense-pct="4.0" data-efficiency-pct="27.0"
+             data-impact-pct="7.0">
+            <span class="rank-num">#30</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641708.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612745/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Amen Thompson</span>
+                <span class="rank-meta">HOU // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.6p 5.4a 7.6r</span>
+                <span style="color:#00CC44">+7.4</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">75</span>
+                <span class="rank-ds-range">71-78</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Zach Edey" data-arch="Unclassified" data-ds="75" data-range="71-78"
+             data-pts="13.6" data-ast="1.1" data-reb="11.1"
+             data-stl="0.6" data-blk="1.9" data-ts="66.9"
+             data-net="18.3" data-usg="20.0" data-mpg="25.8"
+             data-team="MEM" data-pid="1641744"
+             data-scoring-pct="20.0" data-playmaking-pct="2.0"
+             data-defense-pct="5.0" data-efficiency-pct="32.0"
+             data-impact-pct="18.0">
+            <span class="rank-num">#31</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641744.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Zach Edey</span>
+                <span class="rank-meta">MEM // ◆ Unclassified</span>
+            </div>
+            <div class="rank-stats">
+                <span>13.6p 1.1a 11.1r</span>
+                <span style="color:#00CC44">+18.3</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">75</span>
+                <span class="rank-ds-range">71-78</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="LeBron James" data-arch="Point Forward" data-ds="75" data-range="71-78"
+             data-pts="22.0" data-ast="7.1" data-reb="5.8"
+             data-stl="1.1" data-blk="0.6" data-ts="58.5"
+             data-net="-1.4" data-usg="27.4" data-mpg="33.3"
+             data-team="LAL" data-pid="2544"
+             data-scoring-pct="32.0" data-playmaking-pct="15.0"
+             data-defense-pct="4.0" data-efficiency-pct="28.0"
+             data-impact-pct="-1.0">
+            <span class="rank-num">#32</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/2544.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">LeBron James</span>
+                <span class="rank-meta">LAL // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>22.0p 7.1a 5.8r</span>
+                <span style="color:#FF3333">-1.4</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">75</span>
+                <span class="rank-ds-range">71-78</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jalen Duren" data-arch="Rim Protector" data-ds="75" data-range="71-78"
+             data-pts="17.7" data-ast="1.8" data-reb="10.4"
+             data-stl="0.9" data-blk="0.8" data-ts="66.7"
+             data-net="11.0" data-usg="22.1" data-mpg="27.7"
+             data-team="DET" data-pid="1631105"
+             data-scoring-pct="26.0" data-playmaking-pct="4.0"
+             data-defense-pct="4.0" data-efficiency-pct="32.0"
+             data-impact-pct="11.0">
+            <span class="rank-num">#33</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631105.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612765/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jalen Duren</span>
+                <span class="rank-meta">DET // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.7p 1.8a 10.4r</span>
+                <span style="color:#00CC44">+11.0</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">75</span>
+                <span class="rank-ds-range">71-78</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="LaMelo Ball" data-arch="Scoring Guard" data-ds="74" data-range="70-77"
+             data-pts="19.3" data-ast="7.4" data-reb="4.8"
+             data-stl="1.1" data-blk="0.2" data-ts="53.3"
+             data-net="6.6" data-usg="30.7" data-mpg="27.7"
+             data-team="CHA" data-pid="1630163"
+             data-scoring-pct="28.0" data-playmaking-pct="16.0"
+             data-defense-pct="3.0" data-efficiency-pct="26.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#34</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630163.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">LaMelo Ball</span>
+                <span class="rank-meta">CHA // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>19.3p 7.4a 4.8r</span>
+                <span style="color:#00CC44">+6.6</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">74</span>
+                <span class="rank-ds-range">70-77</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="De'Aaron Fox" data-arch="Scoring Guard" data-ds="74" data-range="70-77"
+             data-pts="19.4" data-ast="6.3" data-reb="3.8"
+             data-stl="1.3" data-blk="0.3" data-ts="58.5"
+             data-net="6.1" data-usg="24.4" data-mpg="32.0"
+             data-team="SAS" data-pid="1628368"
+             data-scoring-pct="28.0" data-playmaking-pct="14.0"
+             data-defense-pct="4.0" data-efficiency-pct="28.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#35</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628368.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">De'Aaron Fox</span>
+                <span class="rank-meta">SAS // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>19.4p 6.3a 3.8r</span>
+                <span style="color:#00CC44">+6.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">74</span>
+                <span class="rank-ds-range">70-77</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Derrick White" data-arch="Defensive Specialist" data-ds="74" data-range="70-77"
+             data-pts="17.2" data-ast="5.6" data-reb="4.4"
+             data-stl="1.2" data-blk="1.4" data-ts="52.2"
+             data-net="11.0" data-usg="22.7" data-mpg="34.2"
+             data-team="BOS" data-pid="1628401"
+             data-scoring-pct="25.0" data-playmaking-pct="12.0"
+             data-defense-pct="5.0" data-efficiency-pct="25.0"
+             data-impact-pct="11.0">
+            <span class="rank-num">#36</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628401.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612738/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Derrick White</span>
+                <span class="rank-meta">BOS // 🛡️ Defensive Specialist</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.2p 5.6a 4.4r</span>
+                <span style="color:#00CC44">+11.0</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">74</span>
+                <span class="rank-ds-range">70-77</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Lauri Markkanen" data-arch="Small-Ball 4" data-ds="74" data-range="70-77"
+             data-pts="26.7" data-ast="2.1" data-reb="7.0"
+             data-stl="1.0" data-blk="0.5" data-ts="61.0"
+             data-net="-1.1" data-usg="26.7" data-mpg="34.4"
+             data-team="UTA" data-pid="1628374"
+             data-scoring-pct="39.0" data-playmaking-pct="5.0"
+             data-defense-pct="3.0" data-efficiency-pct="30.0"
+             data-impact-pct="-1.0">
+            <span class="rank-num">#37</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628374.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Lauri Markkanen</span>
+                <span class="rank-meta">UTA // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>26.7p 2.1a 7.0r</span>
+                <span style="color:#FF3333">-1.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">74</span>
+                <span class="rank-ds-range">70-77</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Josh Giddey" data-arch="Playmaking Guard" data-ds="74" data-range="70-77"
+             data-pts="18.6" data-ast="8.8" data-reb="8.6"
+             data-stl="0.9" data-blk="0.3" data-ts="57.5"
+             data-net="-2.5" data-usg="25.0" data-mpg="32.1"
+             data-team="CHI" data-pid="1630581"
+             data-scoring-pct="27.0" data-playmaking-pct="19.0"
+             data-defense-pct="3.0" data-efficiency-pct="28.0"
+             data-impact-pct="-2.0">
+            <span class="rank-num">#38</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630581.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612741/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Josh Giddey</span>
+                <span class="rank-meta">CHI // 🎯 Playmaking Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>18.6p 8.8a 8.6r</span>
+                <span style="color:#FF3333">-2.5</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">74</span>
+                <span class="rank-ds-range">70-77</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Evan Mobley" data-arch="Rim Protector" data-ds="73" data-range="69-76"
+             data-pts="17.9" data-ast="4.0" data-reb="8.8"
+             data-stl="0.9" data-blk="2.0" data-ts="57.6"
+             data-net="5.5" data-usg="21.6" data-mpg="33.4"
+             data-team="CLE" data-pid="1630596"
+             data-scoring-pct="26.0" data-playmaking-pct="9.0"
+             data-defense-pct="6.0" data-efficiency-pct="28.0"
+             data-impact-pct="5.0">
+            <span class="rank-num">#39</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630596.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Evan Mobley</span>
+                <span class="rank-meta">CLE // 🏰 Rim Protector</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.9p 4.0a 8.8r</span>
+                <span style="color:#00CC44">+5.5</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">73</span>
+                <span class="rank-ds-range">69-76</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Aaron Gordon" data-arch="Stretch Forward" data-ds="73" data-range="69-76"
+             data-pts="17.7" data-ast="2.5" data-reb="6.2"
+             data-stl="0.7" data-blk="0.2" data-ts="63.2"
+             data-net="14.0" data-usg="22.8" data-mpg="27.9"
+             data-team="DEN" data-pid="203932"
+             data-scoring-pct="26.0" data-playmaking-pct="6.0"
+             data-defense-pct="2.0" data-efficiency-pct="31.0"
+             data-impact-pct="14.0">
+            <span class="rank-num">#40</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203932.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Aaron Gordon</span>
+                <span class="rank-meta">DEN // 📐 Stretch Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.7p 2.5a 6.2r</span>
+                <span style="color:#00CC44">+14.0</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">73</span>
+                <span class="rank-ds-range">69-76</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Stephon Castle" data-arch="Playmaking Guard" data-ds="72" data-range="68-75"
+             data-pts="16.5" data-ast="7.0" data-reb="5.0"
+             data-stl="1.3" data-blk="0.3" data-ts="56.1"
+             data-net="6.1" data-usg="25.0" data-mpg="30.2"
+             data-team="SAS" data-pid="1642264"
+             data-scoring-pct="25.0" data-playmaking-pct="16.0"
+             data-defense-pct="4.0" data-efficiency-pct="28.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#41</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642264.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Stephon Castle</span>
+                <span class="rank-meta">SAS // 🎯 Playmaking Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>16.5p 7.0a 5.0r</span>
+                <span style="color:#00CC44">+6.1</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">72</span>
+                <span class="rank-ds-range">68-75</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Michael Porter Jr." data-arch="Small-Ball 4" data-ds="72" data-range="68-75"
+             data-pts="25.0" data-ast="3.2" data-reb="7.2"
+             data-stl="1.0" data-blk="0.2" data-ts="60.9"
+             data-net="-3.7" data-usg="29.3" data-mpg="33.0"
+             data-team="BKN" data-pid="1629008"
+             data-scoring-pct="38.0" data-playmaking-pct="7.0"
+             data-defense-pct="3.0" data-efficiency-pct="31.0"
+             data-impact-pct="-4.0">
+            <span class="rank-num">#42</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629008.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Michael Porter Jr.</span>
+                <span class="rank-meta">BKN // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>25.0p 3.2a 7.2r</span>
+                <span style="color:#FF3333">-3.7</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">72</span>
+                <span class="rank-ds-range">68-75</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Jalen Williams" data-arch="Point Forward" data-ds="71" data-range="67-74"
+             data-pts="17.5" data-ast="5.4" data-reb="4.7"
+             data-stl="1.3" data-blk="0.3" data-ts="55.5"
+             data-net="8.6" data-usg="25.4" data-mpg="29.1"
+             data-team="OKC" data-pid="1631114"
+             data-scoring-pct="27.0" data-playmaking-pct="12.0"
+             data-defense-pct="4.0" data-efficiency-pct="28.0"
+             data-impact-pct="9.0">
+            <span class="rank-num">#43</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631114.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Jalen Williams</span>
+                <span class="rank-meta">OKC // 🧠 Point Forward</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.5p 5.4a 4.7r</span>
+                <span style="color:#00CC44">+8.6</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">71</span>
+                <span class="rank-ds-range">67-74</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Brandon Miller" data-arch="Small-Ball 4" data-ds="71" data-range="67-74"
+             data-pts="20.6" data-ast="3.3" data-reb="4.7"
+             data-stl="1.1" data-blk="0.9" data-ts="55.9"
+             data-net="5.8" data-usg="28.4" data-mpg="30.5"
+             data-team="CHA" data-pid="1641706"
+             data-scoring-pct="32.0" data-playmaking-pct="8.0"
+             data-defense-pct="5.0" data-efficiency-pct="29.0"
+             data-impact-pct="6.0">
+            <span class="rank-num">#44</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641706.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612766/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Brandon Miller</span>
+                <span class="rank-meta">CHA // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>20.6p 3.3a 4.7r</span>
+                <span style="color:#00CC44">+5.8</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">71</span>
+                <span class="rank-ds-range">67-74</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Brandon Ingram" data-arch="Small-Ball 4" data-ds="71" data-range="67-74"
+             data-pts="21.8" data-ast="3.7" data-reb="5.7"
+             data-stl="0.8" data-blk="0.8" data-ts="57.0"
+             data-net="1.4" data-usg="26.6" data-mpg="34.0"
+             data-team="TOR" data-pid="1627742"
+             data-scoring-pct="33.0" data-playmaking-pct="9.0"
+             data-defense-pct="4.0" data-efficiency-pct="29.0"
+             data-impact-pct="1.0">
+            <span class="rank-num">#45</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627742.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Brandon Ingram</span>
+                <span class="rank-meta">TOR // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>21.8p 3.7a 5.7r</span>
+                <span style="color:#00CC44">+1.4</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">71</span>
+                <span class="rank-ds-range">67-74</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Paolo Banchero" data-arch="Small-Ball 4" data-ds="70" data-range="65-73"
+             data-pts="21.3" data-ast="4.8" data-reb="8.4"
+             data-stl="0.7" data-blk="0.6" data-ts="55.9"
+             data-net="-2.5" data-usg="26.7" data-mpg="34.5"
+             data-team="ORL" data-pid="1631094"
+             data-scoring-pct="33.0" data-playmaking-pct="11.0"
+             data-defense-pct="3.0" data-efficiency-pct="29.0"
+             data-impact-pct="-3.0">
+            <span class="rank-num">#46</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631094.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Paolo Banchero</span>
+                <span class="rank-meta">ORL // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>21.3p 4.8a 8.4r</span>
+                <span style="color:#FF3333">-2.5</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">70</span>
+                <span class="rank-ds-range">65-73</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Kevin Porter Jr." data-arch="Playmaking Guard" data-ds="70" data-range="65-73"
+             data-pts="17.3" data-ast="7.6" data-reb="5.2"
+             data-stl="2.2" data-blk="0.4" data-ts="55.9"
+             data-net="-2.3" data-usg="23.9" data-mpg="33.7"
+             data-team="MIL" data-pid="1629645"
+             data-scoring-pct="27.0" data-playmaking-pct="18.0"
+             data-defense-pct="6.0" data-efficiency-pct="29.0"
+             data-impact-pct="-2.0">
+            <span class="rank-num">#47</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629645.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Kevin Porter Jr.</span>
+                <span class="rank-meta">MIL // 🎯 Playmaking Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>17.3p 7.6a 5.2r</span>
+                <span style="color:#FF3333">-2.3</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">70</span>
+                <span class="rank-ds-range">65-73</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Keyonte George" data-arch="Scoring Guard" data-ds="70" data-range="65-73"
+             data-pts="23.8" data-ast="6.5" data-reb="3.9"
+             data-stl="1.1" data-blk="0.3" data-ts="61.2"
+             data-net="-8.8" data-usg="27.1" data-mpg="33.9"
+             data-team="UTA" data-pid="1641718"
+             data-scoring-pct="37.0" data-playmaking-pct="15.0"
+             data-defense-pct="3.0" data-efficiency-pct="32.0"
+             data-impact-pct="-9.0">
+            <span class="rank-num">#48</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641718.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Keyonte George</span>
+                <span class="rank-meta">UTA // ⚡ Scoring Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>23.8p 6.5a 3.9r</span>
+                <span style="color:#FF3333">-8.8</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">70</span>
+                <span class="rank-ds-range">65-73</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Norman Powell" data-arch="Combo Guard" data-ds="70" data-range="65-73"
+             data-pts="23.0" data-ast="2.6" data-reb="3.6"
+             data-stl="1.2" data-blk="0.2" data-ts="61.6"
+             data-net="2.6" data-usg="26.2" data-mpg="30.6"
+             data-team="MIA" data-pid="1626181"
+             data-scoring-pct="36.0" data-playmaking-pct="6.0"
+             data-defense-pct="3.0" data-efficiency-pct="32.0"
+             data-impact-pct="3.0">
+            <span class="rank-num">#49</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626181.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Norman Powell</span>
+                <span class="rank-meta">MIA // 🔄 Combo Guard</span>
+            </div>
+            <div class="rank-stats">
+                <span>23.0p 2.6a 3.6r</span>
+                <span style="color:#00CC44">+2.6</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">70</span>
+                <span class="rank-ds-range">65-73</span>
+            </div>
+        </div>
+        <div class="rank-row" onclick="openPlayerSheet(this)"
+             data-name="Franz Wagner" data-arch="Small-Ball 4" data-ds="70" data-range="65-73"
+             data-pts="21.3" data-ast="3.6" data-reb="5.8"
+             data-stl="1.1" data-blk="0.3" data-ts="59.1"
+             data-net="1.7" data-usg="25.1" data-mpg="31.8"
+             data-team="ORL" data-pid="1630532"
+             data-scoring-pct="33.0" data-playmaking-pct="8.0"
+             data-defense-pct="3.0" data-efficiency-pct="30.0"
+             data-impact-pct="2.0">
+            <span class="rank-num">#50</span>
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630532.png" class="rank-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg" class="rank-team-logo" onerror="this.style.display='none'">
+            <div class="rank-info">
+                <span class="rank-name">Franz Wagner</span>
+                <span class="rank-meta">ORL // ⚡ Small-Ball 4</span>
+            </div>
+            <div class="rank-stats">
+                <span>21.3p 3.6a 5.8r</span>
+                <span style="color:#00CC44">+1.7</span>
+            </div>
+            <div class="rank-ds ds-good">
+                <span class="rank-ds-num">70</span>
+                <span class="rank-ds-range">65-73</span>
+            </div>
+        </div>
+                </div>
+            </div>
+
+            <div class="section-header" style="margin-top:24px">
                 <h2>LINEUP TRENDS</h2>
                 <span class="section-sub">Hot combos + fades with full player details</span>
             </div>
@@ -6605,6 +9223,16 @@
     </div>
 
     <script>
+
+        // ─── RANKINGS TOGGLE ───
+        function toggleRankings() {
+            const body = document.getElementById('rankingsBody');
+            const toggle = document.getElementById('rankingsToggle');
+            const isOpen = body.style.display !== 'none';
+            body.style.display = isOpen ? 'none' : 'block';
+            toggle.classList.toggle('open', !isOpen);
+            toggle.textContent = isOpen ? '▼' : '▲';
+        }
 
         // ─── TAB SWITCHING ───
         const filterBtns = document.querySelectorAll('.filter-btn[data-tab]');
