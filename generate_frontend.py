@@ -942,14 +942,14 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     if raw >= 55:
                         prop_candidates.append({
                             "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw,
+                            "direction": "OVER", "strength": raw, "avg": pts,
                             "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
                     elif pts >= 18 and (matchup_signal < -4 or ts < 0.53):
                         under_strength = 60 + abs(matchup_signal) * 2 + max(0, (0.53 - ts) * 200)
                         prop_candidates.append({
                             "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(95, under_strength),
+                            "direction": "UNDER", "strength": min(95, under_strength), "avg": pts,
                             "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
 
@@ -964,14 +964,14 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     if raw >= 50:
                         prop_candidates.append({
                             "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw,
+                            "direction": "OVER", "strength": raw, "avg": ast,
                             "note": f"Avg {ast:.1f} ast // {mpg:.0f} mpg{trend_note}",
                         })
                     elif ast >= 6 and matchup_signal < -4:
                         under_strength = 55 + abs(matchup_signal) * 2
                         prop_candidates.append({
                             "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(90, under_strength),
+                            "direction": "UNDER", "strength": min(90, under_strength), "avg": ast,
                             "note": f"Avg {ast:.1f} ast vs {opp_drtg:.0f} DRTG{trend_note}",
                         })
 
@@ -986,7 +986,7 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     if raw >= 50:
                         prop_candidates.append({
                             "prop": "REB", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw,
+                            "direction": "OVER", "strength": raw, "avg": reb,
                             "note": f"Avg {reb:.1f} reb // {mpg:.0f} mpg{trend_note}",
                         })
 
@@ -1002,14 +1002,14 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     if raw >= 60 and matchup_signal > 0:
                         prop_candidates.append({
                             "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw,
+                            "direction": "OVER", "strength": raw, "avg": pra,
                             "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a{trend_note}",
                         })
                     elif pra >= 30 and matchup_signal < -5:
                         under_strength = 55 + abs(matchup_signal) * 1.5
                         prop_candidates.append({
                             "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(90, under_strength),
+                            "direction": "UNDER", "strength": min(90, under_strength), "avg": pra,
                             "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a vs elite D{trend_note}",
                         })
 
@@ -1022,7 +1022,7 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     if raw >= 50:
                         prop_candidates.append({
                             "prop": "STL+BLK", "line": f"{line_val:.1f}", "is_real_line": False,
-                            "direction": "OVER", "strength": raw,
+                            "direction": "OVER", "strength": raw, "avg": stocks,
                             "note": f"Avg {stl:.1f} stl + {blk:.1f} blk{trend_note}",
                         })
 
@@ -1051,6 +1051,7 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     "archetype": arch,
                     "prop": best["prop"],
                     "line": best["line"],
+                    "avg": best.get("avg", 0),
                     "direction": best["direction"],
                     "note": best["note"],
                     "confidence": confidence,
@@ -1507,6 +1508,11 @@ def render_matchup_card(m, idx, team_map):
     spread_tag = ' <span class="proj-tag">(PROJ. SPREAD)</span>' if spread_proj else ""
     total_tag = ' <span class="proj-tag">(PROJ O/U)</span>' if total_proj else ""
 
+    # Implied scores from spread + total
+    implied_home = (total - spread) / 2
+    implied_away = (total + spread) / 2
+    implied_html = f'<div class="mc-implied">{aa} {implied_away:.0f} — {ha} {implied_home:.0f}</div>'
+
     # Tug of war bar
     home_ds_sum = 0
     away_ds_sum = 0
@@ -1580,6 +1586,7 @@ def render_matchup_card(m, idx, team_map):
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
                 <div class="mc-pick"><span class="pick-label">SIM PICK</span> {pick_text}</div>
                 <div class="mc-conf" style="color:{conf_color}">{conf_grade} <span class="conf-letter" style="background:{conf_color}">{conf_label}</span></div>
+                {implied_html}
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1711,6 +1718,16 @@ def render_prop_card(prop, rank):
     # Build last 5 games display — compact inline
     last5 = prop.get("last5", [])
     line_val = float(prop["line"])
+
+    # Implied edge: avg vs line
+    avg_val = prop.get("avg", 0)
+    if prop["direction"] == "OVER":
+        edge = avg_val - line_val
+    else:
+        edge = line_val - avg_val
+    edge_sign = "+" if edge > 0 else ""
+    edge_str = f"{edge_sign}{edge:.1f}"
+    edge_color = "rgba(0,255,85,0.7)" if edge > 0 else "rgba(255,80,80,0.7)"
     last5_html = ""
     if last5:
         dots = []
@@ -1744,6 +1761,7 @@ def render_prop_card(prop, rank):
             <div class="prop-conf-pill {conf_class}">{conf_label}</div>
         </div>
         <div class="prop-bottom">
+            <div class="prop-edge" style="color:{edge_color}">{edge_str}</div>
             <div class="prop-note">{prop['note']}</div>
             {last5_html}
         </div>
@@ -2322,6 +2340,13 @@ def generate_css():
             border-radius: 3px;
             letter-spacing: 1px;
         }
+        .mc-implied {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
 
         /* Tug of war bar */
         .tow-bar {
@@ -2640,6 +2665,14 @@ def generate_css():
             margin-top: 6px;
             padding-top: 6px;
             border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .prop-edge {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            min-width: 36px;
         }
         .prop-note {
             font-family: var(--font-mono);
