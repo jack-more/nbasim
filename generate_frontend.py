@@ -573,7 +573,7 @@ def get_matchups():
             a = team_map[away_abbr]
 
             net_diff = (h["net_rating"] or 0) - (a["net_rating"] or 0)
-            raw_edge = net_diff + 3.0
+            raw_edge = net_diff + 3.0  # SIM power gap (home advantage incl. HCA)
 
             # Check for real sportsbook lines first
             real = real_lines.get((home_abbr, away_abbr), {})
@@ -584,7 +584,21 @@ def get_matchups():
             spread_is_projected = "spread" not in real
             total_is_projected = "total" not in real
 
-            confidence = min(96, max(35, 50 + raw_edge * 2.5))
+            # ── True edge: SIM projected spread vs sportsbook spread ──
+            # spread_edge > 0 → SIM has home MORE favored than book → home covers
+            # spread_edge < 0 → SIM has home LESS favored than book → away covers
+            # Example: SIM = MIN -11.0, Book = MIN -13.0
+            #   proj_spread=-11, spread=-13 → edge = -11-(-13) = +2 → away (DAL) has value
+            if not spread_is_projected:
+                spread_edge = proj_spread - spread
+            else:
+                spread_edge = 0  # no edge when comparing SIM to itself
+
+            # Confidence based on true edge magnitude (not raw power gap)
+            if not spread_is_projected:
+                confidence = min(96, max(35, 50 + abs(spread_edge) * 5.0))
+            else:
+                confidence = min(96, max(35, 50 + abs(raw_edge) * 2.5))
 
             # ── O/U pick: compare projected total vs sportsbook total ──
             ou_diff = proj_total - total  # positive = model says higher than book
@@ -600,40 +614,89 @@ def get_matchups():
             if total_is_projected:
                 ou_conf_raw = 5  # neutral when no real line
 
-            if raw_edge > 8:
-                lean_team = home_abbr
-                conf_label = f"TAKE {home_abbr}"
-                conf_class = "high"
-                pick_type = "spread"
-                pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
-            elif raw_edge > 3:
-                lean_team = home_abbr
-                conf_label = f"LEAN {home_abbr}"
-                conf_class = "medium"
-                pick_type = "spread"
-                pick_text = f"{home_abbr} {spread:+.1f}"
-            elif raw_edge > -3:
-                lean_team = ""
-                conf_label = "TOSS-UP"
-                conf_class = "neutral"
-                pick_type = "spread"
-                # Slight lean — pick the marginal favorite
-                if raw_edge >= 0:
-                    pick_text = f"{home_abbr} {spread:+.1f}"
+            # ── Pick side selection: based on TRUE EDGE vs book, not raw power ──
+            if not spread_is_projected:
+                # spread_edge = proj_spread - spread
+                # spread_edge > 0: SIM projects SMALLER home margin than book
+                #   → book giving away team too many points → AWAY side has value
+                # spread_edge < 0: SIM projects BIGGER home margin than book
+                #   → book not giving home team enough credit → HOME side has value
+                #
+                # Example: SIM = MIN -11, Book = MIN -13, edge = +2
+                #   → DAL +13 has value (SIM says they lose by 11, getting 13)
+                # Example: SIM = OKC -24, Book = OKC -16, edge = -8
+                #   → OKC -16 has value (SIM says blowout is bigger than book thinks)
+                if spread_edge < -3:
+                    # SIM says home team much more dominant than book → home covers
+                    lean_team = home_abbr
+                    conf_label = f"TAKE {home_abbr}"
+                    conf_class = "high"
+                    pick_type = "spread"
+                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                elif spread_edge < -1:
+                    lean_team = home_abbr
+                    conf_label = f"LEAN {home_abbr}"
+                    conf_class = "medium"
+                    pick_type = "spread"
+                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                elif spread_edge <= 1:
+                    lean_team = ""
+                    conf_label = "TOSS-UP"
+                    conf_class = "neutral"
+                    pick_type = "spread"
+                    if spread_edge <= 0:
+                        pick_text = f"{home_abbr} {spread:+.1f}"
+                    else:
+                        # Away team value — show their spread (positive = getting points)
+                        pick_text = f"{away_abbr} {-spread:+.1f}"
+                elif spread_edge <= 3:
+                    # SIM says away team covers — book giving too many points
+                    lean_team = away_abbr
+                    conf_label = f"LEAN {away_abbr}"
+                    conf_class = "medium"
+                    pick_type = "spread"
+                    pick_text = f"{away_abbr} {-spread:+.1f}"
                 else:
-                    pick_text = f"{away_abbr} {-spread:+.1f}" if spread > 0 else f"{away_abbr} ML"
-            elif raw_edge > -8:
-                lean_team = away_abbr
-                conf_label = f"LEAN {away_abbr}"
-                conf_class = "medium"
-                pick_type = "spread"
-                pick_text = f"{away_abbr} {-spread:+.1f}" if spread > 0 else f"{away_abbr} ML"
+                    lean_team = away_abbr
+                    conf_label = f"TAKE {away_abbr}"
+                    conf_class = "high"
+                    pick_type = "spread"
+                    pick_text = f"{away_abbr} {-spread:+.1f}"
             else:
-                lean_team = away_abbr
-                conf_label = f"TAKE {away_abbr}"
-                conf_class = "high"
-                pick_type = "spread"
-                pick_text = f"{away_abbr} {-spread:+.1f}" if spread > 0 else f"{away_abbr} ML"
+                # Projected lines: fall back to raw_edge (power gap)
+                if raw_edge > 8:
+                    lean_team = home_abbr
+                    conf_label = f"TAKE {home_abbr}"
+                    conf_class = "high"
+                    pick_type = "spread"
+                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                elif raw_edge > 3:
+                    lean_team = home_abbr
+                    conf_label = f"LEAN {home_abbr}"
+                    conf_class = "medium"
+                    pick_type = "spread"
+                    pick_text = f"{home_abbr} {spread:+.1f}"
+                elif raw_edge > -3:
+                    lean_team = ""
+                    conf_label = "TOSS-UP"
+                    conf_class = "neutral"
+                    pick_type = "spread"
+                    if raw_edge >= 0:
+                        pick_text = f"{home_abbr} {spread:+.1f}"
+                    else:
+                        pick_text = f"{away_abbr} {-spread:+.1f}"
+                elif raw_edge > -8:
+                    lean_team = away_abbr
+                    conf_label = f"LEAN {away_abbr}"
+                    conf_class = "medium"
+                    pick_type = "spread"
+                    pick_text = f"{away_abbr} {-spread:+.1f}"
+                else:
+                    lean_team = away_abbr
+                    conf_label = f"TAKE {away_abbr}"
+                    conf_class = "high"
+                    pick_type = "spread"
+                    pick_text = f"{away_abbr} {-spread:+.1f}"
 
             # Real W-L records from games table
             h_wins, h_losses = record_map.get(home_abbr, (0, 0))
@@ -652,6 +715,8 @@ def get_matchups():
                 "lean_team": lean_team,
                 "net_diff": round(net_diff, 1),
                 "raw_edge": round(raw_edge, 1),
+                "spread_edge": round(spread_edge, 1),
+                "proj_spread": proj_spread,
                 "spread": spread,
                 "total": total,
                 "proj_total": proj_total,
@@ -1462,6 +1527,7 @@ def render_matchup_card(m, idx, team_map):
     spread = m["spread"]
     total = m["total"]
     raw_edge = m["raw_edge"]
+    spread_edge = m.get("spread_edge", 0)
     pick_text = m["pick_text"]
     spread_proj = m.get("spread_is_projected", True)
     total_proj = m.get("total_is_projected", True)
@@ -1479,6 +1545,19 @@ def render_matchup_card(m, idx, team_map):
     implied_home = (total - spread) / 2
     implied_away = (total + spread) / 2
     implied_html = f'<div class="mc-implied">{aa} {implied_away:.0f} — {ha} {implied_home:.0f}</div>'
+
+    # SIM projection line — show what the SIM thinks vs the book
+    proj_spread_val = m.get("proj_spread", 0)
+    if not spread_proj:
+        # Show SIM projection when we have a real sportsbook line to compare
+        if proj_spread_val <= 0:
+            sim_proj_text = f"SIM: {ha} {proj_spread_val:+.1f}"
+        else:
+            sim_proj_text = f"SIM: {aa} {-proj_spread_val:+.1f}"
+        edge_sign = "+" if spread_edge > 0 else ""
+        sim_proj_html = f'<div class="mc-sim-proj">SIM {proj_spread_val:+.1f} · EDGE {edge_sign}{spread_edge:.1f}</div>'
+    else:
+        sim_proj_html = ""
 
     # Tug of war bar
     home_ds_sum = 0
@@ -1501,10 +1580,11 @@ def render_matchup_card(m, idx, team_map):
     a_off = a.get("off_scheme_label", "") or ""
     a_def = a.get("def_scheme_label", "") or ""
 
-    # Edge color
-    if abs(raw_edge) > 8:
+    # Edge color — based on TRUE edge vs book (not raw power gap)
+    spread_edge = m.get("spread_edge", 0)
+    if abs(spread_edge) > 3:
         edge_color = "#00FF55"
-    elif abs(raw_edge) > 3:
+    elif abs(spread_edge) > 1:
         edge_color = "#FFD600"
     else:
         edge_color = "#888"
@@ -1547,7 +1627,7 @@ def render_matchup_card(m, idx, team_map):
         ou_color = "#FF8C00"
 
     return f"""
-    <div class="matchup-card" data-conf="{conf_10}" data-edge="{abs(raw_edge):.1f}" data-total="{total}" data-idx="{idx}">
+    <div class="matchup-card" data-conf="{conf_10}" data-edge="{abs(spread_edge):.1f}" data-total="{total}" data-idx="{idx}">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="{a_logo}" class="mc-logo" alt="{aa}" onerror="this.style.display='none'">
@@ -1562,6 +1642,7 @@ def render_matchup_card(m, idx, team_map):
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
                 <div class="mc-pick"><span class="pick-label">SPREAD</span> {pick_text} <span class="mc-conf-num" style="color:{conf_color}">{conf_10}</span></div>
                 {implied_html}
+                {sim_proj_html}
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2338,6 +2419,13 @@ def generate_css():
             color: rgba(255,255,255,0.35);
             letter-spacing: 0.5px;
             margin-top: 4px;
+        }
+        .mc-sim-proj {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.5px;
+            margin-top: 2px;
         }
 
         /* Tug of war bar */
