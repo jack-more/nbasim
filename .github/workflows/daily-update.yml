@@ -1,0 +1,129 @@
+name: Daily NBA SIM Update
+
+on:
+  schedule:
+    # ── PRE-GAME: 11:50 PM PST = 7:50 AM UTC ──
+    # Pulls fresh betting lines + player props before games tip off
+    - cron: '50 7 * * *'
+
+  workflow_dispatch:
+    inputs:
+      full_pipeline:
+        description: 'Run full pipeline (collect + analyze + scores + predict)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  update-lines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout nbasim
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env
+        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+
+      # ── Optional: full pipeline (manual trigger only) ──
+      - name: Run full pipeline
+        if: inputs.full_pipeline == 'true'
+        timeout-minutes: 20
+        run: |
+          echo "=== Full pipeline: collect (skip-boxscores) → analyze → scores → predict ==="
+          python main.py collect --skip-boxscores 2>&1 | tail -30
+          python main.py analyze 2>&1 | tail -10
+          python main.py scores 2>&1 | tail -10
+          python main.py predict 2>&1 | tail -10
+          echo "=== Full pipeline complete ==="
+
+      # ── Always: pull fresh odds + generate HTML ──
+      - name: Generate dashboard (fresh odds + props)
+        run: python generate_frontend.py
+
+      # ── Commit + push ──
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add index.html nba_sim.html
+
+          # Include DB if full pipeline ran
+          if [ "${{ inputs.full_pipeline }}" = "true" ]; then
+            git add db/nba_sim.db
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Auto-update lines — ${DATE}"
+          git push
+
+  # ── Sync blog picks ──
+  update-blog:
+    needs: update-lines
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout MORELLOSIMS
+        uses: actions/checkout@v4
+        with:
+          repository: jack-more/MORELLOSIMS
+          token: ${{ secrets.MORELLOSIMS_PAT }}
+          path: morellosims
+
+      - name: Checkout nbasim (fresh HTML)
+        uses: actions/checkout@v4
+        with:
+          path: nbasim
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install beautifulsoup4
+
+      - name: Sync pick data to blog
+        run: python nbasim/scripts/update_blog.py nbasim/index.html morellosims/index.html
+
+      - name: Commit and push blog
+        working-directory: morellosims
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add index.html
+
+          if git diff --cached --quiet; then
+            echo "No blog changes"
+            exit 0
+          fi
+
+          git commit -m "Auto-sync lines from NBA SIM — ${DATE}"
+          git push

@@ -586,6 +586,20 @@ def get_matchups():
 
             confidence = min(96, max(35, 50 + raw_edge * 2.5))
 
+            # ── O/U pick: compare projected total vs sportsbook total ──
+            ou_diff = proj_total - total  # positive = model says higher than book
+            if ou_diff > 0:
+                ou_direction = "OVER"
+                ou_pick_text = f"O {total:.1f}"
+            else:
+                ou_direction = "UNDER"
+                ou_pick_text = f"U {total:.1f}"
+            # O/U confidence: 1-10 scale based on magnitude of difference
+            ou_edge = abs(ou_diff)
+            ou_conf_raw = min(10, max(1, round(ou_edge / 2.5 + 3)))  # 0 diff = 3, 17.5 diff = 10
+            if total_is_projected:
+                ou_conf_raw = 5  # neutral when no real line
+
             if raw_edge > 8:
                 lean_team = home_abbr
                 conf_label = f"TAKE {home_abbr}"
@@ -602,10 +616,12 @@ def get_matchups():
                 lean_team = ""
                 conf_label = "TOSS-UP"
                 conf_class = "neutral"
-                pick_type = "total"
-                # For toss-ups, lean toward total
-                avg_total = total
-                pick_text = f"O {total:.1f}" if (h.get("pace", 100) or 100) > 101 else f"U {total:.1f}"
+                pick_type = "spread"
+                # Slight lean — pick the marginal favorite
+                if raw_edge >= 0:
+                    pick_text = f"{home_abbr} {spread:+.1f}"
+                else:
+                    pick_text = f"{away_abbr} {-spread:+.1f}" if spread > 0 else f"{away_abbr} ML"
             elif raw_edge > -8:
                 lean_team = away_abbr
                 conf_label = f"LEAN {away_abbr}"
@@ -638,10 +654,15 @@ def get_matchups():
                 "raw_edge": round(raw_edge, 1),
                 "spread": spread,
                 "total": total,
+                "proj_total": proj_total,
                 "spread_is_projected": spread_is_projected,
                 "total_is_projected": total_is_projected,
                 "pick_type": pick_type,
                 "pick_text": pick_text,
+                "ou_direction": ou_direction,
+                "ou_pick_text": ou_pick_text,
+                "ou_conf": ou_conf_raw,
+                "ou_edge": round(ou_diff, 1),
                 "h_wins": h_wins, "h_losses": h_losses,
                 "a_wins": a_wins, "a_losses": a_losses,
                 "h_ds_rank": h_ds_rank, "a_ds_rank": a_ds_rank,
@@ -1552,26 +1573,35 @@ def render_matchup_card(m, idx, team_map):
         away_players_html += render_player_row(player, aa, team_map, is_starter=(i < 5))
 
     conf_pct = m["confidence"]
-    # Confidence grade: distance from 50 (toss-up), mapped to 0-100
-    conf_grade = min(100, int(abs(conf_pct - 50) * 2.5 + 20))
-    if conf_grade >= 80:
+    # Confidence: 1-10 scale from distance to 50 (toss-up)
+    conf_grade_100 = min(100, int(abs(conf_pct - 50) * 2.5 + 20))
+    conf_10 = max(1, min(10, round(conf_grade_100 / 10)))
+    if conf_10 >= 8:
         conf_color = "#00FF55"
-        conf_label = "A"
-    elif conf_grade >= 65:
+    elif conf_10 >= 6:
         conf_color = "#7FFF00"
-        conf_label = "B"
-    elif conf_grade >= 50:
+    elif conf_10 >= 4:
         conf_color = "#FFD600"
-        conf_label = "C"
-    elif conf_grade >= 35:
+    elif conf_10 >= 2:
         conf_color = "#FF8C00"
-        conf_label = "D"
     else:
         conf_color = "#FF3333"
-        conf_label = "F"
+
+    # O/U pick data
+    ou_dir = m.get("ou_direction", "OVER")
+    ou_text = m.get("ou_pick_text", f"O {total:.1f}")
+    ou_conf = m.get("ou_conf", 5)
+    ou_edge = m.get("ou_edge", 0)
+    ou_sign = "+" if ou_edge > 0 else ""
+    if ou_conf >= 7:
+        ou_color = "#00FF55"
+    elif ou_conf >= 5:
+        ou_color = "#FFD600"
+    else:
+        ou_color = "#FF8C00"
 
     return f"""
-    <div class="matchup-card" data-conf="{conf_grade}" data-edge="{abs(raw_edge):.1f}" data-total="{total}" data-idx="{idx}">
+    <div class="matchup-card" data-conf="{conf_10}" data-edge="{abs(raw_edge):.1f}" data-total="{total}" data-idx="{idx}">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="{a_logo}" class="mc-logo" alt="{aa}" onerror="this.style.display='none'">
@@ -1584,8 +1614,8 @@ def render_matchup_card(m, idx, team_map):
             <div class="mc-center">
                 <div class="mc-spread" style="color:{edge_color}">{spread_display}{spread_tag}</div>
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
-                <div class="mc-pick"><span class="pick-label">SIM PICK</span> {pick_text}</div>
-                <div class="mc-conf" style="color:{conf_color}">{conf_grade} <span class="conf-letter" style="background:{conf_color}">{conf_label}</span></div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> {pick_text} <span class="mc-conf-num" style="color:{conf_color}">{conf_10}</span></div>
+                <div class="mc-pick mc-ou-pick"><span class="pick-label pick-label-ou">O/U</span> {ou_text} <span class="mc-conf-num" style="color:{ou_color}">{ou_conf}</span></div>
                 {implied_html}
             </div>
             <div class="mc-team mc-home">
@@ -1703,15 +1733,14 @@ def render_prop_card(prop, rank):
     tc = TEAM_COLORS.get(prop["team"], "#333")
 
     conf = prop["confidence"]
-    if conf >= 55:
+    # 1-10 confidence scale
+    conf_10 = max(1, min(10, round(conf / 10)))
+    if conf_10 >= 7:
         conf_class = "conf-high"
-        conf_label = "HIGH"
-    elif conf >= 45:
+    elif conf_10 >= 4:
         conf_class = "conf-med"
-        conf_label = "MED"
     else:
         conf_class = "conf-low"
-        conf_label = "LOW"
 
     proj_tag = "" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">PROJ</span>'
 
@@ -1758,7 +1787,7 @@ def render_prop_card(prop, rank):
                 <span class="prop-dir-line"><span class="prop-dir-icon">{dir_icon}</span> {prop['line']}{proj_tag}</span>
                 <span class="prop-type-label">{prop['direction']} {prop['prop']}</span>
             </div>
-            <div class="prop-conf-pill {conf_class}">{conf_label}</div>
+            <div class="prop-conf-pill {conf_class}">{conf_10}</div>
         </div>
         <div class="prop-bottom">
             <div class="prop-edge" style="color:{edge_color}">{edge_str}</div>
@@ -2314,31 +2343,29 @@ def generate_css():
             padding: 2px 8px;
             border-radius: 4px;
             margin-top: 4px;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mc-ou-pick {
+            background: rgba(255,214,0,0.9);
         }
         .pick-label {
             font-size: 8px;
             letter-spacing: 1px;
             opacity: 0.6;
-            margin-right: 4px;
+            margin-right: 2px;
         }
-        .mc-conf {
-            font-family: var(--font-mono);
-            font-size: 13px;
+        .pick-label-ou {
+            opacity: 0.7;
+        }
+        .mc-conf-num {
+            font-size: 10px;
             font-weight: 800;
-            margin-top: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-        .conf-letter {
-            font-family: var(--font-display);
-            font-size: 12px;
-            color: #000;
-            padding: 1px 6px;
+            background: rgba(0,0,0,0.25);
+            padding: 1px 5px;
             border-radius: 3px;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
         .mc-implied {
             font-family: var(--font-mono);
