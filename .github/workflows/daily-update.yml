@@ -6,10 +6,22 @@ on:
     # Pulls fresh betting lines + player props before games tip off
     - cron: '50 7 * * *'
 
+    # ── POST-GAME SETTLEMENT: 9:00 AM PST = 5:00 PM UTC ──
+    # Grades yesterday's picks, updates bankroll + blog
+    - cron: '0 17 * * *'
+
   workflow_dispatch:
     inputs:
       full_pipeline:
         description: 'Run full pipeline (collect + analyze + scores + predict)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      settle_only:
+        description: 'Run settlement only (grade picks + update blog)'
         required: false
         default: 'false'
         type: choice
@@ -21,7 +33,13 @@ permissions:
   contents: write
 
 jobs:
+  # ════════════════════════════════════════════
+  # PRE-GAME JOBS (evening cron + manual)
+  # ════════════════════════════════════════════
+
   update-lines:
+    # Skip on morning settlement cron (5 PM UTC = 9 AM PST)
+    if: github.event.schedule != '0 17 * * *' && inputs.settle_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -83,6 +101,7 @@ jobs:
   # ── Sync blog picks ──
   update-blog:
     needs: update-lines
+    if: github.event.schedule != '0 17 * * *' && inputs.settle_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -126,4 +145,94 @@ jobs:
           fi
 
           git commit -m "Auto-sync lines from NBA SIM — ${DATE}"
+          git push
+
+  # ════════════════════════════════════════════
+  # POST-GAME SETTLEMENT JOBS (morning cron + manual)
+  # ════════════════════════════════════════════
+
+  grade-picks:
+    # Run on morning settlement cron or manual settle_only trigger
+    if: github.event.schedule == '0 17 * * *' || inputs.settle_only == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout nbasim
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env
+        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+
+      - name: Grade picks
+        run: python scripts/grade_picks.py
+
+      - name: Commit settlement results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add data/settlement_results.json db/nba_sim.db
+
+          if git diff --cached --quiet; then
+            echo "No settlement changes"
+            exit 0
+          fi
+
+          git commit -m "Grade picks — ${DATE}"
+          git push
+
+  settle-blog:
+    needs: grade-picks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout MORELLOSIMS
+        uses: actions/checkout@v4
+        with:
+          repository: jack-more/MORELLOSIMS
+          token: ${{ secrets.MORELLOSIMS_PAT }}
+          path: morellosims
+
+      - name: Checkout nbasim (with settlement results)
+        uses: actions/checkout@v4
+        with:
+          path: nbasim
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Settle blog with results
+        run: python nbasim/scripts/settle_blog.py nbasim/data/settlement_results.json morellosims/index.html
+
+      - name: Commit and push blog
+        working-directory: morellosims
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add index.html
+
+          if git diff --cached --quiet; then
+            echo "No settlement blog changes"
+            exit 0
+          fi
+
+          git commit -m "Settle picks — ${DATE}"
           git push

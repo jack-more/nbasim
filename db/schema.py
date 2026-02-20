@@ -345,6 +345,34 @@ CREATE INDEX IF NOT EXISTS idx_betting_game ON betting_lines(game_id);
 -- MODEL PREDICTIONS
 -- ============================================================
 
+-- ============================================================
+-- PICKS TRACKING (bet settlement)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS picks (
+    pick_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    slate_date    TEXT NOT NULL,
+    pick_type     TEXT NOT NULL,
+    matchup       TEXT NOT NULL,
+    side          TEXT NOT NULL,
+    player_name   TEXT,
+    stat_type     TEXT,
+    line_value    REAL NOT NULL,
+    direction     TEXT NOT NULL,
+    confidence    INTEGER NOT NULL,
+    risk_amount   REAL NOT NULL,
+    home_score    INTEGER,
+    away_score    INTEGER,
+    actual_value  REAL,
+    result        TEXT,
+    profit        REAL,
+    graded_at     TEXT,
+    UNIQUE(slate_date, matchup, side)
+);
+
+CREATE INDEX IF NOT EXISTS idx_picks_date ON picks(slate_date);
+CREATE INDEX IF NOT EXISTS idx_picks_result ON picks(result);
+
 CREATE TABLE IF NOT EXISTS predictions (
     game_id             TEXT NOT NULL,
     model_version       TEXT NOT NULL,
