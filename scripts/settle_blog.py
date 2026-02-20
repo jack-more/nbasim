@@ -179,6 +179,10 @@ def patch_pick_cards(html, picks):
         profit = p["profit"]
 
         if p["pick_type"] == "spread":
+            # Skip if FINAL already exists for this matchup
+            if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
+                continue
+
             result_emoji = "+" if result == "W" else "-" if result == "L" else "="
             result_color = "#00FF55" if result == "W" else "#FF4444" if result == "L" else "#FFD600"
 

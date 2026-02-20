@@ -122,8 +122,18 @@ def patch_blog(blog_path, games, props):
 
     # ── Patch game line spreads ──
     # Finds "AWAY @ HOME — TEAM -XX.X" and updates the spread
+    # SKIP matchups that have already been settled (have a FINAL line)
     for key, g in games.items():
         away, home = g["away"], g["home"]
+
+        # Check if this matchup has already been settled
+        final_check = re.search(
+            rf"FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+",
+            html,
+        )
+        if final_check:
+            print(f"  Skipping {key} — already settled (FINAL exists)")
+            continue
 
         # Update spread in pick card headers
         # Pattern: "BKN @ CLE — CLE -16.0"
@@ -188,11 +198,31 @@ def patch_blog(blog_path, games, props):
                 html = new_html
 
     # ── Patch prop lines + edges ──
+    # SKIP props that have already been settled (result in table)
     for pname, p in props.items():
         # Match the player in the blog by name pattern
         # Blog uses: "D. MITCHELL" or "N. JOKIĆ" or "J. HARDEN"
         # SIM uses: "D. Mitchell" or "N. Jokić" or "J. Harden"
         blog_name = pname.upper()
+
+        # Check if this prop already has a W/L/P result in the table
+        last_name = pname.split(". ", 1)[-1] if ". " in pname else pname
+        # Also check common nicknames
+        name_variants = [last_name, last_name.upper()]
+        if last_name == "Wembanyama":
+            name_variants.append("Wemby")
+        settled = False
+        for variant in name_variants:
+            if re.search(
+                rf">{re.escape(variant)}[^<]*</td>.*?>[WLP]</td>",
+                html,
+                re.DOTALL,
+            ):
+                print(f"  Skipping {pname} — already settled")
+                settled = True
+                break
+        if settled:
+            continue
 
         # Update line value: "OVER XX.X PTS" → new line
         if p["line"]:
