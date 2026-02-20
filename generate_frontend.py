@@ -2226,11 +2226,11 @@ def render_matchup_card(m, idx, team_map):
     else:
         sim_proj_html = ""
 
-    # Tug of war bar
+    # Tug of war bar — use full rotation for DSI tug-of-war
     home_ds_sum = 0
     away_ds_sum = 0
-    home_roster = get_team_roster(ha, 8)
-    away_roster = get_team_roster(aa, 8)
+    home_roster = get_team_roster(ha, 15)
+    away_roster = get_team_roster(aa, 15)
     for _, r in home_roster.head(5).iterrows():
         ds, _ = compute_dynamic_score(r)
         home_ds_sum += ds
@@ -2261,7 +2261,6 @@ def render_matchup_card(m, idx, team_map):
     home_rw = rw_lineups.get(ha, {})
     away_rw = rw_lineups.get(aa, {})
 
-    # Build sets of OUT/GTD player names (lowercased last names for fuzzy match)
     def _rw_status_for_player(player_name, rw_data):
         """Check if a player is OUT or GTD based on RotoWire data."""
         if not rw_data:
@@ -2290,15 +2289,52 @@ def render_matchup_card(m, idx, team_map):
                 return "GTD"
         return "IN"
 
-    home_players_html = ""
-    for i, (_, player) in enumerate(home_roster.iterrows()):
-        status = _rw_status_for_player(player["full_name"], home_rw)
-        home_players_html += render_player_row(player, ha, team_map, is_starter=(i < 5), rw_status=status)
+    def _is_rw_starter(player_name, rw_data):
+        """Check if player is listed as a RotoWire starter."""
+        if not rw_data:
+            return False
+        pname = player_name.lower()
+        parts = player_name.split()
+        last = parts[-1].lower() if parts else ""
+        first_init = parts[0][0].lower() if parts else ""
+        for sname, spos, sstatus in rw_data.get("starters", []):
+            sn = sname.lower()
+            sparts = sn.split()
+            slast = sparts[-1] if sparts else ""
+            sinit = sparts[0][0] if sparts else ""
+            if slast == last and sinit == first_init:
+                return True
+            if sn == pname:
+                return True
+        return False
 
-    away_players_html = ""
-    for i, (_, player) in enumerate(away_roster.iterrows()):
-        status = _rw_status_for_player(player["full_name"], away_rw)
-        away_players_html += render_player_row(player, aa, team_map, is_starter=(i < 5), rw_status=status)
+    def _build_sorted_player_html(roster, team_abbr, rw_data):
+        """Build player rows sorted: active starters → active bench → OUT."""
+        players_with_info = []
+        for _, player in roster.iterrows():
+            status = _rw_status_for_player(player["full_name"], rw_data)
+            is_starter = _is_rw_starter(player["full_name"], rw_data)
+            # Sort key: 0 = active starter, 1 = active bench, 2 = GTD, 3 = OUT
+            if status == "OUT":
+                sort_key = 3
+            elif status == "GTD":
+                sort_key = 2 if not is_starter else 0
+            elif is_starter:
+                sort_key = 0
+            else:
+                sort_key = 1
+            players_with_info.append((sort_key, player, status, is_starter))
+
+        # Sort by key, then by minutes within each group
+        players_with_info.sort(key=lambda x: (x[0], -(x[1].get("minutes_per_game", 0) or 0)))
+
+        html = ""
+        for sort_key, player, status, is_starter in players_with_info:
+            html += render_player_row(player, team_abbr, team_map, is_starter=is_starter, rw_status=status)
+        return html
+
+    home_players_html = _build_sorted_player_html(home_roster, ha, home_rw)
+    away_players_html = _build_sorted_player_html(away_roster, aa, away_rw)
 
     conf_pct = m["confidence"]
     # Confidence: 1-10 scale from distance to 50 (toss-up)
