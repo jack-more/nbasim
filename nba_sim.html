@@ -416,6 +416,93 @@
             color: rgba(0,0,0,0.3);
         }
 
+        /* DSI Breakdown */
+        .dsi-breakdown {
+            margin: 4px 12px 6px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .dsi-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+        }
+        .dsi-row:last-child { margin-bottom: 0; }
+        .dsi-label {
+            font-weight: 700;
+            color: rgba(0,0,0,0.45);
+            min-width: 30px;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
+        .dsi-val {
+            font-weight: 600;
+            color: rgba(0,0,0,0.7);
+            min-width: 55px;
+            text-align: center;
+            font-size: 10px;
+        }
+        .dsi-bar-mini {
+            flex: 1;
+            height: 8px;
+            display: flex;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+        .dsi-bar-away, .dsi-bar-home {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .dsi-mid-spacer {
+            flex: 1;
+        }
+        .dsi-edge-sm {
+            font-weight: 700;
+            color: rgba(0,0,0,0.55);
+            font-size: 9px;
+            min-width: 50px;
+            text-align: right;
+        }
+        .dsi-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .hca-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(0,180,80,0.12);
+            color: #0a7d3a;
+            letter-spacing: 0.3px;
+        }
+        .b2b-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255,60,60,0.10);
+        }
+        .out-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255,150,0,0.12);
+            color: #b36500;
+        }
+
         /* Expand button */
         .expand-btn {
             width: 100%;
@@ -479,6 +566,36 @@
         }
         .player-row.bench:hover {
             opacity: 1;
+        }
+        .player-row.player-out {
+            opacity: 0.35;
+            text-decoration: line-through;
+            text-decoration-color: rgba(255,60,60,0.6);
+            text-decoration-thickness: 2px;
+        }
+        .player-row.player-out .pr-face {
+            filter: grayscale(100%);
+        }
+        .player-row.player-gtd {
+            opacity: 0.7;
+        }
+        .rw-status-badge {
+            font-family: var(--font-mono);
+            font-size: 8px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .rw-out {
+            background: rgba(255,60,60,0.15);
+            color: #d32f2f;
+        }
+        .rw-gtd {
+            background: rgba(255,180,0,0.15);
+            color: #e68a00;
         }
         .pr-face {
             width: 36px;
@@ -1340,7 +1457,7 @@
                 <span class="section-sub">9 games</span>
             </div>
             <div class="proj-disclaimer" style="margin-bottom:12px">
-                All lines marked <strong>(PROJ. SPREAD)</strong> and <strong>(PROJ O/U)</strong> are SIM-projected from team net ratings + home court advantage. Real sportsbook lines will replace projections when available.
+                Lines from sportsbooks via The Odds API. Projected lines marked (PROJ. SPREAD) / (PROJ O/U) where real data unavailable.
             </div>
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
@@ -1348,7 +1465,7 @@
             </div>
             <div class="matchup-list" id="matchupList">
                 
-    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="236.5" data-idx="0">
+    <div class="matchup-card" data-conf="6" data-edge="3.5" data-total="229.0" data-idx="0">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg" class="mc-logo" alt="IND" onerror="this.style.display='none'">
@@ -1359,11 +1476,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">IND -0.5 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 236.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> IND -0.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
-                <div class="mc-implied">IND 118 — WAS 118</div>
-                
+                <div class="mc-spread" style="color:#00FF55">WAS -1.0</div>
+                <div class="mc-total">O/U 229.0</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> IND +1.0 <span class="mc-conf-num" style="color:#7FFF00">6</span></div>
+                <div class="mc-implied">IND 114 — WAS 115</div>
+                <div class="mc-sim-proj">IND -2.5 (SIM) · EDGE 3.5 IND</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1395,6 +1512,33 @@
             <div class="scheme-tag" style="background:#002B5C; color:#E31837">Switch-Everything (Poor)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">IND 44.4</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:53%; background:#002D62;"></div>
+                    <div class="dsi-bar-home" style="width:47%; background:#002B5C;"></div>
+                </div>
+                <span class="dsi-val">WAS 40.0</span>
+                <span class="dsi-edge-sm">IND +4.4</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">IND -7.1</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">WAS -7.7</span>
+                <span class="dsi-edge-sm">IND +0.6</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 WAS</span>
+                
+                <span class="out-badge">WAS: 6 OUT</span><span class="out-badge">IND: 5 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -1405,7 +1549,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#002D62">IND Pacers</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Pascal Siakam" data-arch="Small-Ball 4" data-ds="69" data-range="64-72"
          data-pts="23.7" data-ast="3.9" data-reb="6.7"
          data-stl="1.1" data-blk="0.5" data-ts="56.0"
@@ -1416,7 +1560,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627783.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">P. Siakam</span>
+            <span class="pr-name">P. Siakam <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -1428,7 +1572,7 @@
             <span class="pr-ds-range">64-72</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Andrew Nembhard" data-arch="Playmaking Guard" data-ds="60" data-range="53-65"
          data-pts="17.4" data-ast="7.5" data-reb="3.0"
          data-stl="0.9" data-blk="0.2" data-ts="55.8"
@@ -1439,7 +1583,7 @@
          data-impact-pct="-12.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629614.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Nembhard</span>
+            <span class="pr-name">A. Nembhard </span>
             <span class="pr-meta">G-F 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -1451,7 +1595,7 @@
             <span class="pr-ds-range">53-65</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Ivica Zubac" data-arch="Traditional Center" data-ds="62" data-range="56-66"
          data-pts="14.4" data-ast="2.2" data-reb="11.0"
          data-stl="0.4" data-blk="0.8" data-ts="63.5"
@@ -1462,7 +1606,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627826.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">I. Zubac</span>
+            <span class="pr-name">I. Zubac <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -1474,7 +1618,7 @@
             <span class="pr-ds-range">56-66</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Aaron Nesmith" data-arch="3-and-D Wing" data-ds="50" data-range="41-56"
          data-pts="13.6" data-ast="2.1" data-reb="4.8"
          data-stl="0.7" data-blk="0.6" data-ts="53.2"
@@ -1485,7 +1629,7 @@
          data-impact-pct="-8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630174.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Nesmith</span>
+            <span class="pr-name">A. Nesmith <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G-F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -1497,7 +1641,7 @@
             <span class="pr-ds-range">41-56</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Obi Toppin" data-arch="nan" data-ds="49" data-range="40-55"
          data-pts="14.0" data-ast="1.7" data-reb="6.7"
          data-stl="1.0" data-blk="0" data-ts="52.6"
@@ -1508,7 +1652,7 @@
          data-impact-pct="-9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630167.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">O. Toppin</span>
+            <span class="pr-name">O. Toppin <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -1520,7 +1664,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Jarace Walker" data-arch="3-and-D Wing" data-ds="40" data-range="40-48"
          data-pts="10.5" data-ast="2.0" data-reb="4.5"
          data-stl="0.8" data-blk="0.4" data-ts="53.1"
@@ -1531,7 +1675,7 @@
          data-impact-pct="-21.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641716.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Walker</span>
+            <span class="pr-name">J. Walker </span>
             <span class="pr-meta">F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -1543,7 +1687,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Ben Sheppard" data-arch="Slasher" data-ds="40" data-range="40-48"
          data-pts="6.5" data-ast="1.8" data-reb="3.1"
          data-stl="0.5" data-blk="0.1" data-ts="53.1"
@@ -1554,7 +1698,7 @@
          data-impact-pct="-22.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641767.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Sheppard</span>
+            <span class="pr-name">B. Sheppard </span>
             <span class="pr-meta">G ⚔️ Slasher</span>
         </div>
         <div class="pr-stats">
@@ -1566,7 +1710,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Jay Huff" data-arch="Stretch 5" data-ds="41" data-range="40-49"
          data-pts="8.7" data-ast="1.3" data-reb="3.8"
          data-stl="0.6" data-blk="1.9" data-ts="59.4"
@@ -1577,7 +1721,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630643.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Huff</span>
+            <span class="pr-name">J. Huff </span>
             <span class="pr-meta">C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -1593,7 +1737,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#002B5C">WAS Wizards</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Anthony Davis" data-arch="Rim Protector" data-ds="68" data-range="63-72"
          data-pts="20.4" data-ast="2.8" data-reb="11.1"
          data-stl="1.1" data-blk="1.7" data-ts="55.1"
@@ -1604,7 +1748,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203076.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Davis</span>
+            <span class="pr-name">A. Davis <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F-C 🏰 Rim Protector</span>
         </div>
         <div class="pr-stats">
@@ -1616,7 +1760,7 @@
             <span class="pr-ds-range">63-72</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Kyshawn George" data-arch="Point Forward" data-ds="55" data-range="47-61"
          data-pts="15.1" data-ast="4.8" data-reb="5.4"
          data-stl="1.1" data-blk="0.9" data-ts="56.0"
@@ -1627,7 +1771,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642273.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. George</span>
+            <span class="pr-name">K. George <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -1639,7 +1783,7 @@
             <span class="pr-ds-range">47-61</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Alex Sarr" data-arch="Stretch 5" data-ds="56" data-range="49-61"
          data-pts="17.2" data-ast="2.8" data-reb="7.8"
          data-stl="0.8" data-blk="2.0" data-ts="55.4"
@@ -1650,7 +1794,7 @@
          data-impact-pct="-15.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642259.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Sarr</span>
+            <span class="pr-name">A. Sarr <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -1662,7 +1806,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Trae Young" data-arch="nan" data-ds="65" data-range="59-69"
          data-pts="19.3" data-ast="8.9" data-reb="1.5"
          data-stl="1.0" data-blk="0.1" data-ts="57.7"
@@ -1673,7 +1817,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629027.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Young</span>
+            <span class="pr-name">T. Young <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -1685,7 +1829,7 @@
             <span class="pr-ds-range">59-69</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Bub Carrington" data-arch="Floor General" data-ds="41" data-range="40-49"
          data-pts="10.2" data-ast="4.6" data-reb="3.5"
          data-stl="0.6" data-blk="0.2" data-ts="54.2"
@@ -1696,7 +1840,7 @@
          data-impact-pct="-26.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642267.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Carrington</span>
+            <span class="pr-name">B. Carrington </span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -1708,7 +1852,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bilal Coulibaly" data-arch="Defensive Specialist" data-ds="41" data-range="40-49"
          data-pts="9.8" data-ast="2.5" data-reb="4.4"
          data-stl="1.4" data-blk="0.9" data-ts="51.0"
@@ -1719,7 +1863,7 @@
          data-impact-pct="-19.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641731.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Coulibaly</span>
+            <span class="pr-name">B. Coulibaly </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -1731,7 +1875,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Justin Champagnie" data-arch="Athletic Wing" data-ds="40" data-range="40-48"
          data-pts="7.8" data-ast="1.1" data-reb="5.8"
          data-stl="0.8" data-blk="0.6" data-ts="58.8"
@@ -1742,7 +1886,7 @@
          data-impact-pct="-19.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630551.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Champagnie</span>
+            <span class="pr-name">J. Champagnie </span>
             <span class="pr-meta">G-F 💨 Athletic Wing</span>
         </div>
         <div class="pr-stats">
@@ -1754,7 +1898,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="D'Angelo Russell" data-arch="Playmaking Guard" data-ds="45" data-range="40-52"
          data-pts="10.2" data-ast="4.0" data-reb="2.3"
          data-stl="0.5" data-blk="0.1" data-ts="51.1"
@@ -1765,7 +1909,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626156.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Russell</span>
+            <span class="pr-name">D. Russell <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -1780,7 +1924,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="7" data-edge="0.0" data-total="242.0" data-idx="1">
+    <div class="matchup-card" data-conf="4" data-edge="2.0" data-total="237.5" data-idx="1">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="mc-logo" alt="UTA" onerror="this.style.display='none'">
@@ -1791,11 +1935,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">MEM -8.0 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 242.0 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> MEM -8.0 <span class="mc-conf-num" style="color:#7FFF00">7</span></div>
-                <div class="mc-implied">UTA 117 — MEM 125</div>
-                
+                <div class="mc-spread" style="color:#FFD600">MEM -2.0</div>
+                <div class="mc-total">O/U 237.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> UTA +2.0 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
+                <div class="mc-implied">UTA 118 — MEM 120</div>
+                <div class="mc-sim-proj">MEM +0.0 (SIM) · EDGE 2.0 UTA</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1827,6 +1971,33 @@
             <div class="scheme-tag" style="background:#5D76A9; color:#12173F">Trans-Defense (Avg)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">UTA 50.0</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:54%; background:#002B5C;"></div>
+                    <div class="dsi-bar-home" style="width:46%; background:#5D76A9;"></div>
+                </div>
+                <span class="dsi-val">MEM 42.5</span>
+                <span class="dsi-edge-sm">UTA +7.5</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">UTA -6.7</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">MEM +1.1</span>
+                <span class="dsi-edge-sm">MEM +7.8</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 MEM</span>
+                
+                <span class="out-badge">MEM: 6 OUT</span><span class="out-badge">UTA: 2 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -1837,7 +2008,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#002B5C">UTA Jazz</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-gtd" onclick="openPlayerSheet(this)"
          data-name="Lauri Markkanen" data-arch="Small-Ball 4" data-ds="74" data-range="70-77"
          data-pts="26.7" data-ast="2.1" data-reb="7.0"
          data-stl="1.0" data-blk="0.5" data-ts="61.0"
@@ -1848,7 +2019,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628374.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. Markkanen</span>
+            <span class="pr-name">L. Markkanen <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">F-C ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -1860,7 +2031,7 @@
             <span class="pr-ds-range">70-77</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Keyonte George" data-arch="Scoring Guard" data-ds="70" data-range="65-73"
          data-pts="23.8" data-ast="6.5" data-reb="3.9"
          data-stl="1.1" data-blk="0.3" data-ts="61.2"
@@ -1871,7 +2042,7 @@
          data-impact-pct="-9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641718.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. George</span>
+            <span class="pr-name">K. George <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -1883,7 +2054,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Walker Kessler" data-arch="nan" data-ds="76" data-range="72-79"
          data-pts="14.4" data-ast="3.0" data-reb="10.8"
          data-stl="1.4" data-blk="1.8" data-ts="78.6"
@@ -1894,7 +2065,7 @@
          data-impact-pct="5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631117.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">W. Kessler</span>
+            <span class="pr-name">W. Kessler <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -1906,7 +2077,7 @@
             <span class="pr-ds-range">72-79</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jaren Jackson Jr." data-arch="Small-Ball 4" data-ds="63" data-range="57-67"
          data-pts="19.4" data-ast="2.0" data-reb="5.7"
          data-stl="1.1" data-blk="1.4" data-ts="57.6"
@@ -1917,7 +2088,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628991.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Jackson Jr.</span>
+            <span class="pr-name">J. Jackson Jr. </span>
             <span class="pr-meta">F-C ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -1929,7 +2100,7 @@
             <span class="pr-ds-range">57-67</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jusuf Nurkić" data-arch="Versatile Big" data-ds="54" data-range="46-60"
          data-pts="10.9" data-ast="4.8" data-reb="10.4"
          data-stl="1.3" data-blk="0.5" data-ts="54.8"
@@ -1940,7 +2111,7 @@
          data-impact-pct="-11.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203994.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Nurkić</span>
+            <span class="pr-name">J. Nurkić </span>
             <span class="pr-meta">C 🔮 Versatile Big</span>
         </div>
         <div class="pr-stats">
@@ -1952,7 +2123,7 @@
             <span class="pr-ds-range">46-60</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Isaiah Collier" data-arch="Playmaking Guard" data-ds="49" data-range="40-55"
          data-pts="10.4" data-ast="7.4" data-reb="2.6"
          data-stl="1.0" data-blk="0.3" data-ts="57.8"
@@ -1963,7 +2134,7 @@
          data-impact-pct="-18.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642268.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">I. Collier</span>
+            <span class="pr-name">I. Collier </span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -1975,7 +2146,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Svi Mykhailiuk" data-arch="Stretch Forward" data-ds="44" data-range="40-51"
          data-pts="9.0" data-ast="1.9" data-reb="2.5"
          data-stl="0.5" data-blk="0.1" data-ts="62.1"
@@ -1986,7 +2157,7 @@
          data-impact-pct="-6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629004.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Mykhailiuk</span>
+            <span class="pr-name">S. Mykhailiuk </span>
             <span class="pr-meta">G-F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -1998,7 +2169,7 @@
             <span class="pr-ds-range">40-51</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Kyle Filipowski" data-arch="Stretch 5" data-ds="45" data-range="40-52"
          data-pts="9.7" data-ast="2.0" data-reb="6.7"
          data-stl="0.8" data-blk="0.4" data-ts="57.7"
@@ -2009,7 +2180,7 @@
          data-impact-pct="-9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642271.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Filipowski</span>
+            <span class="pr-name">K. Filipowski </span>
             <span class="pr-meta">C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -2025,7 +2196,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#5D76A9">MEM Grizzlies</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Ja Morant" data-arch="Playmaking Guard" data-ds="66" data-range="61-70"
          data-pts="19.5" data-ast="8.1" data-reb="3.3"
          data-stl="1.0" data-blk="0.3" data-ts="52.1"
@@ -2036,7 +2207,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629630.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Morant</span>
+            <span class="pr-name">J. Morant <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -2048,7 +2219,7 @@
             <span class="pr-ds-range">61-70</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Santi Aldama" data-arch="Stretch 5" data-ds="56" data-range="49-61"
          data-pts="14.0" data-ast="2.9" data-reb="6.7"
          data-stl="0.9" data-blk="0.7" data-ts="57.2"
@@ -2059,7 +2230,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630583.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Aldama</span>
+            <span class="pr-name">S. Aldama <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F-C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -2071,7 +2242,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jaylen Wells" data-arch="Stretch Big" data-ds="47" data-range="40-54"
          data-pts="12.1" data-ast="1.7" data-reb="3.4"
          data-stl="0.8" data-blk="0.1" data-ts="54.0"
@@ -2082,7 +2253,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642377.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Wells</span>
+            <span class="pr-name">J. Wells </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -2094,7 +2265,7 @@
             <span class="pr-ds-range">40-54</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Zach Edey" data-arch="nan" data-ds="75" data-range="71-78"
          data-pts="13.6" data-ast="1.1" data-reb="11.1"
          data-stl="0.6" data-blk="1.9" data-ts="66.9"
@@ -2105,7 +2276,7 @@
          data-impact-pct="18.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641744.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">Z. Edey</span>
+            <span class="pr-name">Z. Edey <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -2117,7 +2288,7 @@
             <span class="pr-ds-range">71-78</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Cam Spencer" data-arch="Combo Guard" data-ds="57" data-range="50-62"
          data-pts="11.6" data-ast="5.6" data-reb="2.7"
          data-stl="0.7" data-blk="0.1" data-ts="65.6"
@@ -2128,7 +2299,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642285.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Spencer</span>
+            <span class="pr-name">C. Spencer </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2140,7 +2311,7 @@
             <span class="pr-ds-range">50-62</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Kentavious Caldwell-Pope" data-arch="Floor General" data-ds="41" data-range="40-49"
          data-pts="8.4" data-ast="2.7" data-reb="2.5"
          data-stl="0.8" data-blk="0.2" data-ts="53.3"
@@ -2151,7 +2322,7 @@
          data-impact-pct="-8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203484.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Caldwell-Pope</span>
+            <span class="pr-name">K. Caldwell-Pope <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -2163,7 +2334,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Kyle Anderson" data-arch="Athletic Wing" data-ds="41" data-range="40-49"
          data-pts="7.3" data-ast="2.8" data-reb="3.4"
          data-stl="1.2" data-blk="0.6" data-ts="59.1"
@@ -2174,7 +2345,7 @@
          data-impact-pct="-13.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203937.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Anderson</span>
+            <span class="pr-name">K. Anderson </span>
             <span class="pr-meta">F-G 💨 Athletic Wing</span>
         </div>
         <div class="pr-stats">
@@ -2186,7 +2357,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Ty Jerome" data-arch="nan" data-ds="75" data-range="71-78"
          data-pts="19.7" data-ast="6.0" data-reb="2.2"
          data-stl="1.2" data-blk="0.3" data-ts="69.0"
@@ -2197,7 +2368,7 @@
          data-impact-pct="7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629660.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Jerome</span>
+            <span class="pr-name">T. Jerome <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G-F ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -2212,7 +2383,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="3" data-edge="0.0" data-total="232.0" data-idx="2">
+    <div class="matchup-card" data-conf="4" data-edge="2.0" data-total="229.0" data-idx="2">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612739/global/L/logo.svg" class="mc-logo" alt="CLE" onerror="this.style.display='none'">
@@ -2223,11 +2394,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">CHA -2.0 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 232.0 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> CHA -2.0 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
-                <div class="mc-implied">CLE 115 — CHA 117</div>
-                
+                <div class="mc-spread" style="color:#FFD600">CLE -5.5</div>
+                <div class="mc-total">O/U 229.0</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> CHA ML <span class="mc-conf-num" style="color:#FFD600">4</span></div>
+                <div class="mc-implied">CLE 117 — CHA 112</div>
+                <div class="mc-sim-proj">CLE -3.5 (SIM) · EDGE 2.0 CHA</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2259,6 +2430,33 @@
             <div class="scheme-tag" style="background:#1D1160; color:#00788C">Switch-Everything (Avg)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">CLE 59.1</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:54%; background:#860038;"></div>
+                    <div class="dsi-bar-home" style="width:46%; background:#1D1160;"></div>
+                </div>
+                <span class="dsi-val">CHA 50.0</span>
+                <span class="dsi-edge-sm">CLE +9.1</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">CLE +4.1</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">CHA +6.3</span>
+                <span class="dsi-edge-sm">CHA +2.2</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 CHA</span>
+                
+                <span class="out-badge">CHA: 3 OUT</span><span class="out-badge">CLE: 1 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -2269,7 +2467,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#860038">CLE Cavaliers</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="James Harden" data-arch="Scoring Guard" data-ds="83" data-range="78-87"
          data-pts="25.0" data-ast="8.2" data-reb="4.9"
          data-stl="1.2" data-blk="0.4" data-ts="60.1"
@@ -2280,7 +2478,7 @@
          data-impact-pct="1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201935.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Harden</span>
+            <span class="pr-name">J. Harden </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -2292,7 +2490,7 @@
             <span class="pr-ds-range">78-87</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Donovan Mitchell" data-arch="Scoring Guard" data-ds="89" data-range="83-94"
          data-pts="29.0" data-ast="5.9" data-reb="4.5"
          data-stl="1.5" data-blk="0.3" data-ts="61.9"
@@ -2303,7 +2501,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628378.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Mitchell</span>
+            <span class="pr-name">D. Mitchell </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -2315,7 +2513,7 @@
             <span class="pr-ds-range">83-94</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Evan Mobley" data-arch="Rim Protector" data-ds="73" data-range="69-76"
          data-pts="17.9" data-ast="4.0" data-reb="8.8"
          data-stl="0.9" data-blk="2.0" data-ts="57.6"
@@ -2326,7 +2524,7 @@
          data-impact-pct="5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630596.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">E. Mobley</span>
+            <span class="pr-name">E. Mobley <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C 🏰 Rim Protector</span>
         </div>
         <div class="pr-stats">
@@ -2338,7 +2536,7 @@
             <span class="pr-ds-range">69-76</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jaylon Tyson" data-arch="Stretch Forward" data-ds="61" data-range="55-66"
          data-pts="13.9" data-ast="2.3" data-reb="5.4"
          data-stl="0.9" data-blk="0.4" data-ts="63.1"
@@ -2349,7 +2547,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642281.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Tyson</span>
+            <span class="pr-name">J. Tyson </span>
             <span class="pr-meta">G-F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -2361,7 +2559,7 @@
             <span class="pr-ds-range">55-66</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jarrett Allen" data-arch="Traditional Center" data-ds="66" data-range="61-70"
          data-pts="14.6" data-ast="2.0" data-reb="8.3"
          data-stl="1.0" data-blk="0.9" data-ts="66.1"
@@ -2372,7 +2570,7 @@
          data-impact-pct="7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628386.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Allen</span>
+            <span class="pr-name">J. Allen </span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -2384,7 +2582,7 @@
             <span class="pr-ds-range">61-70</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Dennis Schröder" data-arch="Floor General" data-ds="48" data-range="40-55"
          data-pts="12.3" data-ast="5.1" data-reb="3.0"
          data-stl="0.8" data-blk="0.2" data-ts="52.1"
@@ -2395,7 +2593,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203471.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Schröder</span>
+            <span class="pr-name">D. Schröder </span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -2407,7 +2605,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Sam Merrill" data-arch="Combo Guard" data-ds="62" data-range="56-66"
          data-pts="13.6" data-ast="2.3" data-reb="2.3"
          data-stl="0.6" data-blk="0.2" data-ts="69.5"
@@ -2418,7 +2616,7 @@
          data-impact-pct="11.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630241.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Merrill</span>
+            <span class="pr-name">S. Merrill </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2430,7 +2628,7 @@
             <span class="pr-ds-range">56-66</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Dean Wade" data-arch="Stretch Big" data-ds="46" data-range="40-53"
          data-pts="5.8" data-ast="1.6" data-reb="4.1"
          data-stl="0.8" data-blk="0.4" data-ts="56.4"
@@ -2441,7 +2639,7 @@
          data-impact-pct="9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629731.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Wade</span>
+            <span class="pr-name">D. Wade </span>
             <span class="pr-meta">F-C 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -2457,7 +2655,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#1D1160">CHA Hornets</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Miles Bridges" data-arch="Stretch Forward" data-ds="63" data-range="57-67"
          data-pts="18.2" data-ast="3.5" data-reb="6.1"
          data-stl="0.5" data-blk="0.5" data-ts="56.5"
@@ -2468,7 +2666,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628970.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Bridges</span>
+            <span class="pr-name">M. Bridges <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -2480,7 +2678,7 @@
             <span class="pr-ds-range">57-67</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Brandon Miller" data-arch="Small-Ball 4" data-ds="71" data-range="67-74"
          data-pts="20.6" data-ast="3.3" data-reb="4.7"
          data-stl="1.1" data-blk="0.9" data-ts="55.9"
@@ -2491,7 +2689,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641706.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Miller</span>
+            <span class="pr-name">B. Miller </span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -2503,7 +2701,7 @@
             <span class="pr-ds-range">67-74</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Coby White" data-arch="Scoring Guard" data-ds="64" data-range="58-68"
          data-pts="18.6" data-ast="4.7" data-reb="3.7"
          data-stl="0.7" data-blk="0.1" data-ts="58.6"
@@ -2514,7 +2712,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629632.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. White</span>
+            <span class="pr-name">C. White <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -2526,7 +2724,7 @@
             <span class="pr-ds-range">58-68</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="LaMelo Ball" data-arch="Scoring Guard" data-ds="74" data-range="70-77"
          data-pts="19.3" data-ast="7.4" data-reb="4.8"
          data-stl="1.1" data-blk="0.2" data-ts="53.3"
@@ -2537,7 +2735,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630163.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. Ball</span>
+            <span class="pr-name">L. Ball </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -2549,7 +2747,7 @@
             <span class="pr-ds-range">70-77</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Moussa Diabaté" data-arch="Traditional PF" data-ds="58" data-range="51-63"
          data-pts="8.2" data-ast="1.6" data-reb="8.6"
          data-stl="0.7" data-blk="1.0" data-ts="65.7"
@@ -2560,7 +2758,7 @@
          data-impact-pct="10.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631217.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Diabaté</span>
+            <span class="pr-name">M. Diabaté </span>
             <span class="pr-meta">F 🏋️ Traditional PF</span>
         </div>
         <div class="pr-stats">
@@ -2572,7 +2770,7 @@
             <span class="pr-ds-range">51-63</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Grant Williams" data-arch="nan" data-ds="47" data-range="40-54"
          data-pts="6.4" data-ast="1.6" data-reb="4.0"
          data-stl="0.4" data-blk="0.3" data-ts="51.8"
@@ -2583,7 +2781,7 @@
          data-impact-pct="17.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629684.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">G. Williams</span>
+            <span class="pr-name">G. Williams <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -2595,7 +2793,7 @@
             <span class="pr-ds-range">40-54</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Josh Green" data-arch="Combo Guard" data-ds="47" data-range="40-54"
          data-pts="4.6" data-ast="1.0" data-reb="1.9"
          data-stl="0.6" data-blk="0.1" data-ts="64.4"
@@ -2606,7 +2804,7 @@
          data-impact-pct="19.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630182.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Green</span>
+            <span class="pr-name">J. Green </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2618,7 +2816,7 @@
             <span class="pr-ds-range">40-54</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Tre Mann" data-arch="Floor General" data-ds="40" data-range="40-48"
          data-pts="7.1" data-ast="2.1" data-reb="2.3"
          data-stl="0.5" data-blk="0.1" data-ts="47.0"
@@ -2629,7 +2827,7 @@
          data-impact-pct="-20.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630544.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Mann</span>
+            <span class="pr-name">T. Mann </span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -2644,7 +2842,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="244.5" data-idx="3">
+    <div class="matchup-card" data-conf="4" data-edge="2.0" data-total="244.0" data-idx="3">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg" class="mc-logo" alt="MIA" onerror="this.style.display='none'">
@@ -2655,11 +2853,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">ATL -0.5 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 244.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> ATL -0.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
-                <div class="mc-implied">MIA 122 — ATL 122</div>
-                
+                <div class="mc-spread" style="color:#FFD600">MIA -3.5</div>
+                <div class="mc-total">O/U 244.0</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> ATL ML <span class="mc-conf-num" style="color:#FFD600">4</span></div>
+                <div class="mc-implied">MIA 124 — ATL 120</div>
+                <div class="mc-sim-proj">MIA -1.5 (SIM) · EDGE 2.0 ATL</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2691,6 +2889,33 @@
             <div class="scheme-tag" style="background:#E03A3E; color:#FDB927">Rim-Protect (Avg)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">MIA 57.5</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:52%; background:#98002E;"></div>
+                    <div class="dsi-bar-home" style="width:48%; background:#E03A3E;"></div>
+                </div>
+                <span class="dsi-val">ATL 54.0</span>
+                <span class="dsi-edge-sm">MIA +3.6</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">MIA +1.3</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">ATL +2.0</span>
+                <span class="dsi-edge-sm">ATL +0.7</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 ATL</span>
+                
+                <span class="out-badge">ATL: 1 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -2701,7 +2926,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#98002E">MIA Heat</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Tyler Herro" data-arch="Sharpshooter" data-ds="64" data-range="58-68"
          data-pts="21.9" data-ast="2.7" data-reb="4.7"
          data-stl="1.0" data-blk="0.5" data-ts="60.5"
@@ -2712,7 +2937,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629639.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Herro</span>
+            <span class="pr-name">T. Herro </span>
             <span class="pr-meta">G 🎯 Sharpshooter</span>
         </div>
         <div class="pr-stats">
@@ -2724,7 +2949,7 @@
             <span class="pr-ds-range">58-68</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Bam Adebayo" data-arch="Rim Protector" data-ds="70" data-range="65-73"
          data-pts="18.4" data-ast="2.8" data-reb="9.9"
          data-stl="1.0" data-blk="0.7" data-ts="54.8"
@@ -2735,7 +2960,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628389.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Adebayo</span>
+            <span class="pr-name">B. Adebayo </span>
             <span class="pr-meta">C-F 🏰 Rim Protector</span>
         </div>
         <div class="pr-stats">
@@ -2747,7 +2972,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Andrew Wiggins" data-arch="Stretch Big" data-ds="60" data-range="53-65"
          data-pts="15.9" data-ast="2.8" data-reb="5.0"
          data-stl="1.2" data-blk="1.0" data-ts="57.0"
@@ -2758,7 +2983,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203952.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Wiggins</span>
+            <span class="pr-name">A. Wiggins </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -2770,7 +2995,7 @@
             <span class="pr-ds-range">53-65</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Norman Powell" data-arch="Combo Guard" data-ds="70" data-range="65-73"
          data-pts="23.0" data-ast="2.6" data-reb="3.6"
          data-stl="1.2" data-blk="0.2" data-ts="61.6"
@@ -2781,7 +3006,7 @@
          data-impact-pct="3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626181.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Powell</span>
+            <span class="pr-name">N. Powell </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2793,7 +3018,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jaime Jaquez Jr." data-arch="Two-Way Wing" data-ds="63" data-range="57-67"
          data-pts="15.2" data-ast="4.7" data-reb="5.4"
          data-stl="0.8" data-blk="0.3" data-ts="56.0"
@@ -2804,7 +3029,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631170.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Jaquez Jr.</span>
+            <span class="pr-name">J. Jaquez Jr. </span>
             <span class="pr-meta">G 🦾 Two-Way Wing</span>
         </div>
         <div class="pr-stats">
@@ -2816,7 +3041,7 @@
             <span class="pr-ds-range">57-67</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Davion Mitchell" data-arch="Combo Guard" data-ds="60" data-range="53-65"
          data-pts="9.0" data-ast="7.0" data-reb="2.5"
          data-stl="1.1" data-blk="0.1" data-ts="56.0"
@@ -2827,7 +3052,7 @@
          data-impact-pct="8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630558.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Mitchell</span>
+            <span class="pr-name">D. Mitchell </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2839,7 +3064,7 @@
             <span class="pr-ds-range">53-65</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Pelle Larsson" data-arch="Sharpshooter" data-ds="52" data-range="44-58"
          data-pts="10.2" data-ast="3.3" data-reb="3.3"
          data-stl="0.6" data-blk="0.2" data-ts="60.0"
@@ -2850,7 +3075,7 @@
          data-impact-pct="2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641796.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">P. Larsson</span>
+            <span class="pr-name">P. Larsson </span>
             <span class="pr-meta">G 🎯 Sharpshooter</span>
         </div>
         <div class="pr-stats">
@@ -2862,7 +3087,7 @@
             <span class="pr-ds-range">44-58</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Kel'el Ware" data-arch="Traditional Center" data-ds="52" data-range="44-58"
          data-pts="11.3" data-ast="0.6" data-reb="9.2"
          data-stl="0.8" data-blk="1.0" data-ts="61.9"
@@ -2873,7 +3098,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642276.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Ware</span>
+            <span class="pr-name">K. Ware </span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -2889,7 +3114,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#E03A3E">ATL Hawks</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jalen Johnson" data-arch="Point Forward" data-ds="84" data-range="79-88"
          data-pts="23.3" data-ast="8.2" data-reb="10.6"
          data-stl="1.3" data-blk="0.5" data-ts="59.2"
@@ -2900,7 +3125,7 @@
          data-impact-pct="0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630552.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Johnson</span>
+            <span class="pr-name">J. Johnson </span>
             <span class="pr-meta">F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -2912,7 +3137,7 @@
             <span class="pr-ds-range">79-88</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Dyson Daniels" data-arch="Two-Way Wing" data-ds="62" data-range="56-66"
          data-pts="11.6" data-ast="6.2" data-reb="6.5"
          data-stl="1.8" data-blk="0.4" data-ts="52.0"
@@ -2923,7 +3148,7 @@
          data-impact-pct="1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630700.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Daniels</span>
+            <span class="pr-name">D. Daniels </span>
             <span class="pr-meta">G 🦾 Two-Way Wing</span>
         </div>
         <div class="pr-stats">
@@ -2935,7 +3160,7 @@
             <span class="pr-ds-range">56-66</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Nickeil Alexander-Walker" data-arch="Combo Guard" data-ds="65" data-range="59-69"
          data-pts="20.1" data-ast="3.7" data-reb="3.6"
          data-stl="1.2" data-blk="0.6" data-ts="57.6"
@@ -2946,7 +3171,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629638.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Alexander-Walker</span>
+            <span class="pr-name">N. Alexander-Walker </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -2958,7 +3183,7 @@
             <span class="pr-ds-range">59-69</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Onyeka Okongwu" data-arch="Stretch 5" data-ds="61" data-range="55-66"
          data-pts="16.2" data-ast="3.2" data-reb="7.7"
          data-stl="1.2" data-blk="1.0" data-ts="59.6"
@@ -2969,7 +3194,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630168.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">O. Okongwu</span>
+            <span class="pr-name">O. Okongwu </span>
             <span class="pr-meta">F-C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -2981,7 +3206,7 @@
             <span class="pr-ds-range">55-66</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="CJ McCollum" data-arch="Sharpshooter" data-ds="59" data-range="52-64"
          data-pts="18.8" data-ast="3.6" data-reb="3.4"
          data-stl="0.7" data-blk="0.4" data-ts="56.7"
@@ -2992,7 +3217,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203468.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. McCollum</span>
+            <span class="pr-name">C. McCollum </span>
             <span class="pr-meta">G 🎯 Sharpshooter</span>
         </div>
         <div class="pr-stats">
@@ -3004,7 +3229,7 @@
             <span class="pr-ds-range">52-64</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Zaccharie Risacher" data-arch="Stretch Big" data-ds="46" data-range="40-53"
          data-pts="10.5" data-ast="1.3" data-reb="3.5"
          data-stl="0.9" data-blk="0.5" data-ts="54.2"
@@ -3015,7 +3240,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642258.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">Z. Risacher</span>
+            <span class="pr-name">Z. Risacher </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -3027,7 +3252,7 @@
             <span class="pr-ds-range">40-53</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Jonathan Kuminga" data-arch="Small-Ball 4" data-ds="50" data-range="41-56"
          data-pts="12.1" data-ast="2.5" data-reb="5.9"
          data-stl="0.4" data-blk="0.3" data-ts="54.3"
@@ -3038,7 +3263,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630228.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Kuminga</span>
+            <span class="pr-name">J. Kuminga <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -3050,7 +3275,7 @@
             <span class="pr-ds-range">41-56</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Jock Landale" data-arch="Stretch 5" data-ds="48" data-range="40-55"
          data-pts="11.4" data-ast="1.7" data-reb="6.4"
          data-stl="0.5" data-blk="0.5" data-ts="61.0"
@@ -3061,7 +3286,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629111.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Landale</span>
+            <span class="pr-name">J. Landale </span>
             <span class="pr-meta">C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -3076,7 +3301,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="9" data-edge="0.0" data-total="234.5" data-idx="4">
+    <div class="matchup-card" data-conf="3" data-edge="0.5" data-total="239.5" data-idx="4">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612742/global/L/logo.svg" class="mc-logo" alt="DAL" onerror="this.style.display='none'">
@@ -3087,11 +3312,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">MIN -11.0 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 234.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> MIN -11.0 <span class="mc-conf-num" style="color:#00FF55">9</span></div>
-                <div class="mc-implied">DAL 112 — MIN 123</div>
-                
+                <div class="mc-spread" style="color:#888">MIN -14.0</div>
+                <div class="mc-total">O/U 239.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> DAL +14.0 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
+                <div class="mc-implied">DAL 113 — MIN 127</div>
+                <div class="mc-sim-proj">MIN -13.5 (SIM) · EDGE 0.5 DAL</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3123,6 +3348,33 @@
             <div class="scheme-tag" style="background:#0C2340; color:#236192">Switch-Everything (Good)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">DAL 47.5</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:43%; background:#00538C;"></div>
+                    <div class="dsi-bar-home" style="width:57%; background:#0C2340;"></div>
+                </div>
+                <span class="dsi-val">MIN 63.6</span>
+                <span class="dsi-edge-sm">MIN +16.1</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">DAL -3.1</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">MIN +7.9</span>
+                <span class="dsi-edge-sm">MIN +11.0</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 MIN</span>
+                
+                
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -3133,7 +3385,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#00538C">DAL Mavericks</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="P.J. Washington" data-arch="Stretch Big" data-ds="51" data-range="43-57"
          data-pts="14.1" data-ast="1.9" data-reb="7.0"
          data-stl="1.0" data-blk="1.3" data-ts="52.8"
@@ -3144,7 +3396,7 @@
          data-impact-pct="-11.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629023.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">P. Washington</span>
+            <span class="pr-name">P. Washington </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -3156,7 +3408,7 @@
             <span class="pr-ds-range">43-57</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-gtd" onclick="openPlayerSheet(this)"
          data-name="Max Christie" data-arch="Combo Guard" data-ds="51" data-range="43-57"
          data-pts="13.3" data-ast="2.3" data-reb="3.4"
          data-stl="0.6" data-blk="0.4" data-ts="62.6"
@@ -3167,7 +3419,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631108.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Christie</span>
+            <span class="pr-name">M. Christie <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -3179,7 +3431,7 @@
             <span class="pr-ds-range">43-57</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Naji Marshall" data-arch="Stretch Forward" data-ds="58" data-range="51-63"
          data-pts="15.1" data-ast="3.0" data-reb="4.9"
          data-stl="1.0" data-blk="0.1" data-ts="62.0"
@@ -3190,7 +3442,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630230.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Marshall</span>
+            <span class="pr-name">N. Marshall </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -3202,7 +3454,7 @@
             <span class="pr-ds-range">51-63</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Khris Middleton" data-arch="3-and-D Wing" data-ds="42" data-range="40-49"
          data-pts="10.3" data-ast="3.2" data-reb="3.9"
          data-stl="0.7" data-blk="0.3" data-ts="53.0"
@@ -3213,7 +3465,7 @@
          data-impact-pct="-15.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203114.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Middleton</span>
+            <span class="pr-name">K. Middleton </span>
             <span class="pr-meta">F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -3225,7 +3477,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Klay Thompson" data-arch="Slasher" data-ds="43" data-range="40-50"
          data-pts="11.6" data-ast="1.4" data-reb="2.4"
          data-stl="0.5" data-blk="0.3" data-ts="53.3"
@@ -3236,7 +3488,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202691.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Thompson</span>
+            <span class="pr-name">K. Thompson </span>
             <span class="pr-meta">G ⚔️ Slasher</span>
         </div>
         <div class="pr-stats">
@@ -3248,7 +3500,7 @@
             <span class="pr-ds-range">40-50</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Brandon Williams" data-arch="Playmaking Guard" data-ds="53" data-range="45-59"
          data-pts="12.7" data-ast="3.7" data-reb="2.9"
          data-stl="1.0" data-blk="0.2" data-ts="55.5"
@@ -3259,7 +3511,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630314.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Williams</span>
+            <span class="pr-name">B. Williams </span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -3271,7 +3523,7 @@
             <span class="pr-ds-range">45-59</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
          data-name="Daniel Gafford" data-arch="Traditional Center" data-ds="46" data-range="40-53"
          data-pts="8.0" data-ast="0.9" data-reb="6.5"
          data-stl="0.8" data-blk="1.3" data-ts="67.4"
@@ -3282,7 +3534,7 @@
          data-impact-pct="-9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629655.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Gafford</span>
+            <span class="pr-name">D. Gafford <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">F-C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -3294,7 +3546,7 @@
             <span class="pr-ds-range">40-53</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Marvin Bagley III" data-arch="Traditional PF" data-ds="45" data-range="40-52"
          data-pts="10.2" data-ast="1.5" data-reb="5.9"
          data-stl="0.5" data-blk="0.8" data-ts="65.3"
@@ -3305,7 +3557,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628963.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Bagley III</span>
+            <span class="pr-name">M. Bagley III </span>
             <span class="pr-meta">F 🏋️ Traditional PF</span>
         </div>
         <div class="pr-stats">
@@ -3321,7 +3573,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#0C2340">MIN Timberwolves</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Anthony Edwards" data-arch="Scoring Guard" data-ds="84" data-range="79-88"
          data-pts="29.3" data-ast="3.7" data-reb="5.2"
          data-stl="1.3" data-blk="0.8" data-ts="62.0"
@@ -3332,7 +3584,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630162.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Edwards</span>
+            <span class="pr-name">A. Edwards </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -3344,7 +3596,7 @@
             <span class="pr-ds-range">79-88</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Julius Randle" data-arch="Small-Ball 4" data-ds="78" data-range="74-81"
          data-pts="22.3" data-ast="5.4" data-reb="7.0"
          data-stl="1.1" data-blk="0.3" data-ts="59.9"
@@ -3355,7 +3607,7 @@
          data-impact-pct="5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203944.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Randle</span>
+            <span class="pr-name">J. Randle </span>
             <span class="pr-meta">F-C ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -3367,7 +3619,7 @@
             <span class="pr-ds-range">74-81</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jaden McDaniels" data-arch="Stretch Forward" data-ds="65" data-range="59-69"
          data-pts="15.0" data-ast="2.9" data-reb="4.3"
          data-stl="1.0" data-blk="1.0" data-ts="62.3"
@@ -3378,7 +3630,7 @@
          data-impact-pct="7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630183.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. McDaniels</span>
+            <span class="pr-name">J. McDaniels </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -3390,7 +3642,7 @@
             <span class="pr-ds-range">59-69</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Rudy Gobert" data-arch="Traditional Center" data-ds="66" data-range="61-70"
          data-pts="11.0" data-ast="1.7" data-reb="11.1"
          data-stl="0.7" data-blk="1.6" data-ts="67.3"
@@ -3401,7 +3653,7 @@
          data-impact-pct="8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203497.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">R. Gobert</span>
+            <span class="pr-name">R. Gobert </span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -3413,7 +3665,7 @@
             <span class="pr-ds-range">61-70</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Donte DiVincenzo" data-arch="Sharpshooter" data-ds="64" data-range="58-68"
          data-pts="12.8" data-ast="4.2" data-reb="4.5"
          data-stl="1.4" data-blk="0.4" data-ts="57.4"
@@ -3424,7 +3676,7 @@
          data-impact-pct="9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628978.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. DiVincenzo</span>
+            <span class="pr-name">D. DiVincenzo </span>
             <span class="pr-meta">G 🎯 Sharpshooter</span>
         </div>
         <div class="pr-stats">
@@ -3436,7 +3688,7 @@
             <span class="pr-ds-range">58-68</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Ayo Dosunmu" data-arch="Combo Guard" data-ds="56" data-range="49-61"
          data-pts="15.0" data-ast="3.6" data-reb="2.9"
          data-stl="0.8" data-blk="0.3" data-ts="63.7"
@@ -3447,7 +3699,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630245.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Dosunmu</span>
+            <span class="pr-name">A. Dosunmu </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -3459,7 +3711,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Naz Reid" data-arch="Stretch 5" data-ds="61" data-range="55-66"
          data-pts="14.2" data-ast="2.5" data-reb="6.4"
          data-stl="1.0" data-blk="0.9" data-ts="59.0"
@@ -3470,7 +3722,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629675.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Reid</span>
+            <span class="pr-name">N. Reid </span>
             <span class="pr-meta">C-F 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -3482,7 +3734,7 @@
             <span class="pr-ds-range">55-66</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bones Hyland" data-arch="Combo Guard" data-ds="48" data-range="40-55"
          data-pts="7.3" data-ast="2.6" data-reb="1.7"
          data-stl="0.6" data-blk="0.2" data-ts="60.0"
@@ -3493,7 +3745,7 @@
          data-impact-pct="12.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630538.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Hyland</span>
+            <span class="pr-name">B. Hyland </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -3508,7 +3760,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="230.0" data-idx="5">
+    <div class="matchup-card" data-conf="7" data-edge="4.0" data-total="223.5" data-idx="5">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="mc-logo" alt="MIL" onerror="this.style.display='none'">
@@ -3519,11 +3771,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">NOP -0.5 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 230.0 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> NOP -0.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
-                <div class="mc-implied">MIL 115 — NOP 115</div>
-                
+                <div class="mc-spread" style="color:#00FF55">NOP -4.5</div>
+                <div class="mc-total">O/U 223.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> MIL +4.5 <span class="mc-conf-num" style="color:#7FFF00">7</span></div>
+                <div class="mc-implied">MIL 110 — NOP 114</div>
+                <div class="mc-sim-proj">NOP -0.5 (SIM) · EDGE 4.0 MIL</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3555,6 +3807,33 @@
             <div class="scheme-tag" style="background:#0C2340; color:#C8102E">Switch-Everything (Poor)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">MIL 50.8</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:50%; background:#00471B;"></div>
+                    <div class="dsi-bar-home" style="width:50%; background:#0C2340;"></div>
+                </div>
+                <span class="dsi-val">NOP 50.9</span>
+                <span class="dsi-edge-sm">NOP +0.1</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">MIL -3.7</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">NOP -3.0</span>
+                <span class="dsi-edge-sm">NOP +0.7</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 NOP</span>
+                
+                <span class="out-badge">NOP: 1 OUT</span><span class="out-badge">MIL: 3 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -3565,7 +3844,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#00471B">MIL Bucks</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Kevin Porter Jr." data-arch="Playmaking Guard" data-ds="70" data-range="65-73"
          data-pts="17.3" data-ast="7.6" data-reb="5.2"
          data-stl="2.2" data-blk="0.4" data-ts="55.9"
@@ -3576,7 +3855,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629645.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Porter Jr.</span>
+            <span class="pr-name">K. Porter Jr. </span>
             <span class="pr-meta">G-F 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -3588,7 +3867,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Ryan Rollins" data-arch="Sharpshooter" data-ds="65" data-range="59-69"
          data-pts="16.9" data-ast="5.5" data-reb="4.6"
          data-stl="1.5" data-blk="0.4" data-ts="56.8"
@@ -3599,7 +3878,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631157.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">R. Rollins</span>
+            <span class="pr-name">R. Rollins </span>
             <span class="pr-meta">G 🎯 Sharpshooter</span>
         </div>
         <div class="pr-stats">
@@ -3611,7 +3890,7 @@
             <span class="pr-ds-range">59-69</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="AJ Green" data-arch="Combo Guard" data-ds="51" data-range="43-57"
          data-pts="10.7" data-ast="2.0" data-reb="2.6"
          data-stl="0.6" data-blk="0.1" data-ts="64.3"
@@ -3622,7 +3901,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631260.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Green</span>
+            <span class="pr-name">A. Green </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -3634,7 +3913,7 @@
             <span class="pr-ds-range">43-57</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Giannis Antetokounmpo" data-arch="Small-Ball 4" data-ds="91" data-range="84-96"
          data-pts="28.0" data-ast="5.6" data-reb="10.0"
          data-stl="0.9" data-blk="0.7" data-ts="67.9"
@@ -3645,7 +3924,7 @@
          data-impact-pct="5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203507.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">G. Antetokounmpo</span>
+            <span class="pr-name">G. Antetokounmpo <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -3657,7 +3936,7 @@
             <span class="pr-ds-range">84-96</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Myles Turner" data-arch="Stretch 5" data-ds="54" data-range="46-60"
          data-pts="12.7" data-ast="1.6" data-reb="5.7"
          data-stl="0.7" data-blk="1.7" data-ts="58.6"
@@ -3668,7 +3947,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626167.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Turner</span>
+            <span class="pr-name">M. Turner <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C-F 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -3680,7 +3959,7 @@
             <span class="pr-ds-range">46-60</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Kyle Kuzma" data-arch="Stretch Forward" data-ds="50" data-range="41-56"
          data-pts="12.9" data-ast="2.5" data-reb="5.0"
          data-stl="0.6" data-blk="0.4" data-ts="56.5"
@@ -3691,7 +3970,7 @@
          data-impact-pct="-8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628398.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Kuzma</span>
+            <span class="pr-name">K. Kuzma </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -3703,7 +3982,7 @@
             <span class="pr-ds-range">41-56</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bobby Portis" data-arch="Stretch Big" data-ds="48" data-range="40-55"
          data-pts="13.2" data-ast="1.6" data-reb="6.6"
          data-stl="0.6" data-blk="0.2" data-ts="57.9"
@@ -3714,7 +3993,7 @@
          data-impact-pct="-11.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626171.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Portis</span>
+            <span class="pr-name">B. Portis </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -3726,7 +4005,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Cam Thomas" data-arch="Scoring Guard" data-ds="46" data-range="40-53"
          data-pts="15.7" data-ast="2.9" data-reb="1.8"
          data-stl="0.1" data-blk="0.1" data-ts="53.5"
@@ -3737,7 +4016,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630560.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Thomas</span>
+            <span class="pr-name">C. Thomas </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -3753,7 +4032,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#0C2340">NOP Pelicans</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Trey Murphy III" data-arch="Stretch Forward" data-ds="69" data-range="64-72"
          data-pts="22.1" data-ast="3.8" data-reb="5.7"
          data-stl="1.5" data-blk="0.3" data-ts="61.6"
@@ -3764,7 +4043,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630530.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Murphy III</span>
+            <span class="pr-name">T. Murphy III </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -3776,7 +4055,7 @@
             <span class="pr-ds-range">64-72</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Saddiq Bey" data-arch="Stretch Forward" data-ds="56" data-range="49-61"
          data-pts="16.6" data-ast="2.5" data-reb="5.9"
          data-stl="0.9" data-blk="0" data-ts="57.2"
@@ -3787,7 +4066,7 @@
          data-impact-pct="-6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630180.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Bey</span>
+            <span class="pr-name">S. Bey </span>
             <span class="pr-meta">G-F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -3799,7 +4078,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Zion Williamson" data-arch="Small-Ball 4" data-ds="67" data-range="62-71"
          data-pts="21.6" data-ast="3.5" data-reb="6.1"
          data-stl="1.0" data-blk="0.6" data-ts="62.9"
@@ -3810,7 +4089,7 @@
          data-impact-pct="-6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629627.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">Z. Williamson</span>
+            <span class="pr-name">Z. Williamson </span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -3822,7 +4101,7 @@
             <span class="pr-ds-range">62-71</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Herbert Jones" data-arch="3-and-D Wing" data-ds="46" data-range="40-53"
          data-pts="8.9" data-ast="2.6" data-reb="3.6"
          data-stl="1.6" data-blk="0.5" data-ts="49.6"
@@ -3833,7 +4112,7 @@
          data-impact-pct="-4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630529.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">H. Jones</span>
+            <span class="pr-name">H. Jones </span>
             <span class="pr-meta">F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -3845,7 +4124,7 @@
             <span class="pr-ds-range">40-53</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jordan Poole" data-arch="Floor General" data-ds="47" data-range="40-54"
          data-pts="14.5" data-ast="3.1" data-reb="1.8"
          data-stl="0.7" data-blk="0.3" data-ts="53.3"
@@ -3856,7 +4135,7 @@
          data-impact-pct="-13.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629673.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Poole</span>
+            <span class="pr-name">J. Poole </span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -3868,7 +4147,7 @@
             <span class="pr-ds-range">40-54</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bryce McGowens" data-arch="Combo Guard" data-ds="40" data-range="40-48"
          data-pts="7.9" data-ast="1.5" data-reb="1.9"
          data-stl="0.6" data-blk="0.1" data-ts="61.5"
@@ -3879,7 +4158,7 @@
          data-impact-pct="-8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631121.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. McGowens</span>
+            <span class="pr-name">B. McGowens </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -3891,7 +4170,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Yves Missi" data-arch="Traditional Center" data-ds="41" data-range="40-49"
          data-pts="5.6" data-ast="1.2" data-reb="5.6"
          data-stl="0.3" data-blk="1.4" data-ts="55.1"
@@ -3902,7 +4181,7 @@
          data-impact-pct="1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642274.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">Y. Missi</span>
+            <span class="pr-name">Y. Missi <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -3914,7 +4193,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Kevon Looney" data-arch="nan" data-ds="40" data-range="40-48"
          data-pts="2.9" data-ast="1.4" data-reb="5.3"
          data-stl="0.3" data-blk="0.5" data-ts="46.8"
@@ -3925,7 +4204,7 @@
          data-impact-pct="-38.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1626172.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Looney</span>
+            <span class="pr-name">K. Looney </span>
             <span class="pr-meta">F ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -3940,7 +4219,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="10" data-edge="0.0" data-total="221.5" data-idx="6">
+    <div class="matchup-card" data-conf="10" data-edge="7.5" data-total="214.0" data-idx="6">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" class="mc-logo" alt="BKN" onerror="this.style.display='none'">
@@ -3951,11 +4230,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">OKC -20.5 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 221.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> OKC -20.5 <span class="mc-conf-num" style="color:#00FF55">10</span></div>
-                <div class="mc-implied">BKN 100 — OKC 121</div>
-                
+                <div class="mc-spread" style="color:#00FF55">OKC -17.5</div>
+                <div class="mc-total">O/U 214.0</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> BKN +17.5 <span class="mc-conf-num" style="color:#00FF55">10</span></div>
+                <div class="mc-implied">BKN 98 — OKC 116</div>
+                <div class="mc-sim-proj">OKC -10.0 (SIM) · EDGE 7.5 BKN</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3987,6 +4266,33 @@
             <div class="scheme-tag" style="background:#007AC1; color:#EF6100">Trans-Defense (Elite)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">BKN 50.6</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:50%; background:#000000;"></div>
+                    <div class="dsi-bar-home" style="width:50%; background:#007AC1;"></div>
+                </div>
+                <span class="dsi-val">OKC 49.9</span>
+                <span class="dsi-edge-sm">BKN +0.7</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">BKN -6.9</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">OKC +13.7</span>
+                <span class="dsi-edge-sm">OKC +20.6</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 OKC</span>
+                
+                <span class="out-badge">OKC: 3 OUT</span><span class="out-badge">BKN: 1 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -3997,7 +4303,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#000000">BKN Nets</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Michael Porter Jr." data-arch="Small-Ball 4" data-ds="72" data-range="68-75"
          data-pts="25.0" data-ast="3.2" data-reb="7.2"
          data-stl="1.0" data-blk="0.2" data-ts="60.9"
@@ -4008,7 +4314,7 @@
          data-impact-pct="-4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629008.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Porter Jr.</span>
+            <span class="pr-name">M. Porter Jr. </span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -4020,7 +4326,7 @@
             <span class="pr-ds-range">68-75</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Nic Claxton" data-arch="Stretch 5" data-ds="53" data-range="45-59"
          data-pts="12.5" data-ast="4.0" data-reb="7.3"
          data-stl="0.7" data-blk="1.3" data-ts="60.8"
@@ -4031,7 +4337,7 @@
          data-impact-pct="-14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629651.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Claxton</span>
+            <span class="pr-name">N. Claxton </span>
             <span class="pr-meta">C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -4043,7 +4349,7 @@
             <span class="pr-ds-range">45-59</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Noah Clowney" data-arch="Stretch Big" data-ds="49" data-range="40-55"
          data-pts="13.0" data-ast="1.8" data-reb="4.3"
          data-stl="0.7" data-blk="0.8" data-ts="55.1"
@@ -4054,7 +4360,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641730.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Clowney</span>
+            <span class="pr-name">N. Clowney </span>
             <span class="pr-meta">F-C 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -4066,7 +4372,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Terance Mann" data-arch="3-and-D Wing" data-ds="42" data-range="40-49"
          data-pts="7.5" data-ast="3.4" data-reb="3.3"
          data-stl="0.7" data-blk="0.2" data-ts="55.6"
@@ -4077,7 +4383,7 @@
          data-impact-pct="-9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629611.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Mann</span>
+            <span class="pr-name">T. Mann </span>
             <span class="pr-meta">G-F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -4089,7 +4395,7 @@
             <span class="pr-ds-range">40-49</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Ziaire Williams" data-arch="3-and-D Wing" data-ds="40" data-range="40-48"
          data-pts="9.7" data-ast="0.8" data-reb="2.6"
          data-stl="1.2" data-blk="0.5" data-ts="57.4"
@@ -4100,7 +4406,7 @@
          data-impact-pct="-16.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630533.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">Z. Williams</span>
+            <span class="pr-name">Z. Williams <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -4112,7 +4418,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Day'Ron Sharpe" data-arch="Versatile Big" data-ds="50" data-range="41-56"
          data-pts="8.5" data-ast="2.3" data-reb="6.7"
          data-stl="1.1" data-blk="0.4" data-ts="65.0"
@@ -4123,7 +4429,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630549.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Sharpe</span>
+            <span class="pr-name">D. Sharpe </span>
             <span class="pr-meta">C 🔮 Versatile Big</span>
         </div>
         <div class="pr-stats">
@@ -4135,7 +4441,7 @@
             <span class="pr-ds-range">41-56</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Josh Minott" data-arch="Athletic Wing" data-ds="46" data-range="40-53"
          data-pts="5.8" data-ast="1.0" data-reb="3.6"
          data-stl="0.7" data-blk="0.4" data-ts="65.1"
@@ -4146,7 +4452,7 @@
          data-impact-pct="8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631169.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Minott</span>
+            <span class="pr-name">J. Minott </span>
             <span class="pr-meta">F 💨 Athletic Wing</span>
         </div>
         <div class="pr-stats">
@@ -4158,7 +4464,7 @@
             <span class="pr-ds-range">40-53</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Ochai Agbaji" data-arch="Defensive Specialist" data-ds="40" data-range="40-48"
          data-pts="4.2" data-ast="0.7" data-reb="2.3"
          data-stl="0.4" data-blk="0.3" data-ts="48.7"
@@ -4169,7 +4475,7 @@
          data-impact-pct="0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630534.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">O. Agbaji</span>
+            <span class="pr-name">O. Agbaji </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4185,7 +4491,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#007AC1">OKC Thunder</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Shai Gilgeous-Alexander" data-arch="Scoring Guard" data-ds="99" data-range="91-99"
          data-pts="31.8" data-ast="6.4" data-reb="4.4"
          data-stl="1.3" data-blk="0.8" data-ts="67.0"
@@ -4196,7 +4502,7 @@
          data-impact-pct="11.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Gilgeous-Alexander</span>
+            <span class="pr-name">S. Gilgeous-Alexander <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -4208,7 +4514,7 @@
             <span class="pr-ds-range">91-99</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Chet Holmgren" data-arch="Rim Protector" data-ds="76" data-range="72-79"
          data-pts="17.4" data-ast="1.6" data-reb="8.7"
          data-stl="0.5" data-blk="1.9" data-ts="65.1"
@@ -4219,7 +4525,7 @@
          data-impact-pct="14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Holmgren</span>
+            <span class="pr-name">C. Holmgren </span>
             <span class="pr-meta">C-F 🏰 Rim Protector</span>
         </div>
         <div class="pr-stats">
@@ -4231,7 +4537,7 @@
             <span class="pr-ds-range">72-79</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Jalen Williams" data-arch="Point Forward" data-ds="71" data-range="67-74"
          data-pts="17.5" data-ast="5.4" data-reb="4.7"
          data-stl="1.3" data-blk="0.3" data-ts="55.5"
@@ -4242,7 +4548,7 @@
          data-impact-pct="9.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631114.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Williams</span>
+            <span class="pr-name">J. Williams <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G-F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -4254,7 +4560,7 @@
             <span class="pr-ds-range">67-74</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Luguentz Dort" data-arch="Defensive Specialist" data-ds="52" data-range="44-58"
          data-pts="8.7" data-ast="1.2" data-reb="3.8"
          data-stl="0.9" data-blk="0.5" data-ts="53.7"
@@ -4265,7 +4571,7 @@
          data-impact-pct="13.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629652.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. Dort</span>
+            <span class="pr-name">L. Dort </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4277,7 +4583,7 @@
             <span class="pr-ds-range">44-58</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Cason Wallace" data-arch="Defensive Specialist" data-ds="56" data-range="49-61"
          data-pts="8.1" data-ast="2.2" data-reb="3.1"
          data-stl="2.0" data-blk="0.3" data-ts="53.2"
@@ -4288,7 +4594,7 @@
          data-impact-pct="16.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641717.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Wallace</span>
+            <span class="pr-name">C. Wallace </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4300,7 +4606,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Ajay Mitchell" data-arch="Defensive Specialist" data-ds="70" data-range="65-73"
          data-pts="14.1" data-ast="3.7" data-reb="3.5"
          data-stl="1.4" data-blk="0.3" data-ts="59.0"
@@ -4311,7 +4617,7 @@
          data-impact-pct="17.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642349.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Mitchell</span>
+            <span class="pr-name">A. Mitchell <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4323,7 +4629,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Isaiah Hartenstein" data-arch="Versatile Big" data-ds="70" data-range="65-73"
          data-pts="10.6" data-ast="3.6" data-reb="9.7"
          data-stl="1.0" data-blk="0.7" data-ts="64.9"
@@ -4334,7 +4640,7 @@
          data-impact-pct="14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628392.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">I. Hartenstein</span>
+            <span class="pr-name">I. Hartenstein </span>
             <span class="pr-meta">C-F 🔮 Versatile Big</span>
         </div>
         <div class="pr-stats">
@@ -4346,7 +4652,7 @@
             <span class="pr-ds-range">65-73</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Aaron Wiggins" data-arch="Defensive Specialist" data-ds="55" data-range="47-61"
          data-pts="10.6" data-ast="1.8" data-reb="3.5"
          data-stl="1.0" data-blk="0.6" data-ts="56.3"
@@ -4357,7 +4663,7 @@
          data-impact-pct="10.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630598.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Wiggins</span>
+            <span class="pr-name">A. Wiggins </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4372,7 +4678,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="4" data-edge="0.0" data-total="222.5" data-idx="7">
+    <div class="matchup-card" data-conf="4" data-edge="1.5" data-total="225.0" data-idx="7">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" class="mc-logo" alt="LAC" onerror="this.style.display='none'">
@@ -4383,11 +4689,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">LAL -3.0 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 222.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> LAL -3.0 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
-                <div class="mc-implied">LAC 110 — LAL 113</div>
-                
+                <div class="mc-spread" style="color:#FFD600">LAL -7.0</div>
+                <div class="mc-total">O/U 225.0</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> LAC +7.0 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
+                <div class="mc-implied">LAC 109 — LAL 116</div>
+                <div class="mc-sim-proj">LAL -5.5 (SIM) · EDGE 1.5 LAC</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -4419,6 +4725,33 @@
             <div class="scheme-tag" style="background:#552583; color:#FDB927">Rim-Protect (Avg)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">LAC 50.3</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:46%; background:#C8102E;"></div>
+                    <div class="dsi-bar-home" style="width:54%; background:#552583;"></div>
+                </div>
+                <span class="dsi-val">LAL 58.5</span>
+                <span class="dsi-edge-sm">LAL +8.2</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">LAC -0.3</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">LAL +2.5</span>
+                <span class="dsi-edge-sm">LAL +2.8</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 LAL</span>
+                
+                <span class="out-badge">LAC: 2 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -4429,7 +4762,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#C8102E">LAC Clippers</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Kawhi Leonard" data-arch="Point Forward" data-ds="84" data-range="79-88"
          data-pts="27.9" data-ast="3.7" data-reb="6.4"
          data-stl="2.1" data-blk="0.5" data-ts="61.9"
@@ -4440,7 +4773,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202695.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Leonard</span>
+            <span class="pr-name">K. Leonard </span>
             <span class="pr-meta">F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -4452,7 +4785,7 @@
             <span class="pr-ds-range">79-88</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Bennedict Mathurin" data-arch="Stretch Forward" data-ds="54" data-range="46-60"
          data-pts="17.4" data-ast="2.3" data-reb="5.4"
          data-stl="0.8" data-blk="0.2" data-ts="58.0"
@@ -4463,7 +4796,7 @@
          data-impact-pct="-12.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631097.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Mathurin</span>
+            <span class="pr-name">B. Mathurin </span>
             <span class="pr-meta">G-F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -4475,7 +4808,7 @@
             <span class="pr-ds-range">46-60</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Darius Garland" data-arch="Playmaking Guard" data-ds="64" data-range="58-68"
          data-pts="18.0" data-ast="6.9" data-reb="2.4"
          data-stl="0.8" data-blk="0.1" data-ts="56.7"
@@ -4486,7 +4819,7 @@
          data-impact-pct="-3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629636.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Garland</span>
+            <span class="pr-name">D. Garland <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -4498,7 +4831,7 @@
             <span class="pr-ds-range">58-68</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="John Collins" data-arch="Stretch 5" data-ds="56" data-range="49-61"
          data-pts="13.8" data-ast="0.9" data-reb="5.1"
          data-stl="0.8" data-blk="0.8" data-ts="66.0"
@@ -4509,7 +4842,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628381.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Collins</span>
+            <span class="pr-name">J. Collins </span>
             <span class="pr-meta">F-C 📐 Stretch 5</span>
         </div>
         <div class="pr-stats">
@@ -4521,7 +4854,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Kris Dunn" data-arch="Combo Guard" data-ds="49" data-range="40-55"
          data-pts="8.0" data-ast="3.4" data-reb="2.9"
          data-stl="1.5" data-blk="0.1" data-ts="58.9"
@@ -4532,7 +4865,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627739.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Dunn</span>
+            <span class="pr-name">K. Dunn </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -4544,7 +4877,7 @@
             <span class="pr-ds-range">40-55</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Derrick Jones Jr." data-arch="Stretch Forward" data-ds="50" data-range="41-56"
          data-pts="10.0" data-ast="1.2" data-reb="2.5"
          data-stl="0.9" data-blk="1.1" data-ts="66.1"
@@ -4555,7 +4888,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627884.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Jones Jr.</span>
+            <span class="pr-name">D. Jones Jr. </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -4567,7 +4900,7 @@
             <span class="pr-ds-range">41-56</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bogdan Bogdanović" data-arch="Floor General" data-ds="40" data-range="40-48"
          data-pts="7.6" data-ast="2.6" data-reb="2.8"
          data-stl="0.5" data-blk="0.1" data-ts="50.2"
@@ -4578,7 +4911,7 @@
          data-impact-pct="-8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203992.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Bogdanović</span>
+            <span class="pr-name">B. Bogdanović </span>
             <span class="pr-meta">G 🧠 Floor General</span>
         </div>
         <div class="pr-stats">
@@ -4590,7 +4923,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Bradley Beal" data-arch="nan" data-ds="40" data-range="40-48"
          data-pts="8.2" data-ast="1.7" data-reb="0.8"
          data-stl="0.5" data-blk="0" data-ts="47.6"
@@ -4601,7 +4934,7 @@
          data-impact-pct="-21.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203078.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Beal</span>
+            <span class="pr-name">B. Beal <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ◆ nan</span>
         </div>
         <div class="pr-stats">
@@ -4617,7 +4950,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#552583">LAL Lakers</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Luka Dončić" data-arch="Point Forward" data-ds="96" data-range="88-99"
          data-pts="32.8" data-ast="8.6" data-reb="7.8"
          data-stl="1.5" data-blk="0.5" data-ts="61.4"
@@ -4628,7 +4961,7 @@
          data-impact-pct="1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629029.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. Dončić</span>
+            <span class="pr-name">L. Dončić </span>
             <span class="pr-meta">F-G 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -4640,7 +4973,7 @@
             <span class="pr-ds-range">88-99</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Austin Reaves" data-arch="Scoring Guard" data-ds="82" data-range="77-86"
          data-pts="25.4" data-ast="6.0" data-reb="5.0"
          data-stl="1.0" data-blk="0.2" data-ts="66.5"
@@ -4651,7 +4984,7 @@
          data-impact-pct="3.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630559.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Reaves</span>
+            <span class="pr-name">A. Reaves </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -4663,7 +4996,7 @@
             <span class="pr-ds-range">77-86</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-gtd" onclick="openPlayerSheet(this)"
          data-name="LeBron James" data-arch="Point Forward" data-ds="75" data-range="71-78"
          data-pts="22.0" data-ast="7.1" data-reb="5.8"
          data-stl="1.1" data-blk="0.6" data-ts="58.5"
@@ -4674,7 +5007,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/2544.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. James</span>
+            <span class="pr-name">L. James <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -4686,7 +5019,7 @@
             <span class="pr-ds-range">71-78</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Rui Hachimura" data-arch="Stretch Forward" data-ds="51" data-range="43-57"
          data-pts="12.1" data-ast="0.9" data-reb="3.5"
          data-stl="0.5" data-blk="0.3" data-ts="62.0"
@@ -4697,7 +5030,7 @@
          data-impact-pct="1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629060.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">R. Hachimura</span>
+            <span class="pr-name">R. Hachimura </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -4709,7 +5042,7 @@
             <span class="pr-ds-range">43-57</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Marcus Smart" data-arch="Slasher" data-ds="52" data-range="44-58"
          data-pts="9.8" data-ast="2.9" data-reb="3.0"
          data-stl="1.3" data-blk="0.4" data-ts="54.9"
@@ -4720,7 +5053,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203935.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">M. Smart</span>
+            <span class="pr-name">M. Smart </span>
             <span class="pr-meta">G ⚔️ Slasher</span>
         </div>
         <div class="pr-stats">
@@ -4732,7 +5065,7 @@
             <span class="pr-ds-range">44-58</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Deandre Ayton" data-arch="Traditional Center" data-ds="58" data-range="51-63"
          data-pts="13.2" data-ast="0.9" data-reb="8.5"
          data-stl="0.6" data-blk="1.0" data-ts="68.0"
@@ -4743,7 +5076,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629028.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Ayton</span>
+            <span class="pr-name">D. Ayton </span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -4755,7 +5088,7 @@
             <span class="pr-ds-range">51-63</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Jake LaRavia" data-arch="Stretch Big" data-ds="47" data-range="40-54"
          data-pts="9.5" data-ast="1.9" data-reb="4.0"
          data-stl="1.3" data-blk="0.5" data-ts="58.1"
@@ -4766,7 +5099,7 @@
          data-impact-pct="-5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631222.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. LaRavia</span>
+            <span class="pr-name">J. LaRavia </span>
             <span class="pr-meta">F 📐 Stretch Big</span>
         </div>
         <div class="pr-stats">
@@ -4778,7 +5111,7 @@
             <span class="pr-ds-range">40-54</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Luke Kennard" data-arch="Combo Guard" data-ds="48" data-range="40-55"
          data-pts="8.1" data-ast="2.1" data-reb="2.2"
          data-stl="0.7" data-blk="0.1" data-ts="71.7"
@@ -4789,7 +5122,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628379.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">L. Kennard</span>
+            <span class="pr-name">L. Kennard </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">
@@ -4804,7 +5137,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="4" data-edge="0.0" data-total="234.5" data-idx="8">
+    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="241.5" data-idx="8">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="mc-logo" alt="DEN" onerror="this.style.display='none'">
@@ -4815,11 +5148,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">DEN -2.5 <span class="proj-tag">(PROJ. SPREAD)</span></div>
-                <div class="mc-total">O/U 234.5 <span class="proj-tag">(PROJ O/U)</span></div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> DEN -2.5 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
-                <div class="mc-implied">DEN 118 — POR 116</div>
-                
+                <div class="mc-spread" style="color:#888">DEN -1.5</div>
+                <div class="mc-total">O/U 241.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> POR +1.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
+                <div class="mc-implied">DEN 122 — POR 120</div>
+                <div class="mc-sim-proj">DEN -1.5 (SIM) · EDGE 0.0 </div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -4851,6 +5184,33 @@
             <div class="scheme-tag" style="background:#E03A3E; color:#000000">Rim-Protect (Avg)</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">DEN 55.9</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:50%; background:#0E2240;"></div>
+                    <div class="dsi-bar-home" style="width:50%; background:#E03A3E;"></div>
+                </div>
+                <span class="dsi-val">POR 55.6</span>
+                <span class="dsi-edge-sm">DEN +0.3</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">DEN +4.1</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">POR +1.6</span>
+                <span class="dsi-edge-sm">DEN +2.5</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 POR</span>
+                
+                <span class="out-badge">POR: 1 OUT</span><span class="out-badge">DEN: 2 OUT</span>
+            </div>
+        </div>
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -4861,7 +5221,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#0E2240">DEN Nuggets</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jamal Murray" data-arch="Scoring Guard" data-ds="85" data-range="79-89"
          data-pts="25.7" data-ast="7.6" data-reb="4.4"
          data-stl="1.0" data-blk="0.4" data-ts="61.5"
@@ -4872,7 +5232,7 @@
          data-impact-pct="4.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Murray</span>
+            <span class="pr-name">J. Murray </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -4884,7 +5244,7 @@
             <span class="pr-ds-range">79-89</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Nikola Jokić" data-arch="Versatile Big" data-ds="99" data-range="91-99"
          data-pts="28.7" data-ast="10.7" data-reb="12.3"
          data-stl="1.4" data-blk="0.8" data-ts="69.9"
@@ -4895,7 +5255,7 @@
          data-impact-pct="8.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">N. Jokić</span>
+            <span class="pr-name">N. Jokić </span>
             <span class="pr-meta">C 🔮 Versatile Big</span>
         </div>
         <div class="pr-stats">
@@ -4907,7 +5267,7 @@
             <span class="pr-ds-range">91-99</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Peyton Watson" data-arch="Two-Way Wing" data-ds="63" data-range="57-67"
          data-pts="14.9" data-ast="2.0" data-reb="4.9"
          data-stl="1.0" data-blk="1.2" data-ts="60.0"
@@ -4918,7 +5278,7 @@
          data-impact-pct="7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631212.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">P. Watson</span>
+            <span class="pr-name">P. Watson <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G 🦾 Two-Way Wing</span>
         </div>
         <div class="pr-stats">
@@ -4930,7 +5290,7 @@
             <span class="pr-ds-range">57-67</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Cameron Johnson" data-arch="Stretch Forward" data-ds="60" data-range="53-65"
          data-pts="11.5" data-ast="2.2" data-reb="3.6"
          data-stl="0.7" data-blk="0.3" data-ts="61.1"
@@ -4941,7 +5301,7 @@
          data-impact-pct="13.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629661.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Johnson</span>
+            <span class="pr-name">C. Johnson </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -4953,7 +5313,7 @@
             <span class="pr-ds-range">53-65</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Christian Braun" data-arch="Defensive Specialist" data-ds="58" data-range="51-63"
          data-pts="9.9" data-ast="2.8" data-reb="4.3"
          data-stl="0.5" data-blk="0.4" data-ts="55.8"
@@ -4964,7 +5324,7 @@
          data-impact-pct="14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631128.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">C. Braun</span>
+            <span class="pr-name">C. Braun </span>
             <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
@@ -4976,7 +5336,7 @@
             <span class="pr-ds-range">51-63</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Aaron Gordon" data-arch="Stretch Forward" data-ds="73" data-range="69-76"
          data-pts="17.7" data-ast="2.5" data-reb="6.2"
          data-stl="0.7" data-blk="0.2" data-ts="63.2"
@@ -4987,7 +5347,7 @@
          data-impact-pct="14.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203932.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">A. Gordon</span>
+            <span class="pr-name">A. Gordon <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -4999,7 +5359,7 @@
             <span class="pr-ds-range">69-76</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Tim Hardaway Jr." data-arch="Stretch Forward" data-ds="56" data-range="49-61"
          data-pts="14.1" data-ast="1.3" data-reb="2.6"
          data-stl="0.5" data-blk="0.1" data-ts="63.3"
@@ -5010,7 +5370,7 @@
          data-impact-pct="6.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203501.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Hardaway Jr.</span>
+            <span class="pr-name">T. Hardaway Jr. </span>
             <span class="pr-meta">G-F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -5022,7 +5382,7 @@
             <span class="pr-ds-range">49-61</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bruce Brown" data-arch="3-and-D Wing" data-ds="44" data-range="40-51"
          data-pts="7.5" data-ast="2.1" data-reb="4.0"
          data-stl="1.1" data-blk="0.3" data-ts="54.3"
@@ -5033,7 +5393,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628971.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">B. Brown</span>
+            <span class="pr-name">B. Brown </span>
             <span class="pr-meta">G-F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -5049,7 +5409,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#E03A3E">POR Trail Blazers</div>
                 
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Deni Avdija" data-arch="Point Forward" data-ds="80" data-range="75-83"
          data-pts="25.2" data-ast="6.6" data-reb="7.2"
          data-stl="0.8" data-blk="0.6" data-ts="60.6"
@@ -5060,7 +5420,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630166.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Avdija</span>
+            <span class="pr-name">D. Avdija </span>
             <span class="pr-meta">F 🧠 Point Forward</span>
         </div>
         <div class="pr-stats">
@@ -5072,7 +5432,7 @@
             <span class="pr-ds-range">75-83</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Toumani Camara" data-arch="Stretch Forward" data-ds="57" data-range="50-62"
          data-pts="13.1" data-ast="2.6" data-reb="5.4"
          data-stl="1.0" data-blk="0.4" data-ts="57.9"
@@ -5083,7 +5443,7 @@
          data-impact-pct="0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641739.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Camara</span>
+            <span class="pr-name">T. Camara </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -5095,7 +5455,7 @@
             <span class="pr-ds-range">50-62</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Shaedon Sharpe" data-arch="Scoring Guard" data-ds="64" data-range="58-68"
          data-pts="21.4" data-ast="2.6" data-reb="4.4"
          data-stl="1.4" data-blk="0.1" data-ts="55.0"
@@ -5106,7 +5466,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631101.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">S. Sharpe</span>
+            <span class="pr-name">S. Sharpe <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -5118,7 +5478,7 @@
             <span class="pr-ds-range">58-68</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jerami Grant" data-arch="Stretch Forward" data-ds="61" data-range="55-66"
          data-pts="18.8" data-ast="2.4" data-reb="3.5"
          data-stl="0.7" data-blk="0.7" data-ts="59.4"
@@ -5129,7 +5489,7 @@
          data-impact-pct="-1.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203924.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Grant</span>
+            <span class="pr-name">J. Grant </span>
             <span class="pr-meta">F 📐 Stretch Forward</span>
         </div>
         <div class="pr-stats">
@@ -5141,7 +5501,7 @@
             <span class="pr-ds-range">55-66</span>
         </div>
     </div>
-    <div class="player-row starter" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jrue Holiday" data-arch="Playmaking Guard" data-ds="68" data-range="63-72"
          data-pts="15.7" data-ast="6.5" data-reb="4.7"
          data-stl="1.2" data-blk="0.1" data-ts="57.1"
@@ -5152,7 +5512,7 @@
          data-impact-pct="5.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201950.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Holiday</span>
+            <span class="pr-name">J. Holiday </span>
             <span class="pr-meta">G 🎯 Playmaking Guard</span>
         </div>
         <div class="pr-stats">
@@ -5164,7 +5524,7 @@
             <span class="pr-ds-range">63-72</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Donovan Clingan" data-arch="Traditional Center" data-ds="58" data-range="51-63"
          data-pts="11.6" data-ast="2.1" data-reb="11.5"
          data-stl="0.5" data-blk="1.4" data-ts="60.4"
@@ -5175,7 +5535,7 @@
          data-impact-pct="-0.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642270.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">D. Clingan</span>
+            <span class="pr-name">D. Clingan </span>
             <span class="pr-meta">C 🏋️ Traditional Center</span>
         </div>
         <div class="pr-stats">
@@ -5187,7 +5547,7 @@
             <span class="pr-ds-range">51-63</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
          data-name="Kris Murray" data-arch="3-and-D Wing" data-ds="40" data-range="40-48"
          data-pts="6.1" data-ast="1.2" data-reb="4.0"
          data-stl="1.2" data-blk="0.4" data-ts="53.5"
@@ -5198,7 +5558,7 @@
          data-impact-pct="-7.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631200.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Murray</span>
+            <span class="pr-name">K. Murray <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">F 🔒 3-and-D Wing</span>
         </div>
         <div class="pr-stats">
@@ -5210,7 +5570,7 @@
             <span class="pr-ds-range">40-48</span>
         </div>
     </div>
-    <div class="player-row bench" onclick="openPlayerSheet(this)"
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Vít Krejčí" data-arch="Combo Guard" data-ds="45" data-range="40-52"
          data-pts="9.1" data-ast="1.5" data-reb="2.1"
          data-stl="0.8" data-blk="0.3" data-ts="63.2"
@@ -5221,7 +5581,7 @@
          data-impact-pct="-2.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630249.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">V. Krejčí</span>
+            <span class="pr-name">V. Krejčí </span>
             <span class="pr-meta">G 🔄 Combo Guard</span>
         </div>
         <div class="pr-stats">

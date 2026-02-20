@@ -5,7 +5,10 @@ import sys
 import os
 import json
 import math
+import re
+from datetime import datetime, timedelta, timezone
 import requests
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -366,6 +369,632 @@ def compute_spread_and_total(home_data, away_data):
     return spread, total
 
 
+# ────────────────────────────────────────────────────────────────────
+# DSI SPREAD MODEL — Steps 1-8
+# ────────────────────────────────────────────────────────────────────
+
+# Model constants
+_DSI_CONSTANTS = {
+    "DS_SCALE":     1.0,    # 1pt DS gap → 1.0 points on spread scale
+    "DSI_WEIGHT":   0.50,   # DSI share in final blend
+    "NRTG_WEIGHT":  0.50,   # adjusted net rating share in final blend
+    "HCA":          3.0,    # home court advantage added to home net rating
+    "B2B_PENALTY":  3.0,    # back-to-back penalty subtracted from net rating
+    "USAGE_DECAY":  0.995,  # DS multiplier per 1% extra usage (efficiency tax)
+}
+
+# Archetype groups for usage redistribution
+_SCORING_ARCHETYPES = {
+    "Scoring Guard", "Sharpshooter", "Slasher", "Combo Guard",
+    "Small-Ball 4", "Stretch Forward", "Athletic Wing",
+}
+_PLAYMAKING_ARCHETYPES = {
+    "Floor General", "Playmaking Guard", "Point Forward", "Combo Guard",
+}
+_BIG_ARCHETYPES = {
+    "Rim Protector", "Stretch 5", "Traditional Center", "Versatile Big",
+    "Stretch Big", "Traditional PF",
+}
+_GUARD_POSITIONS = {"PG", "SG"}
+_WING_POSITIONS = {"SF", "SG"}
+_BIG_POSITIONS = {"PF", "C"}
+
+
+def scrape_rotowire():
+    """Scrape starting lineups + sportsbook lines from RotoWire.
+
+    Returns:
+        lineups: {team_abbr: {"starters": [(name, pos, status)...], "out": [name...], "questionable": [name...]}}
+        lines: {(home_abbr, away_abbr): {"spread": float, "total": float, "fav": str}}
+        matchup_pairs: [(home_abbr, away_abbr), ...]
+        slate_date: str like "FEB 20"
+    """
+    url = "https://www.rotowire.com/basketball/nba-lineups.php"
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+        })
+        resp.raise_for_status()
+        html = resp.text
+    except Exception as e:
+        print(f"[RotoWire] Failed to fetch: {e}")
+        return {}, {}, [], None
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    # ── Extract team abbreviations (come in pairs: away, home) ──
+    team_els = soup.select(".lineup__abbr")
+    team_abbrs = [el.get_text(strip=True) for el in team_els]
+    if len(team_abbrs) < 2:
+        print("[RotoWire] No teams found")
+        return {}, {}, [], None
+
+    # Build matchup pairs (every 2 teams = 1 game: away, home)
+    matchup_pairs = []
+    for i in range(0, len(team_abbrs) - 1, 2):
+        away = team_abbrs[i]
+        home = team_abbrs[i + 1]
+        matchup_pairs.append((home, away))
+
+    print(f"[RotoWire] Found {len(matchup_pairs)} games, {len(team_abbrs)} teams")
+
+    # ── Extract lineups per team ──
+    # Each .lineup__box = one game, containing:
+    #   - 2x .lineup__abbr (visit, home) inside .lineup__teams
+    #   - 1x .lineup__main with 2x .lineup__list (is-visit, is-home)
+    lineups = {}
+    game_boxes = soup.select(".lineup__box")
+
+    for box in game_boxes:
+        # Get the two team abbreviations in this box
+        abbr_els = box.select(".lineup__abbr")
+        if len(abbr_els) < 2:
+            continue
+
+        # Away team abbr is in the .is-visit parent, home in .is-home
+        box_abbrs = {}
+        for abbr_el in abbr_els:
+            abbr_text = abbr_el.get_text(strip=True)
+            parent_link = abbr_el.parent
+            parent_classes = " ".join(parent_link.get("class", []) if parent_link else [])
+            if "is-visit" in parent_classes:
+                box_abbrs["visit"] = abbr_text
+            elif "is-home" in parent_classes:
+                box_abbrs["home"] = abbr_text
+
+        # Get the two lineup lists (is-visit, is-home)
+        lineup_lists = box.select(".lineup__list")
+        for lst in lineup_lists:
+            lst_classes = " ".join(lst.get("class", []))
+            if "is-visit" in lst_classes:
+                team_abbr = box_abbrs.get("visit")
+            elif "is-home" in lst_classes:
+                team_abbr = box_abbrs.get("home")
+            else:
+                continue
+
+            if not team_abbr:
+                continue
+
+            starters = []
+            out_players = []
+            questionable_players = []
+
+            for player_el in lst.select(".lineup__player"):
+                link = player_el.select_one("a")
+                if not link:
+                    continue
+                name = link.get_text(strip=True)
+
+                pos_el = player_el.select_one(".lineup__pos")
+                pos = pos_el.get_text(strip=True) if pos_el else ""
+
+                classes = " ".join(player_el.get("class", []))
+                if "is-pct-play-0" in classes:
+                    out_players.append(name)
+                elif "is-pct-play-25" in classes or "is-pct-play-50" in classes:
+                    questionable_players.append(name)
+
+                # Starters = first 5 with standard positions
+                if pos in ("PG", "SG", "SF", "PF", "C") and len(starters) < 5:
+                    if "is-pct-play-0" not in classes:
+                        starters.append((name, pos, "IN"))
+                    else:
+                        starters.append((name, pos, "OUT"))
+
+            lineups[team_abbr] = {
+                "starters": starters,
+                "out": out_players,
+                "questionable": questionable_players,
+            }
+
+    # ── Extract composite odds (spreads + totals) ──
+    lines = {}
+    odds_spans = soup.select(".composite")
+    odds_texts = [el.get_text(strip=True) for el in odds_spans]
+
+    # Every 3 odds = 1 game: [moneyline, spread, total]
+    game_idx = 0
+    for i in range(0, len(odds_texts) - 2, 3):
+        if game_idx >= len(matchup_pairs):
+            break
+
+        home_abbr, away_abbr = matchup_pairs[game_idx]
+        ml_text = odds_texts[i]
+        spread_text = odds_texts[i + 1]
+        total_text = odds_texts[i + 2]
+
+        try:
+            # Parse spread: "CLE -5.0" or "-0.5" (no team = home fav)
+            spread_match = re.match(r'([A-Z]{2,3})?\s*([+-]?\d+\.?\d*)', spread_text)
+            if spread_match:
+                fav_team = spread_match.group(1)
+                spread_val = float(spread_match.group(2))
+
+                # Convert to home-team convention (negative = home favored)
+                if fav_team and fav_team == away_abbr:
+                    # Away team is favored: home spread is positive (underdog)
+                    home_spread = abs(spread_val)
+                elif fav_team and fav_team == home_abbr:
+                    # Home team is favored: home spread is negative
+                    home_spread = -abs(spread_val)
+                else:
+                    # No team prefix or pick'em — treat spread value as home perspective
+                    home_spread = spread_val
+
+                # Round to nearest 0.5
+                home_spread = round(home_spread * 2) / 2
+            else:
+                home_spread = 0
+
+            # Parse total: "229.5 Pts"
+            total_match = re.match(r'(\d+\.?\d*)', total_text)
+            total_val = float(total_match.group(1)) if total_match else 0
+
+            lines[(home_abbr, away_abbr)] = {
+                "spread": home_spread,
+                "total": total_val,
+            }
+        except Exception as e:
+            print(f"[RotoWire] Failed to parse odds for game {game_idx}: {e}")
+
+        game_idx += 1
+
+    # Determine slate date
+    today = datetime.now()
+    months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+              "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+    slate_date = f"{months[today.month - 1]} {today.day}"
+
+    print(f"[RotoWire] Parsed {len(lineups)} team lineups, {len(lines)} game lines")
+    for pair, line_data in lines.items():
+        home, away = pair
+        sp = line_data["spread"]
+        if sp <= 0:
+            print(f"  {away}@{home}: {home} {sp:+.1f}, O/U {line_data['total']}")
+        else:
+            print(f"  {away}@{home}: {away} {-sp:+.1f}, O/U {line_data['total']}")
+
+    return lineups, lines, matchup_pairs, slate_date
+
+
+def detect_back_to_back(team_id):
+    """Check if a team played yesterday (back-to-back).
+
+    Returns True if the team's most recent game was yesterday.
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    result = read_query("""
+        SELECT game_date FROM games
+        WHERE season_id = '2025-26'
+          AND (home_team_id = ? OR away_team_id = ?)
+        ORDER BY game_date DESC
+        LIMIT 1
+    """, DB_PATH, [team_id, team_id])
+
+    if result.empty:
+        return False
+
+    last_game = result.iloc[0]["game_date"]
+    is_b2b = str(last_game) == yesterday
+    return is_b2b
+
+
+def _get_full_roster(team_abbr):
+    """Get full rotation roster (mpg > 5) with archetypes."""
+    return read_query("""
+        SELECT p.player_id, p.full_name, ps.pts_pg, ps.ast_pg, ps.reb_pg,
+               ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
+               ps.minutes_per_game, ps.off_rating, ps.def_rating,
+               ra.listed_position,
+               pa.archetype_label, pa.position_group, pa.confidence as arch_confidence
+        FROM player_season_stats ps
+        JOIN players p ON ps.player_id = p.player_id
+        JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
+        JOIN teams t ON ps.team_id = t.team_id
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
+        WHERE ps.season_id = '2025-26' AND t.abbreviation = ?
+              AND ps.minutes_per_game > 5
+        ORDER BY ps.minutes_per_game DESC
+    """, DB_PATH, [team_abbr])
+
+
+def _match_player_name(scraped_name, db_players):
+    """Fuzzy match a scraped name (e.g. 'D. Mitchell') to a full DB name.
+
+    Returns player_id or None.
+    """
+    scraped_lower = scraped_name.lower().strip()
+
+    # Try exact match first
+    for _, row in db_players.iterrows():
+        if row["full_name"].lower() == scraped_lower:
+            return row["player_id"]
+
+    # Try "First Last" vs "F. Last" matching
+    for _, row in db_players.iterrows():
+        db_name = row["full_name"]
+        parts = db_name.split()
+        if len(parts) >= 2:
+            # "D. Mitchell" matches "Donovan Mitchell"
+            abbrev = f"{parts[0][0]}. {' '.join(parts[1:])}"
+            if abbrev.lower() == scraped_lower:
+                return row["player_id"]
+            # "Donovan Mitchell" matches "Donovan Mitchell"
+            if db_name.lower() == scraped_lower:
+                return row["player_id"]
+            # Last name match as fallback
+            if parts[-1].lower() == scraped_lower.split()[-1].lower():
+                # Check first initial too
+                if scraped_lower[0] == parts[0][0].lower():
+                    return row["player_id"]
+
+    return None
+
+
+def project_minutes(roster_df, out_player_ids):
+    """Redistribute minutes from OUT players to remaining rotation.
+
+    Returns {player_id: projected_minutes} for available players.
+    """
+    available = roster_df[~roster_df["player_id"].isin(out_player_ids)].copy()
+    out_players = roster_df[roster_df["player_id"].isin(out_player_ids)]
+
+    if available.empty:
+        return {}
+
+    missing_minutes = out_players["minutes_per_game"].sum() if not out_players.empty else 0
+
+    # Distribute proportionally by existing minutes
+    total_available_minutes = available["minutes_per_game"].sum()
+    if total_available_minutes == 0:
+        return {}
+
+    projected = {}
+    for _, row in available.iterrows():
+        pid = row["player_id"]
+        base_mpg = row["minutes_per_game"] or 0
+        share = base_mpg / total_available_minutes
+        extra = missing_minutes * share
+        proj_mpg = min(40.0, base_mpg + extra)  # cap at 40 MPG
+        projected[pid] = proj_mpg
+
+    return projected
+
+
+def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
+    """Compute DSI: Dynamic Scores adjusted for who's actually playing.
+
+    Uses archetypes to route usage from missing players to remaining ones.
+    Returns (team_dsi, player_ds_dict, breakdown_notes).
+    """
+    K = _DSI_CONSTANTS
+    available = roster_df[~roster_df["player_id"].isin(out_player_ids)]
+    out_players = roster_df[roster_df["player_id"].isin(out_player_ids)]
+
+    if available.empty:
+        return 50.0, {}, []
+
+    # Calculate total usage being redistributed
+    missing_usage = 0
+    missing_archetypes = []
+    missing_positions = []
+    for _, out_row in out_players.iterrows():
+        usg = out_row.get("usg_pct", 0) or 0
+        missing_usage += usg
+        arch = str(out_row.get("archetype_label", "") or "")
+        pos = str(out_row.get("position_group", "") or out_row.get("listed_position", ""))
+        if arch and arch != "nan":
+            missing_archetypes.append(arch)
+        if pos:
+            missing_positions.append(pos)
+
+    # Determine archetype category of missing players
+    missing_is_scoring = any(a in _SCORING_ARCHETYPES for a in missing_archetypes)
+    missing_is_playmaking = any(a in _PLAYMAKING_ARCHETYPES for a in missing_archetypes)
+    missing_is_big = any(a in _BIG_ARCHETYPES for a in missing_archetypes)
+    missing_is_guard = any(p in _GUARD_POSITIONS for p in missing_positions)
+    missing_is_wing = any(p in _WING_POSITIONS for p in missing_positions)
+    missing_is_bigpos = any(p in _BIG_POSITIONS for p in missing_positions)
+
+    # Compute adjusted DS for each available player
+    player_ds = {}
+    notes = []
+    total_weighted_ds = 0
+    total_minutes = 0
+
+    for _, row in available.iterrows():
+        pid = row["player_id"]
+        proj_min = projected_minutes.get(pid, row.get("minutes_per_game", 0) or 0)
+        if proj_min <= 0:
+            continue
+
+        base_usg = row.get("usg_pct", 0) or 0
+        arch = str(row.get("archetype_label", "") or "")
+        pos = str(row.get("position_group", "") or row.get("listed_position", ""))
+
+        # Calculate usage boost from missing players
+        usage_boost = 0
+        if missing_usage > 0 and len(available) > 0:
+            # Same archetype/position gets 60% of redistributed usage
+            same_arch = arch in missing_archetypes
+            same_pos_category = (
+                (pos in _GUARD_POSITIONS and missing_is_guard) or
+                (pos in _WING_POSITIONS and missing_is_wing) or
+                (pos in _BIG_POSITIONS and missing_is_bigpos)
+            )
+            same_scoring = (arch in _SCORING_ARCHETYPES and missing_is_scoring)
+            same_playmaking = (arch in _PLAYMAKING_ARCHETYPES and missing_is_playmaking)
+            same_big = (arch in _BIG_ARCHETYPES and missing_is_big)
+
+            if same_arch:
+                usage_boost = missing_usage * 0.60 / max(1, sum(
+                    1 for _, r in available.iterrows()
+                    if str(r.get("archetype_label", "")) in missing_archetypes
+                ))
+            elif same_pos_category or same_scoring or same_playmaking or same_big:
+                usage_boost = missing_usage * 0.25 / max(1, sum(
+                    1 for _, r in available.iterrows()
+                    if str(r.get("position_group", "") or r.get("listed_position", "")) in missing_positions
+                    or (str(r.get("archetype_label", "")) in _SCORING_ARCHETYPES and missing_is_scoring)
+                    or (str(r.get("archetype_label", "")) in _PLAYMAKING_ARCHETYPES and missing_is_playmaking)
+                    or (str(r.get("archetype_label", "")) in _BIG_ARCHETYPES and missing_is_big)
+                ))
+            else:
+                # Everyone else gets remaining share
+                remaining_share = missing_usage * 0.15
+                usage_boost = remaining_share / max(1, len(available))
+
+        adjusted_usg = base_usg + usage_boost
+
+        # Build a modified row for DS calculation
+        modified_row = dict(row)
+        modified_row["usg_pct"] = adjusted_usg
+        modified_row["minutes_per_game"] = proj_min
+
+        ds, _ = compute_dynamic_score(modified_row)
+
+        # Efficiency penalty: more usage = slight DS decay
+        if usage_boost > 0:
+            usage_increase_pct = (usage_boost / base_usg * 100) if base_usg > 0 else 0
+            efficiency_penalty = K["USAGE_DECAY"] ** usage_increase_pct
+            ds = int(ds * efficiency_penalty)
+            ds = max(40, ds)
+
+        player_ds[pid] = ds
+        total_weighted_ds += ds * proj_min
+        total_minutes += proj_min
+
+    team_dsi = total_weighted_ds / total_minutes if total_minutes > 0 else 50.0
+
+    return team_dsi, player_ds, notes
+
+
+def compute_lineup_rating(team_abbr, available_player_ids, team_net_rating):
+    """Compute lineup quality from combo data for available players.
+
+    Returns lineup_quality (float, net-rating scale).
+    """
+    # Get all reliable lineups for this team
+    lineups_5 = read_query("""
+        SELECT player_ids, net_rating, minutes, gp
+        FROM lineup_stats
+        WHERE season_id = '2025-26' AND group_quantity = 5
+              AND gp > 5 AND minutes > 8
+              AND team_id = (SELECT team_id FROM teams WHERE abbreviation = ?)
+    """, DB_PATH, [team_abbr])
+
+    lineups_small = read_query("""
+        SELECT player_ids, net_rating, minutes, gp, group_quantity
+        FROM lineup_stats
+        WHERE season_id = '2025-26' AND group_quantity IN (2, 3)
+              AND gp > 5 AND minutes > 15
+              AND team_id = (SELECT team_id FROM teams WHERE abbreviation = ?)
+        ORDER BY net_rating DESC
+        LIMIT 5
+    """, DB_PATH, [team_abbr])
+
+    available_set = set(available_player_ids)
+
+    # Filter 5-man lineups to only those where ALL players are available
+    valid_5man = []
+    for _, row in lineups_5.iterrows():
+        try:
+            pids = json.loads(row["player_ids"]) if isinstance(row["player_ids"], str) else []
+            if all(int(p) in available_set for p in pids):
+                valid_5man.append(row)
+        except (json.JSONDecodeError, ValueError):
+            continue
+
+    # 5-man quality (minutes-weighted, dampened by sample size)
+    if valid_5man:
+        n = len(valid_5man)
+        dampener = min(1.0, n / 4.0)
+        wt_sum = sum(r["net_rating"] * r["minutes"] for r in valid_5man)
+        min_sum = sum(r["minutes"] for r in valid_5man)
+        raw_5q = wt_sum / min_sum if min_sum > 0 else team_net_rating
+        fiveman_quality = dampener * raw_5q + (1 - dampener) * team_net_rating
+    else:
+        fiveman_quality = team_net_rating
+
+    # 2/3-man quality (top combos with available players)
+    valid_small = []
+    for _, row in lineups_small.iterrows():
+        try:
+            pids = json.loads(row["player_ids"]) if isinstance(row["player_ids"], str) else []
+            if all(int(p) in available_set for p in pids):
+                valid_small.append(row)
+        except (json.JSONDecodeError, ValueError):
+            continue
+
+    if valid_small:
+        small_quality = sum(r["net_rating"] for r in valid_small[:3]) / min(3, len(valid_small))
+    else:
+        small_quality = team_net_rating
+
+    return 0.65 * fiveman_quality + 0.35 * small_quality
+
+
+def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
+    """Full DSI spread model.
+
+    Steps:
+    1. Get starting lineups from RotoWire scrape
+    2. Project minutes for available players
+    3. Compute lineup quality rating
+    4. Compute adjusted Dynamic Scores (DSI) with archetype-aware usage redistribution
+    5. Compare home net rating + 3 vs away net rating (with B2B penalties)
+    6. Blend 50% DSI + 50% adjusted NRtg
+
+    Returns (spread, total, breakdown).
+    """
+    K = _DSI_CONSTANTS
+    home_abbr = home_data["abbreviation"]
+    away_abbr = away_data["abbreviation"]
+    home_tid = int(home_data["team_id"])
+    away_tid = int(away_data["team_id"])
+
+    h_net = (home_data.get("net_rating", 0) or 0)
+    a_net = (away_data.get("net_rating", 0) or 0)
+
+    # ── Get rosters ──
+    home_roster = _get_full_roster(home_abbr)
+    away_roster = _get_full_roster(away_abbr)
+
+    # ── Match RotoWire OUT players to DB player IDs ──
+    home_out_ids = set()
+    away_out_ids = set()
+
+    home_lineup = rw_lineups.get(home_abbr, {})
+    away_lineup = rw_lineups.get(away_abbr, {})
+
+    for name in home_lineup.get("out", []):
+        pid = _match_player_name(name, home_roster)
+        if pid is not None:
+            home_out_ids.add(pid)
+
+    for name in away_lineup.get("out", []):
+        pid = _match_player_name(name, away_roster)
+        if pid is not None:
+            away_out_ids.add(pid)
+
+    # Also mark starters who are OUT
+    for name, pos, status in home_lineup.get("starters", []):
+        if status == "OUT":
+            pid = _match_player_name(name, home_roster)
+            if pid is not None:
+                home_out_ids.add(pid)
+
+    for name, pos, status in away_lineup.get("starters", []):
+        if status == "OUT":
+            pid = _match_player_name(name, away_roster)
+            if pid is not None:
+                away_out_ids.add(pid)
+
+    # ── Project minutes ──
+    home_proj_min = project_minutes(home_roster, home_out_ids)
+    away_proj_min = project_minutes(away_roster, away_out_ids)
+
+    # ── Compute DSI ──
+    home_dsi, home_player_ds, _ = compute_adjusted_ds(home_roster, home_out_ids, home_proj_min)
+    away_dsi, away_player_ds, _ = compute_adjusted_ds(away_roster, away_out_ids, away_proj_min)
+
+    # ── Compute lineup quality (informational) ──
+    home_avail_ids = [int(r["player_id"]) for _, r in home_roster.iterrows()
+                      if r["player_id"] not in home_out_ids]
+    away_avail_ids = [int(r["player_id"]) for _, r in away_roster.iterrows()
+                      if r["player_id"] not in away_out_ids]
+
+    home_lineup_q = compute_lineup_rating(home_abbr, home_avail_ids, h_net)
+    away_lineup_q = compute_lineup_rating(away_abbr, away_avail_ids, a_net)
+
+    # ── Adjusted net rating: home + 3 vs away, with B2B penalty ──
+    home_b2b = detect_back_to_back(home_tid)
+    away_b2b = detect_back_to_back(away_tid)
+
+    home_adj_nrtg = h_net + K["HCA"]
+    away_adj_nrtg = a_net
+
+    if home_b2b:
+        home_adj_nrtg -= K["B2B_PENALTY"]
+        print(f"  [B2B] {home_abbr} is on a back-to-back (-{K['B2B_PENALTY']})")
+    if away_b2b:
+        away_adj_nrtg -= K["B2B_PENALTY"]
+        print(f"  [B2B] {away_abbr} is on a back-to-back (-{K['B2B_PENALTY']})")
+
+    nrtg_diff = home_adj_nrtg - away_adj_nrtg
+
+    # ── Final blend: 50% DSI + 50% adjusted NRtg ──
+    dsi_diff = home_dsi - away_dsi
+    dsi_as_points = dsi_diff * K["DS_SCALE"]
+
+    raw_power = K["DSI_WEIGHT"] * dsi_as_points + K["NRTG_WEIGHT"] * nrtg_diff
+
+    proj_spread = -raw_power
+    proj_spread = round(proj_spread * 2) / 2  # round to nearest 0.5
+
+    # ── Total (keep existing logic) ──
+    h_ortg = (home_data.get("off_rating", 111.7) or 111.7)
+    h_drtg = (home_data.get("def_rating", 111.7) or 111.7)
+    a_ortg = (away_data.get("off_rating", 111.7) or 111.7)
+    a_drtg = (away_data.get("def_rating", 111.7) or 111.7)
+    h_pace = (home_data.get("pace", 100) or 100)
+    a_pace = (away_data.get("pace", 100) or 100)
+    league_pace = 99.87
+    matchup_pace = (h_pace * a_pace) / league_pace
+    home_pts = ((h_ortg + a_drtg) / 2) * (matchup_pace / 100)
+    away_pts = ((a_ortg + h_drtg) / 2) * (matchup_pace / 100)
+    proj_total = round((home_pts + away_pts) * 2) / 2
+
+    # ── Breakdown for display ──
+    breakdown = {
+        "home_dsi": round(home_dsi, 1),
+        "away_dsi": round(away_dsi, 1),
+        "dsi_diff": round(dsi_diff, 1),
+        "dsi_pts": round(dsi_as_points, 1),
+        "home_nrtg": round(home_adj_nrtg, 1),
+        "away_nrtg": round(away_adj_nrtg, 1),
+        "nrtg_diff": round(nrtg_diff, 1),
+        "home_b2b": home_b2b,
+        "away_b2b": away_b2b,
+        "home_out": len(home_out_ids),
+        "away_out": len(away_out_ids),
+        "home_lineup_q": round(home_lineup_q, 1),
+        "away_lineup_q": round(away_lineup_q, 1),
+        "raw_power": round(raw_power, 1),
+    }
+
+    print(f"  [DSI] {away_abbr}@{home_abbr}: DSI {home_dsi:.1f}v{away_dsi:.1f} | "
+          f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
+          f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
+          f"OUT: {len(home_out_ids)}h/{len(away_out_ids)}a"
+          f"{' B2B:'+home_abbr if home_b2b else ''}{' B2B:'+away_abbr if away_b2b else ''}")
+
+    return proj_spread, proj_total, breakdown
+
+
 def get_player_trend(player_id, team_abbreviation):
     """Get recent game trend data for a player. Returns trend info dict."""
     games = read_query("""
@@ -544,13 +1173,30 @@ def get_matchups():
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
-    # ── Try to fetch real sportsbook lines + game slate ──
-    real_lines, api_pairs, slate_date, event_ids = fetch_odds_api_lines()
+    # ── Scrape RotoWire for lineups + real sportsbook lines ──
+    rw_lineups, rw_lines, rw_pairs, rw_slate_date = scrape_rotowire()
+
+    # Also try Odds API as fallback
+    api_lines, api_pairs, api_slate_date, event_ids = fetch_odds_api_lines()
+
+    # Merge lines: prefer RotoWire, fall back to Odds API
+    real_lines = {}
+    for key, val in rw_lines.items():
+        real_lines[key] = val
+    for key, val in api_lines.items():
+        if key not in real_lines:
+            real_lines[key] = val
+
     has_any_real = len(real_lines) > 0
 
-    # Use API games if available, otherwise fall back to hardcoded
-    if api_pairs:
+    # Use RotoWire matchup pairs first, then API, then hardcoded
+    if rw_pairs:
+        matchup_pairs = rw_pairs
+        slate_date = rw_slate_date
+        print(f"[Matchups] Using {len(matchup_pairs)} games from RotoWire ({slate_date})")
+    elif api_pairs:
         matchup_pairs = api_pairs
+        slate_date = api_slate_date
         print(f"[Matchups] Using {len(matchup_pairs)} games from Odds API ({slate_date})")
     else:
         matchup_pairs = [
@@ -572,12 +1218,16 @@ def get_matchups():
             h = team_map[home_abbr]
             a = team_map[away_abbr]
 
-            net_diff = (h["net_rating"] or 0) - (a["net_rating"] or 0)
-            raw_edge = net_diff + 3.0  # SIM power gap (home advantage incl. HCA)
+            # ── DSI Spread Model ──
+            proj_spread, proj_total, spread_breakdown = compute_dsi_spread(
+                h, a, rw_lineups, team_map
+            )
 
-            # Check for real sportsbook lines first
+            net_diff = (h["net_rating"] or 0) - (a["net_rating"] or 0)
+            raw_edge = -(proj_spread)  # positive = home favored (from DSI model)
+
+            # Check for real sportsbook lines
             real = real_lines.get((home_abbr, away_abbr), {})
-            proj_spread, proj_total = compute_spread_and_total(h, a)
 
             spread = real.get("spread", proj_spread)
             total = real.get("total", proj_total)
@@ -731,6 +1381,8 @@ def get_matchups():
                 "h_wins": h_wins, "h_losses": h_losses,
                 "a_wins": a_wins, "a_losses": a_losses,
                 "h_ds_rank": h_ds_rank, "a_ds_rank": a_ds_rank,
+                "spread_breakdown": spread_breakdown,
+                "rw_lineups": rw_lineups,
             })
 
     return matchups, team_map, slate_date, event_ids
@@ -1547,15 +2199,30 @@ def render_matchup_card(m, idx, team_map):
     implied_html = f'<div class="mc-implied">{aa} {implied_away:.0f} — {ha} {implied_home:.0f}</div>'
 
     # SIM projection line — show what the SIM thinks vs the book
+    # Display using FAVORITE convention (same as the book line display)
     proj_spread_val = m.get("proj_spread", 0)
     if not spread_proj:
         # Show SIM projection when we have a real sportsbook line to compare
         if proj_spread_val <= 0:
-            sim_proj_text = f"SIM: {ha} {proj_spread_val:+.1f}"
+            sim_fav_team = ha
+            sim_fav_spread = proj_spread_val  # already negative
         else:
-            sim_proj_text = f"SIM: {aa} {-proj_spread_val:+.1f}"
-        edge_sign = "+" if spread_edge > 0 else ""
-        sim_proj_html = f'<div class="mc-sim-proj">SIM {proj_spread_val:+.1f} · EDGE {edge_sign}{spread_edge:.1f}</div>'
+            sim_fav_team = aa
+            sim_fav_spread = -proj_spread_val  # flip to negative (fav convention)
+
+        # Edge = how much the SIM disagrees with the book (always positive magnitude)
+        # spread_edge = proj_spread - spread (home perspective)
+        edge_abs = abs(spread_edge)
+
+        # Determine which team the SIM favors MORE than the book
+        if spread_edge < 0:
+            edge_team = ha  # SIM likes home more than book
+        elif spread_edge > 0:
+            edge_team = aa  # SIM likes away more than book
+        else:
+            edge_team = ""
+
+        sim_proj_html = f'<div class="mc-sim-proj">{sim_fav_team} {sim_fav_spread:+.1f} (SIM) · EDGE {edge_abs:.1f} {edge_team}</div>'
     else:
         sim_proj_html = ""
 
@@ -1589,14 +2256,49 @@ def render_matchup_card(m, idx, team_map):
     else:
         edge_color = "#888"
 
-    # Build player rows for expanded view
+    # Build player rows for expanded view with RotoWire status
+    rw_lineups = m.get("rw_lineups", {})
+    home_rw = rw_lineups.get(ha, {})
+    away_rw = rw_lineups.get(aa, {})
+
+    # Build sets of OUT/GTD player names (lowercased last names for fuzzy match)
+    def _rw_status_for_player(player_name, rw_data):
+        """Check if a player is OUT or GTD based on RotoWire data."""
+        if not rw_data:
+            return "IN"
+        out_names = [n.lower() for n in rw_data.get("out", [])]
+        gtd_names = [n.lower() for n in rw_data.get("questionable", [])]
+        pname = player_name.lower()
+        parts = player_name.split()
+        last = parts[-1].lower() if parts else ""
+        first_init = parts[0][0].lower() if parts else ""
+        for out_n in out_names:
+            out_parts = out_n.split()
+            out_last = out_parts[-1] if out_parts else ""
+            out_init = out_parts[0][0] if out_parts else ""
+            if out_last == last and out_init == first_init:
+                return "OUT"
+            if out_n == pname:
+                return "OUT"
+        for gtd_n in gtd_names:
+            gtd_parts = gtd_n.split()
+            gtd_last = gtd_parts[-1] if gtd_parts else ""
+            gtd_init = gtd_parts[0][0] if gtd_parts else ""
+            if gtd_last == last and gtd_init == first_init:
+                return "GTD"
+            if gtd_n == pname:
+                return "GTD"
+        return "IN"
+
     home_players_html = ""
     for i, (_, player) in enumerate(home_roster.iterrows()):
-        home_players_html += render_player_row(player, ha, team_map, is_starter=(i < 5))
+        status = _rw_status_for_player(player["full_name"], home_rw)
+        home_players_html += render_player_row(player, ha, team_map, is_starter=(i < 5), rw_status=status)
 
     away_players_html = ""
     for i, (_, player) in enumerate(away_roster.iterrows()):
-        away_players_html += render_player_row(player, aa, team_map, is_starter=(i < 5))
+        status = _rw_status_for_player(player["full_name"], away_rw)
+        away_players_html += render_player_row(player, aa, team_map, is_starter=(i < 5), rw_status=status)
 
     conf_pct = m["confidence"]
     # Confidence: 1-10 scale from distance to 50 (toss-up)
@@ -1625,6 +2327,89 @@ def render_matchup_card(m, idx, team_map):
         ou_color = "#FFD600"
     else:
         ou_color = "#FF8C00"
+
+    # ── DSI Breakdown ──
+    bd = m.get("spread_breakdown", {})
+    home_dsi = bd.get("home_dsi", 0)
+    away_dsi = bd.get("away_dsi", 0)
+    dsi_diff = bd.get("dsi_diff", 0)
+    dsi_pts = bd.get("dsi_pts", 0)
+    home_nrtg = bd.get("home_nrtg", 0)
+    away_nrtg = bd.get("away_nrtg", 0)
+    nrtg_diff = bd.get("nrtg_diff", 0)
+    home_b2b = bd.get("home_b2b", False)
+    away_b2b = bd.get("away_b2b", False)
+    home_out_n = bd.get("home_out", 0)
+    away_out_n = bd.get("away_out", 0)
+    home_lq = bd.get("home_lineup_q", 0)
+    away_lq = bd.get("away_lineup_q", 0)
+    raw_power_val = bd.get("raw_power", 0)
+
+    # B2B badge HTML
+    b2b_badges = ""
+    if home_b2b:
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {ha} (-3)</span>'
+    if away_b2b:
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {aa} (-3)</span>'
+
+    # OUT player count badges
+    out_badges = ""
+    if home_out_n > 0:
+        out_badges += f'<span class="out-badge">{ha}: {home_out_n} OUT</span>'
+    if away_out_n > 0:
+        out_badges += f'<span class="out-badge">{aa}: {away_out_n} OUT</span>'
+
+    # DSI bar visualization
+    dsi_total = home_dsi + away_dsi
+    dsi_home_pct = (home_dsi / dsi_total * 100) if dsi_total > 0 else 50
+
+    # Which team DSI favors
+    if dsi_diff > 0:
+        dsi_fav = ha
+        dsi_fav_val = f"+{abs(dsi_diff):.1f}"
+    elif dsi_diff < 0:
+        dsi_fav = aa
+        dsi_fav_val = f"+{abs(dsi_diff):.1f}"
+    else:
+        dsi_fav = "EVEN"
+        dsi_fav_val = ""
+
+    # Which team NRtg favors
+    if nrtg_diff > 0:
+        nrtg_fav = ha
+        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
+    elif nrtg_diff < 0:
+        nrtg_fav = aa
+        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
+    else:
+        nrtg_fav = "EVEN"
+        nrtg_fav_val = ""
+
+    breakdown_html = f"""
+        <div class="dsi-breakdown">
+            <div class="dsi-row">
+                <span class="dsi-label">DSI</span>
+                <span class="dsi-val">{aa} {away_dsi:.1f}</span>
+                <div class="dsi-bar-mini">
+                    <div class="dsi-bar-away" style="width:{100-dsi_home_pct:.0f}%; background:{ac};"></div>
+                    <div class="dsi-bar-home" style="width:{dsi_home_pct:.0f}%; background:{hc};"></div>
+                </div>
+                <span class="dsi-val">{ha} {home_dsi:.1f}</span>
+                <span class="dsi-edge-sm">{dsi_fav} {dsi_fav_val}</span>
+            </div>
+            <div class="dsi-row">
+                <span class="dsi-label">NRtg</span>
+                <span class="dsi-val">{aa} {away_nrtg:+.1f}</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">{ha} {home_nrtg:+.1f}</span>
+                <span class="dsi-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
+            </div>
+            <div class="dsi-row dsi-tags">
+                <span class="hca-badge">HCA +3 {ha}</span>
+                {b2b_badges}
+                {out_badges}
+            </div>
+        </div>"""
 
     return f"""
     <div class="matchup-card" data-conf="{conf_10}" data-edge="{abs(spread_edge):.1f}" data-total="{total}" data-idx="{idx}">
@@ -1674,6 +2459,9 @@ def render_matchup_card(m, idx, team_map):
             <div class="scheme-tag" style="background:{hc}; color:{TEAM_SECONDARY.get(ha, '#fff')}">{h_def}</div>
         </div>
 
+        <!-- DSI Breakdown -->
+        {breakdown_html}
+
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
             <span>▼ VIEW LINEUPS</span>
@@ -1693,7 +2481,7 @@ def render_matchup_card(m, idx, team_map):
     </div>"""
 
 
-def render_player_row(player, team_abbr, team_map, is_starter=True):
+def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="IN"):
     """Render a player row inside a matchup card with DS, archetype, context."""
     ds, breakdown = compute_dynamic_score(player)
     low, high = compute_ds_range(ds)
@@ -1723,8 +2511,18 @@ def render_player_row(player, team_abbr, team_map, is_starter=True):
     starter_class = "starter" if is_starter else "bench"
     bd = breakdown
 
+    # RotoWire status classes
+    status_class = ""
+    status_badge = ""
+    if rw_status == "OUT":
+        status_class = "player-out"
+        status_badge = '<span class="rw-status-badge rw-out">OUT</span>'
+    elif rw_status == "GTD":
+        status_class = "player-gtd"
+        status_badge = '<span class="rw-status-badge rw-gtd">GTD</span>'
+
     return f"""
-    <div class="player-row {starter_class}" onclick="openPlayerSheet(this)"
+    <div class="player-row {starter_class} {status_class}" onclick="openPlayerSheet(this)"
          data-name="{name}" data-arch="{arch}" data-ds="{ds}" data-range="{low}-{high}"
          data-pts="{bd['pts']}" data-ast="{bd['ast']}" data-reb="{bd['reb']}"
          data-stl="{bd['stl']}" data-blk="{bd['blk']}" data-ts="{bd['ts_pct']}"
@@ -1735,7 +2533,7 @@ def render_player_row(player, team_abbr, team_map, is_starter=True):
          data-impact-pct="{bd['impact_c']}">
         <img src="{headshot}" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">{short}</span>
+            <span class="pr-name">{short} {status_badge}</span>
             <span class="pr-meta">{pos} {icon} {arch}</span>
         </div>
         <div class="pr-stats">
@@ -2494,6 +3292,93 @@ def generate_css():
             color: rgba(0,0,0,0.3);
         }
 
+        /* DSI Breakdown */
+        .dsi-breakdown {
+            margin: 4px 12px 6px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .dsi-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+        }
+        .dsi-row:last-child { margin-bottom: 0; }
+        .dsi-label {
+            font-weight: 700;
+            color: rgba(0,0,0,0.45);
+            min-width: 30px;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
+        .dsi-val {
+            font-weight: 600;
+            color: rgba(0,0,0,0.7);
+            min-width: 55px;
+            text-align: center;
+            font-size: 10px;
+        }
+        .dsi-bar-mini {
+            flex: 1;
+            height: 8px;
+            display: flex;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+        .dsi-bar-away, .dsi-bar-home {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .dsi-mid-spacer {
+            flex: 1;
+        }
+        .dsi-edge-sm {
+            font-weight: 700;
+            color: rgba(0,0,0,0.55);
+            font-size: 9px;
+            min-width: 50px;
+            text-align: right;
+        }
+        .dsi-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .hca-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(0,180,80,0.12);
+            color: #0a7d3a;
+            letter-spacing: 0.3px;
+        }
+        .b2b-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255,60,60,0.10);
+        }
+        .out-badge {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(255,150,0,0.12);
+            color: #b36500;
+        }
+
         /* Expand button */
         .expand-btn {
             width: 100%;
@@ -2557,6 +3442,36 @@ def generate_css():
         }
         .player-row.bench:hover {
             opacity: 1;
+        }
+        .player-row.player-out {
+            opacity: 0.35;
+            text-decoration: line-through;
+            text-decoration-color: rgba(255,60,60,0.6);
+            text-decoration-thickness: 2px;
+        }
+        .player-row.player-out .pr-face {
+            filter: grayscale(100%);
+        }
+        .player-row.player-gtd {
+            opacity: 0.7;
+        }
+        .rw-status-badge {
+            font-family: var(--font-mono);
+            font-size: 8px;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        .rw-out {
+            background: rgba(255,60,60,0.15);
+            color: #d32f2f;
+        }
+        .rw-gtd {
+            background: rgba(255,180,0,0.15);
+            color: #e68a00;
         }
         .pr-face {
             width: 36px;

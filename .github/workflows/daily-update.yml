@@ -2,9 +2,13 @@ name: Daily NBA SIM Update
 
 on:
   schedule:
-    # ── PRE-GAME: 11:50 PM PST = 7:50 AM UTC ──
-    # Pulls fresh betting lines + player props before games tip off
-    - cron: '50 7 * * *'
+    # ── PRE-GAME AM: 11:30 AM PST = 7:30 PM UTC ──
+    # Morning update — fresh lineups + DSI model
+    - cron: '30 19 * * *'
+
+    # ── PRE-GAME PM: 11:30 PM PST = 7:30 AM UTC ──
+    # Evening update — final lineups + DSI model before tip-off
+    - cron: '30 7 * * *'
 
     # ── POST-GAME SETTLEMENT: 9:00 AM PST = 5:00 PM UTC ──
     # Grades yesterday's picks, updates bankroll + blog
