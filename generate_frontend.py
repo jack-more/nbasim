@@ -1234,10 +1234,8 @@ def generate_html():
     for f in fades:
         fade_cards += render_combo_card(f, is_fade=True)
 
-    # ── Build lock picks ──
+    # ── Lock picks removed (user request) ──
     lock_cards = ""
-    for pick in locks:
-        lock_cards += render_lock_card(pick)
 
     # ── Build Top 50 DS Rankings ──
     top50_rows = ""
@@ -1615,7 +1613,6 @@ def render_matchup_card(m, idx, team_map):
                 <div class="mc-spread" style="color:{edge_color}">{spread_display}{spread_tag}</div>
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
                 <div class="mc-pick"><span class="pick-label">SPREAD</span> {pick_text} <span class="mc-conf-num" style="color:{conf_color}">{conf_10}</span></div>
-                <div class="mc-pick mc-ou-pick"><span class="pick-label pick-label-ou">O/U</span> {ou_text} <span class="mc-conf-num" style="color:{ou_color}">{ou_conf}</span></div>
                 {implied_html}
             </div>
             <div class="mc-team mc-home">

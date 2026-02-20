@@ -49,49 +49,20 @@ STARTING_BANKROLL = 1000.0
 
 # ── Hardcoded picks (insert once, then read from DB) ──
 CURRENT_PICKS = [
-    # FEB 19 — THURSDAY
-    # Spreads
+    # FEB 19 — THURSDAY (Spreads only)
     {"slate_date": "2026-02-19", "pick_type": "spread", "matchup": "BKN @ CLE",
      "side": "CLE -16.0", "line_value": 16.0, "direction": "home_spread",
      "confidence": 10, "risk_amount": 50},
     {"slate_date": "2026-02-19", "pick_type": "spread", "matchup": "PHX @ SAS",
      "side": "SAS -8.0", "line_value": 8.0, "direction": "home_spread",
      "confidence": 7, "risk_amount": 30},
-    # O/U
-    {"slate_date": "2026-02-19", "pick_type": "total", "matchup": "BKN @ CLE",
-     "side": "OVER 229.5", "line_value": 229.5, "direction": "over",
-     "confidence": 10, "risk_amount": 30},
-    {"slate_date": "2026-02-19", "pick_type": "total", "matchup": "PHX @ SAS",
-     "side": "OVER 230.0", "line_value": 230.0, "direction": "over",
-     "confidence": 5, "risk_amount": 30},
-    # Props
-    {"slate_date": "2026-02-19", "pick_type": "prop", "matchup": "DEN @ LAC",
-     "side": "OVER 28.5 PTS", "player_name": "N. Jokic", "stat_type": "PTS",
-     "line_value": 28.5, "direction": "over", "confidence": 10, "risk_amount": 30},
-    {"slate_date": "2026-02-19", "pick_type": "prop", "matchup": "BKN @ CLE",
-     "side": "OVER 27.2 PTS", "player_name": "D. Mitchell", "stat_type": "PTS",
-     "line_value": 27.2, "direction": "over", "confidence": 9, "risk_amount": 30},
-    {"slate_date": "2026-02-19", "pick_type": "prop", "matchup": "BKN @ CLE",
-     "side": "OVER 20.2 PTS", "player_name": "J. Harden", "stat_type": "PTS",
-     "line_value": 20.2, "direction": "over", "confidence": 8, "risk_amount": 30},
-    {"slate_date": "2026-02-19", "pick_type": "prop", "matchup": "PHX @ SAS",
-     "side": "OVER 11.0 REB", "player_name": "V. Wembanyama", "stat_type": "REB",
-     "line_value": 11.0, "direction": "over", "confidence": 9, "risk_amount": 10},
-    # FEB 20 — FRIDAY
-    # Spreads
+    # FEB 20 — FRIDAY (Spreads only)
     {"slate_date": "2026-02-20", "pick_type": "spread", "matchup": "DAL @ MIN",
      "side": "MIN -12.0", "line_value": 12.0, "direction": "home_spread",
      "confidence": 9, "risk_amount": 50},
     {"slate_date": "2026-02-20", "pick_type": "spread", "matchup": "UTA @ MEM",
      "side": "MEM -4.5", "line_value": 4.5, "direction": "home_spread",
      "confidence": 7, "risk_amount": 30},
-    # O/U
-    {"slate_date": "2026-02-20", "pick_type": "total", "matchup": "DAL @ MIN",
-     "side": "UNDER 235.5", "line_value": 235.5, "direction": "under",
-     "confidence": 5, "risk_amount": 30},
-    {"slate_date": "2026-02-20", "pick_type": "total", "matchup": "UTA @ MEM",
-     "side": "OVER 241.5", "line_value": 241.5, "direction": "over",
-     "confidence": 5, "risk_amount": 30},
 ]
 
 
