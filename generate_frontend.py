@@ -888,15 +888,18 @@ def round_to_half(val):
     """Round a value to the nearest 0.5 like real sportsbook lines."""
     return round(val * 2) / 2
 
-def get_best_props(matchups, team_map, real_player_props=None):
-    """Generate best player prop suggestions ranked by confidence.
+def get_player_spotlights(matchups, team_map, real_player_props=None):
+    """Generate top player stat spotlights ranked by DS + matchup advantage.
+
+    Pure research view — no OVER/UNDER picks, no confidence pills.
+    Shows stat lines, sportsbook lines (for context), and matchup data.
 
     real_player_props: dict from fetch_odds_api_player_props() keyed by player name
         with sub-dict of prop_type -> line value.
     """
     if real_player_props is None:
         real_player_props = {}
-    all_props = []
+    all_spotlights = []
 
     for m in matchups:
         ha = m["home_abbr"]
@@ -930,7 +933,8 @@ def get_best_props(matchups, team_map, real_player_props=None):
                 ts = p.get("ts_pct", 0) or 0
                 name = p.get("full_name", "?")
                 player_id = p.get("player_id", 0)
-                arch = p.get("archetype_label", "") or "Unclassified"
+                arch_raw = p.get("archetype_label", "")
+                arch = arch_raw if (arch_raw and str(arch_raw) != "nan") else "Unclassified"
 
                 parts = name.split()
                 short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else name
@@ -943,125 +947,64 @@ def get_best_props(matchups, team_map, real_player_props=None):
                 elif trend and trend.get("direction") in ["cold", "down"]:
                     trend_note = f" // {trend['label']} ({trend['streak_games']}G)"
 
-                prop_candidates = []
-
-                # Check if we have real sportsbook lines for this player
-                # Map our prop types to Odds API prop types
-                PROP_MAP = {"PTS": "POINTS", "AST": "ASSISTS", "REB": "REBOUNDS", "PRA": "PRA"}
+                # Check if we have real sportsbook lines for context
                 player_real = real_player_props.get(name, {})
 
-                # POINTS
-                if pts >= 15:
-                    # Use real sportsbook line if available, else round projected to nearest 0.5
-                    real_pts_line = player_real.get("POINTS")
-                    line_val = real_pts_line if real_pts_line is not None else round_to_half(pts)
-                    is_real = real_pts_line is not None
+                # Determine primary stat category for this player
+                real_pts_line = player_real.get("POINTS")
+                real_ast_line = player_real.get("ASSISTS")
+                real_reb_line = player_real.get("REBOUNDS")
+                real_pra_line = player_real.get("PRA")
 
-                    base = min(100, (pts - 10) * 4.0)
-                    ts_mod = (ts - 0.55) * 160
-                    raw = base + ts_mod + matchup_signal
-                    if raw >= 55:
-                        prop_candidates.append({
-                            "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw, "avg": pts,
-                            "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
-                        })
-                    elif pts >= 18 and (matchup_signal < -4 or ts < 0.53):
-                        under_strength = 60 + abs(matchup_signal) * 2 + max(0, (0.53 - ts) * 200)
-                        prop_candidates.append({
-                            "prop": "PTS", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(95, under_strength), "avg": pts,
-                            "note": f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}",
-                        })
+                # Pick the best stat to feature (highest production relative to threshold)
+                primary_stat = "PTS"
+                primary_line = real_pts_line if real_pts_line is not None else round_to_half(pts) if pts >= 15 else None
+                primary_avg = pts
+                is_real = real_pts_line is not None
 
-                # ASSISTS
-                if ast >= 5:
-                    real_ast_line = player_real.get("ASSISTS")
-                    line_val = real_ast_line if real_ast_line is not None else round_to_half(ast)
-                    is_real = real_ast_line is not None
+                # Build stat line
+                stat_line = f"{pts:.1f}p | {ast:.1f}a | {reb:.1f}r"
 
-                    base = min(100, (ast - 2) * 10)
-                    raw = base + matchup_signal
-                    if raw >= 50:
-                        prop_candidates.append({
-                            "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw, "avg": ast,
-                            "note": f"Avg {ast:.1f} ast // {mpg:.0f} mpg{trend_note}",
-                        })
-                    elif ast >= 6 and matchup_signal < -4:
-                        under_strength = 55 + abs(matchup_signal) * 2
-                        prop_candidates.append({
-                            "prop": "AST", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(90, under_strength), "avg": ast,
-                            "note": f"Avg {ast:.1f} ast vs {opp_drtg:.0f} DRTG{trend_note}",
-                        })
+                # Build note with matchup context
+                note = f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}"
 
-                # REBOUNDS
-                if reb >= 7:
-                    real_reb_line = player_real.get("REBOUNDS")
-                    line_val = real_reb_line if real_reb_line is not None else round_to_half(reb)
-                    is_real = real_reb_line is not None
+                # Matchup advantage score: DS + matchup signal (for ranking)
+                matchup_advantage = ds * 0.6 + max(0, matchup_signal) * 4.0
 
-                    base = min(100, (reb - 4) * 10)
-                    raw = base + matchup_signal * 0.5
-                    if raw >= 50:
-                        prop_candidates.append({
-                            "prop": "REB", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw, "avg": reb,
-                            "note": f"Avg {reb:.1f} reb // {mpg:.0f} mpg{trend_note}",
-                        })
-
-                # PRA
-                pra = pts + reb + ast
-                if pra >= 35:
-                    real_pra_line = player_real.get("PRA")
-                    line_val = real_pra_line if real_pra_line is not None else round_to_half(pra)
-                    is_real = real_pra_line is not None
-
-                    base = min(100, (pra - 25) * 2.0)
-                    raw = base + matchup_signal
-                    if raw >= 60 and matchup_signal > 0:
-                        prop_candidates.append({
-                            "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "OVER", "strength": raw, "avg": pra,
-                            "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a{trend_note}",
-                        })
-                    elif pra >= 30 and matchup_signal < -5:
-                        under_strength = 55 + abs(matchup_signal) * 1.5
-                        prop_candidates.append({
-                            "prop": "PRA", "line": f"{line_val:.1f}", "is_real_line": is_real,
-                            "direction": "UNDER", "strength": min(90, under_strength), "avg": pra,
-                            "note": f"{pts:.0f}p + {reb:.0f}r + {ast:.0f}a vs elite D{trend_note}",
-                        })
-
-                # STOCKS
-                stocks = stl + blk
-                if stocks >= 2.5:
-                    line_val = round_to_half(stocks)  # No real line for STL+BLK typically
-                    base = min(100, (stocks - 1) * 20)
-                    raw = base + matchup_signal * 0.3
-                    if raw >= 50:
-                        prop_candidates.append({
-                            "prop": "STL+BLK", "line": f"{line_val:.1f}", "is_real_line": False,
-                            "direction": "OVER", "strength": raw, "avg": stocks,
-                            "note": f"Avg {stl:.1f} stl + {blk:.1f} blk{trend_note}",
-                        })
-
-                if not prop_candidates:
-                    continue
-
-                best = max(prop_candidates, key=lambda x: x["strength"])
-                if best["direction"] == "UNDER":
-                    confidence = round(30 + best["strength"] * 0.7, 1)
-                else:
-                    confidence = round(ds * 0.35 + best["strength"] * 0.65, 1)
+                # Edge vs line (informational, not a pick)
+                edge = 0
+                if primary_line is not None:
+                    edge = primary_avg - float(primary_line)
 
                 low, high = compute_ds_range(ds)
 
-                # Get last 5 games for this specific prop stat
-                last5 = get_last5_prop_stats(player_id, best["prop"])
+                # Get last 5 games for PTS (primary stat)
+                last5 = get_last5_prop_stats(player_id, "PTS") if pts >= 15 else []
 
-                all_props.append({
+                # Sportsbook lines for display (context only)
+                lines_display = {}
+                if real_pts_line is not None:
+                    lines_display["PTS"] = real_pts_line
+                if real_ast_line is not None:
+                    lines_display["AST"] = real_ast_line
+                if real_reb_line is not None:
+                    lines_display["REB"] = real_reb_line
+                if real_pra_line is not None:
+                    lines_display["PRA"] = real_pra_line
+
+                # Matchup advantage label
+                if matchup_signal > 4:
+                    matchup_label = "ELITE"
+                elif matchup_signal > 1:
+                    matchup_label = "GOOD"
+                elif matchup_signal > -1:
+                    matchup_label = "NEUTRAL"
+                elif matchup_signal > -4:
+                    matchup_label = "TOUGH"
+                else:
+                    matchup_label = "HARD"
+
+                all_spotlights.append({
                     "player": short,
                     "full_name": name,
                     "player_id": player_id,
@@ -1070,18 +1013,23 @@ def get_best_props(matchups, team_map, real_player_props=None):
                     "ds": ds,
                     "ds_range": f"{low}-{high}",
                     "archetype": arch,
-                    "prop": best["prop"],
-                    "line": best["line"],
-                    "avg": best.get("avg", 0),
-                    "direction": best["direction"],
-                    "note": best["note"],
-                    "confidence": confidence,
-                    "line_is_projected": not best.get("is_real_line", False),
+                    "stat_line": stat_line,
+                    "pts": pts, "ast": ast, "reb": reb,
+                    "primary_line": f"{primary_line:.1f}" if primary_line else None,
+                    "primary_avg": primary_avg,
+                    "edge": edge,
+                    "line_is_projected": not is_real,
+                    "lines_display": lines_display,
+                    "note": note,
+                    "matchup_advantage": matchup_advantage,
+                    "matchup_label": matchup_label,
+                    "matchup_signal": matchup_signal,
+                    "opp_drtg": opp_drtg,
                     "last5": last5,
                 })
 
-    all_props.sort(key=lambda x: x["confidence"], reverse=True)
-    return all_props[:20]
+    all_spotlights.sort(key=lambda x: x["matchup_advantage"], reverse=True)
+    return all_spotlights[:20]
 
 
 def get_top_50_ds():
@@ -1208,7 +1156,7 @@ def generate_html():
     if event_ids and ODDS_API_KEY:
         real_player_props = fetch_odds_api_player_props(event_ids)
 
-    props = get_best_props(matchups, team_map, real_player_props)
+    props = get_player_spotlights(matchups, team_map, real_player_props)
     top50 = get_top_50_ds()
 
     # Check if any games have real sportsbook lines
@@ -1220,10 +1168,10 @@ def generate_html():
     for idx, m in enumerate(matchups):
         matchup_cards += render_matchup_card(m, idx, team_map)
 
-    # ── Build props HTML ──
+    # ── Build player stats HTML ──
     props_cards = ""
     for i, prop in enumerate(props):
-        props_cards += render_prop_card(prop, i + 1)
+        props_cards += render_stat_card(prop, i + 1)
 
     # ── Build combos HTML (hot + fade side by side) ──
     hot_cards = ""
@@ -1369,7 +1317,7 @@ def generate_html():
     <div class="filter-bar">
         <div class="filter-bar-inner">
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
-            <button class="filter-btn" data-tab="props">Player Props</button>
+            <button class="filter-btn" data-tab="props">Player Stats</button>
             <button class="filter-btn" data-tab="trends">Trends + Stats</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
@@ -1399,8 +1347,8 @@ def generate_html():
         <!-- PROPS TAB -->
         <div class="tab-content" id="tab-props">
             <div class="section-header">
-                <h2>PLAYER PROPS</h2>
-                <span class="section-sub">Top 20 ranked by DS + matchup signal</span>
+                <h2>PLAYER STATS</h2>
+                <span class="section-sub">Top 20 matchup spotlights ranked by DS + matchup advantage</span>
             </div>
             <div class="props-list">
                 {props_cards}
@@ -1720,56 +1668,76 @@ def render_player_row(player, team_abbr, team_map, is_starter=True):
     </div>"""
 
 
-def render_prop_card(prop, rank):
-    """Render a compact player prop card — single-row layout for mobile."""
-    is_under = prop["direction"] == "UNDER"
-    dir_class = "prop-under" if is_under else "prop-over"
-    dir_icon = "▼" if is_under else "▲"
+def render_stat_card(prop, rank):
+    """Render a player stat spotlight card — no picks, pure research."""
     team_logo = get_team_logo_url(prop["team"])
     headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{prop['player_id']}.png"
     tc = TEAM_COLORS.get(prop["team"], "#333")
 
-    conf = prop["confidence"]
-    # 1-10 confidence scale
-    conf_10 = max(1, min(10, round(conf / 10)))
-    if conf_10 >= 7:
-        conf_class = "conf-high"
-    elif conf_10 >= 4:
-        conf_class = "conf-med"
+    # DS badge color
+    ds = prop["ds"]
+    if ds >= 85:
+        ds_color = "var(--green)"
+        ds_bg = "rgba(0,255,85,0.12)"
+    elif ds >= 70:
+        ds_color = "var(--amber)"
+        ds_bg = "rgba(255,214,0,0.1)"
     else:
-        conf_class = "conf-low"
+        ds_color = "rgba(255,255,255,0.5)"
+        ds_bg = "rgba(255,255,255,0.06)"
 
-    proj_tag = "" if not prop.get("line_is_projected", True) else ' <span class="proj-tag">PROJ</span>'
+    # Matchup advantage badge
+    ml = prop.get("matchup_label", "NEUTRAL")
+    if ml == "ELITE":
+        mu_color = "#00FF55"; mu_bg = "rgba(0,255,85,0.12)"
+    elif ml == "GOOD":
+        mu_color = "#7FFF00"; mu_bg = "rgba(127,255,0,0.1)"
+    elif ml == "NEUTRAL":
+        mu_color = "rgba(255,255,255,0.5)"; mu_bg = "rgba(255,255,255,0.06)"
+    elif ml == "TOUGH":
+        mu_color = "#FF8C00"; mu_bg = "rgba(255,140,0,0.1)"
+    else:
+        mu_color = "#FF5555"; mu_bg = "rgba(255,85,85,0.1)"
 
-    # Build last 5 games display — compact inline
+    # Sportsbook lines for context (not a pick)
+    lines_html = ""
+    lines_display = prop.get("lines_display", {})
+    if lines_display:
+        line_parts = []
+        for stat, val in lines_display.items():
+            line_parts.append(f'<span class="stat-line-ref">{stat} {val:.1f}</span>')
+        lines_html = f'<div class="stat-lines-row">{"".join(line_parts)}</div>'
+    elif prop.get("primary_line"):
+        proj_tag = ' <span class="proj-tag">PROJ</span>' if prop.get("line_is_projected") else ""
+        lines_html = f'<div class="stat-lines-row"><span class="stat-line-ref">PTS {prop["primary_line"]}{proj_tag}</span></div>'
+
+    # Edge vs line (informational) — only show when we have a line to compare
+    edge = prop.get("edge", 0)
+    has_line = prop.get("primary_line") is not None
+    if has_line and abs(edge) > 0.01:
+        edge_sign = "+" if edge > 0 else ""
+        edge_str = f"Δ {edge_sign}{edge:.1f}"
+        edge_color = "rgba(0,255,85,0.6)" if edge > 0 else "rgba(255,80,80,0.5)" if edge < -1 else "rgba(255,255,255,0.3)"
+    else:
+        edge_str = f"DRTG {prop.get('opp_drtg', 112):.0f}"
+        edge_color = "rgba(255,255,255,0.3)"
+
+    # Last 5 games — show raw values (no hit/miss coloring)
     last5 = prop.get("last5", [])
-    line_val = float(prop["line"])
-
-    # Implied edge: avg vs line
-    avg_val = prop.get("avg", 0)
-    if prop["direction"] == "OVER":
-        edge = avg_val - line_val
-    else:
-        edge = line_val - avg_val
-    edge_sign = "+" if edge > 0 else ""
-    edge_str = f"{edge_sign}{edge:.1f}"
-    edge_color = "rgba(0,255,85,0.7)" if edge > 0 else "rgba(255,80,80,0.7)"
     last5_html = ""
     if last5:
         dots = []
         for val in last5:
-            hit = (val >= line_val and not is_under) or (val < line_val and is_under)
-            dot_cls = "l5-hit" if hit else "l5-miss"
-            dots.append(f'<span class="l5-val {dot_cls}">{val}</span>')
-        hits = sum(1 for v in last5 if (v >= line_val and not is_under) or (v < line_val and is_under))
+            dots.append(f'<span class="l5-val l5-neutral">{val}</span>')
+        avg5 = sum(last5) / len(last5) if last5 else 0
         last5_html = f"""
         <div class="prop-last5">
             {"".join(dots)}
-            <span class="l5-hit-rate">{hits}/5</span>
+            <span class="l5-hit-rate">L5 avg: {avg5:.0f}</span>
         </div>"""
 
     return f"""
-    <div class="prop-card {dir_class}" style="border-left: 3px solid {tc};">
+    <div class="stat-spotlight-card" style="border-left: 3px solid {tc};">
         <div class="prop-rank-num">{rank}</div>
         <div class="prop-row">
             <img src="{headshot}" class="prop-face" onerror="this.style.display='none'">
@@ -1778,16 +1746,16 @@ def render_prop_card(prop, rank):
                     <span class="prop-name">{prop['player']}</span>
                     <span class="prop-team-opp">{prop['team']} vs {prop['opponent']}</span>
                 </div>
-                <div class="prop-meta">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} · DS {prop['ds']}</div>
+                <div class="prop-meta">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} · <span style="color:{ds_color}">DS {ds}</span></div>
             </div>
-            <div class="prop-pick-compact {dir_class}">
-                <span class="prop-dir-line"><span class="prop-dir-icon">{dir_icon}</span> {prop['line']}{proj_tag}</span>
-                <span class="prop-type-label">{prop['direction']} {prop['prop']}</span>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">{prop.get('stat_line', '')}</span>
+                <span class="stat-matchup-badge" style="color:{mu_color};background:{mu_bg}">{ml}</span>
             </div>
-            <div class="prop-conf-pill {conf_class}">{conf_10}</div>
         </div>
         <div class="prop-bottom">
             <div class="prop-edge" style="color:{edge_color}">{edge_str}</div>
+            {lines_html}
             <div class="prop-note">{prop['note']}</div>
             {last5_html}
         </div>
@@ -2625,63 +2593,74 @@ def generate_css():
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .prop-pick-compact {
+        /* Stat summary box (replaces prop-pick-compact) */
+        .stat-summary-box {
             text-align: center;
             flex-shrink: 0;
             padding: 6px 10px;
             border-radius: 8px;
-            min-width: 68px;
+            min-width: 90px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
         }
-        .prop-pick-compact.prop-over {
-            background: rgba(0,255,85,0.12);
-            border: 1px solid rgba(0,255,85,0.25);
-        }
-        .prop-pick-compact.prop-under {
-            background: rgba(255,51,51,0.12);
-            border: 1px solid rgba(255,51,51,0.25);
-        }
-        .prop-dir-line {
+        .stat-summary-line {
             font-family: var(--font-mono);
-            font-size: 16px;
-            font-weight: 800;
+            font-size: 12px;
+            font-weight: 700;
             display: block;
-            line-height: 1.1;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.2;
+            letter-spacing: 0.3px;
         }
-        .prop-dir-icon { font-size: 11px; }
-        .prop-over .prop-dir-line { color: var(--green); }
-        .prop-under .prop-dir-line { color: var(--red); }
-        .prop-dir-line .proj-tag {
-            color: rgba(255,255,255,0.3);
-            font-size: 7px;
-            vertical-align: middle;
-            margin-left: 2px;
-        }
-        .prop-type-label {
-            font-family: var(--font-mono);
-            font-size: 9px;
-            font-weight: 600;
-            display: block;
-            color: rgba(255,255,255,0.5);
-            margin-top: 1px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .prop-conf-pill {
+        .stat-matchup-badge {
             font-family: var(--font-mono);
             font-size: 8px;
             font-weight: 700;
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-top: 3px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 3px 5px;
-            border-radius: 3px;
-            flex-shrink: 0;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            line-height: 1;
         }
-        .prop-conf-pill.conf-high { color: var(--green); background: rgba(0,255,85,0.1); }
-        .prop-conf-pill.conf-med { color: var(--amber); background: rgba(255,214,0,0.1); }
-        .prop-conf-pill.conf-low { color: var(--red); background: rgba(255,51,51,0.1); }
+        /* Sportsbook lines reference row */
+        .stat-lines-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .stat-line-ref {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.04);
+            padding: 1px 5px;
+            border-radius: 2px;
+            white-space: nowrap;
+        }
+        .stat-line-ref .proj-tag {
+            color: rgba(255,255,255,0.2);
+            font-size: 7px;
+            margin-left: 2px;
+        }
+        /* Stat spotlight card (replaces prop-card) */
+        .stat-spotlight-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 10px 10px 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.025);
+            position: relative;
+        }
+        .stat-spotlight-card:hover { background: rgba(255,255,255,0.05); }
+        /* Neutral last 5 game dots (no hit/miss) */
+        .l5-neutral {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.6);
+        }
         .prop-bottom {
             display: flex;
             align-items: center;

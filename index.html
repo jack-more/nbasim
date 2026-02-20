@@ -596,63 +596,74 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .prop-pick-compact {
+        /* Stat summary box (replaces prop-pick-compact) */
+        .stat-summary-box {
             text-align: center;
             flex-shrink: 0;
             padding: 6px 10px;
             border-radius: 8px;
-            min-width: 68px;
+            min-width: 90px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
         }
-        .prop-pick-compact.prop-over {
-            background: rgba(0,255,85,0.12);
-            border: 1px solid rgba(0,255,85,0.25);
-        }
-        .prop-pick-compact.prop-under {
-            background: rgba(255,51,51,0.12);
-            border: 1px solid rgba(255,51,51,0.25);
-        }
-        .prop-dir-line {
+        .stat-summary-line {
             font-family: var(--font-mono);
-            font-size: 16px;
-            font-weight: 800;
+            font-size: 12px;
+            font-weight: 700;
             display: block;
-            line-height: 1.1;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.2;
+            letter-spacing: 0.3px;
         }
-        .prop-dir-icon { font-size: 11px; }
-        .prop-over .prop-dir-line { color: var(--green); }
-        .prop-under .prop-dir-line { color: var(--red); }
-        .prop-dir-line .proj-tag {
-            color: rgba(255,255,255,0.3);
-            font-size: 7px;
-            vertical-align: middle;
-            margin-left: 2px;
-        }
-        .prop-type-label {
-            font-family: var(--font-mono);
-            font-size: 9px;
-            font-weight: 600;
-            display: block;
-            color: rgba(255,255,255,0.5);
-            margin-top: 1px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .prop-conf-pill {
+        .stat-matchup-badge {
             font-family: var(--font-mono);
             font-size: 8px;
             font-weight: 700;
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-top: 3px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 3px 5px;
-            border-radius: 3px;
-            flex-shrink: 0;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            line-height: 1;
         }
-        .prop-conf-pill.conf-high { color: var(--green); background: rgba(0,255,85,0.1); }
-        .prop-conf-pill.conf-med { color: var(--amber); background: rgba(255,214,0,0.1); }
-        .prop-conf-pill.conf-low { color: var(--red); background: rgba(255,51,51,0.1); }
+        /* Sportsbook lines reference row */
+        .stat-lines-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .stat-line-ref {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.04);
+            padding: 1px 5px;
+            border-radius: 2px;
+            white-space: nowrap;
+        }
+        .stat-line-ref .proj-tag {
+            color: rgba(255,255,255,0.2);
+            font-size: 7px;
+            margin-left: 2px;
+        }
+        /* Stat spotlight card (replaces prop-card) */
+        .stat-spotlight-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 10px 10px 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.025);
+            position: relative;
+        }
+        .stat-spotlight-card:hover { background: rgba(255,255,255,0.05); }
+        /* Neutral last 5 game dots (no hit/miss) */
+        .l5-neutral {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.6);
+        }
         .prop-bottom {
             display: flex;
             align-items: center;
@@ -1306,7 +1317,7 @@
     <div class="filter-bar">
         <div class="filter-bar-inner">
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
-            <button class="filter-btn" data-tab="props">Player Props</button>
+            <button class="filter-btn" data-tab="props">Player Stats</button>
             <button class="filter-btn" data-tab="trends">Trends + Stats</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
@@ -1330,7 +1341,7 @@
             </div>
             <div class="matchup-list" id="matchupList">
                 
-    <div class="matchup-card" data-conf="3" data-edge="1.4" data-total="219.0" data-idx="0">
+    <div class="matchup-card" data-conf="3" data-edge="1.4" data-total="222.5" data-idx="0">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg" class="mc-logo" alt="DEN" onerror="this.style.display='none'">
@@ -1341,10 +1352,10 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#888">DEN -3.0</div>
-                <div class="mc-total">O/U 219.0</div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> DEN -3.0 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
-                <div class="mc-implied">DEN 111 — LAC 108</div>
+                <div class="mc-spread" style="color:#888">LAC -4.0</div>
+                <div class="mc-total">O/U 222.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> DEN ML <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
+                <div class="mc-implied">DEN 109 — LAC 113</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -4347,7 +4358,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="2" data-edge="0.7" data-total="222.0" data-idx="7">
+    <div class="matchup-card" data-conf="2" data-edge="0.7" data-total="222.5" data-idx="7">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg" class="mc-logo" alt="MIL" onerror="this.style.display='none'">
@@ -4359,9 +4370,9 @@
             </div>
             <div class="mc-center">
                 <div class="mc-spread" style="color:#888">NOP -4.5</div>
-                <div class="mc-total">O/U 222.0</div>
+                <div class="mc-total">O/U 222.5</div>
                 <div class="mc-pick"><span class="pick-label">SPREAD</span> NOP -4.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
-                <div class="mc-implied">MIL 109 — NOP 113</div>
+                <div class="mc-implied">MIL 109 — NOP 114</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -5646,445 +5657,13 @@
         <!-- PROPS TAB -->
         <div class="tab-content" id="tab-props">
             <div class="section-header">
-                <h2>PLAYER PROPS</h2>
-                <span class="section-sub">Top 20 ranked by DS + matchup signal</span>
+                <h2>PLAYER STATS</h2>
+                <span class="section-sub">Top 20 matchup spotlights ranked by DS + matchup advantage</span>
             </div>
             <div class="props-list">
                 
-    <div class="prop-card prop-over" style="border-left: 3px solid #007AC1;">
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
         <div class="prop-rank-num">1</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">S. Gilgeous-Alexander</span>
-                    <span class="prop-team-opp">OKC vs BKN</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 99</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 32.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">-0.2</div>
-            <div class="prop-note">Avg 31.8 pts // 67% TS vs 117 DRTG // 📉 TRENDING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">20</span><span class="l5-val l5-hit">34</span><span class="l5-val l5-miss">30</span><span class="l5-val l5-miss">29</span><span class="l5-val l5-miss">24</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #0E2240;">
-        <div class="prop-rank-num">2</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">N. Jokić</span>
-                    <span class="prop-team-opp">DEN vs POR</span>
-                </div>
-                <div class="prop-meta">🔮 Versatile Big · DS 99</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 28.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.2</div>
-            <div class="prop-note">Avg 28.7 pts // 70% TS vs 114 DRTG // 📉 TRENDING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">26</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-hit">30</span><span class="l5-val l5-miss">24</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #552583;">
-        <div class="prop-rank-num">3</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629029.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">L. Dončić</span>
-                    <span class="prop-team-opp">LAL vs LAC</span>
-                </div>
-                <div class="prop-meta">🧠 Point Forward · DS 96</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 33.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">-0.2</div>
-            <div class="prop-note">Avg 32.8 pts // 61% TS vs 114 DRTG // ❄️ COOLING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">10</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-miss">30</span><span class="l5-val l5-hit">37</span><span class="l5-val l5-miss">29</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #0E2240;">
-        <div class="prop-rank-num">4</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">N. Jokić</span>
-                    <span class="prop-team-opp">DEN vs LAC</span>
-                </div>
-                <div class="prop-meta">🔮 Versatile Big · DS 99</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 28.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.2</div>
-            <div class="prop-note">Avg 28.7 pts // 70% TS vs 114 DRTG // 📉 TRENDING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">26</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-miss">22</span><span class="l5-val l5-hit">30</span><span class="l5-val l5-miss">24</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #00471B;">
-        <div class="prop-rank-num">5</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203507.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">G. Antetokounmpo</span>
-                    <span class="prop-team-opp">MIL vs NOP</span>
-                </div>
-                <div class="prop-meta">⚡ Small-Ball 4 · DS 91</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 28.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">0.0</div>
-            <div class="prop-note">Avg 28.0 pts // 68% TS vs 117 DRTG // ❄️ COOLING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">22</span><span class="l5-val l5-miss">19</span><span class="l5-val l5-miss">21</span><span class="l5-val l5-miss">21</span><span class="l5-val l5-miss">25</span>
-            <span class="l5-hit-rate">0/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-under" style="border-left: 3px solid #5D76A9;">
-        <div class="prop-rank-num">6</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629630.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">J. Morant</span>
-                    <span class="prop-team-opp">MEM vs UTA</span>
-                </div>
-                <div class="prop-meta">🎯 Playmaking Guard · DS 66</div>
-            </div>
-            <div class="prop-pick-compact prop-under">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▼</span> 19.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">UNDER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">10</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">0.0</div>
-            <div class="prop-note">Avg 19.5 pts // 52% TS vs 119 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">23</span><span class="l5-val l5-hit">16</span><span class="l5-val l5-miss">40</span><span class="l5-val l5-miss">21</span><span class="l5-val l5-hit">17</span>
-            <span class="l5-hit-rate">2/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #860038;">
-        <div class="prop-rank-num">7</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628378.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">D. Mitchell</span>
-                    <span class="prop-team-opp">CLE vs CHA</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 89</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 26.5</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">9</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+2.5</div>
-            <div class="prop-note">Avg 29.0 pts // 62% TS vs 113 DRTG // 📉 TRENDING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-hit">30</span><span class="l5-val l5-hit">32</span><span class="l5-val l5-hit">35</span><span class="l5-val l5-hit">29</span><span class="l5-val l5-miss">14</span>
-            <span class="l5-hit-rate">4/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #0C2340;">
-        <div class="prop-rank-num">8</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630162.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">A. Edwards</span>
-                    <span class="prop-team-opp">MIN vs DAL</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 84</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 29.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">9</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">-0.2</div>
-            <div class="prop-note">Avg 29.3 pts // 62% TS vs 112 DRTG // 📉 TRENDING DOWN (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">14</span><span class="l5-val l5-hit">30</span><span class="l5-val l5-miss">23</span><span class="l5-val l5-hit">35</span><span class="l5-val l5-hit">30</span>
-            <span class="l5-hit-rate">3/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #C8102E;">
-        <div class="prop-rank-num">9</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202695.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">K. Leonard</span>
-                    <span class="prop-team-opp">LAC vs DEN</span>
-                </div>
-                <div class="prop-meta">🧠 Point Forward · DS 84</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 27.8</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">9</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.1</div>
-            <div class="prop-note">Avg 27.9 pts // 62% TS vs 116 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">27</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">41</span><span class="l5-val l5-hit">31</span><span class="l5-val l5-miss">25</span>
-            <span class="l5-hit-rate">2/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #C8102E;">
-        <div class="prop-rank-num">10</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/202695.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">K. Leonard</span>
-                    <span class="prop-team-opp">LAC vs LAL</span>
-                </div>
-                <div class="prop-meta">🧠 Point Forward · DS 84</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 27.8</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">9</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.1</div>
-            <div class="prop-note">Avg 27.9 pts // 62% TS vs 115 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">27</span><span class="l5-val l5-miss">24</span><span class="l5-val l5-hit">41</span><span class="l5-val l5-hit">31</span><span class="l5-val l5-miss">25</span>
-            <span class="l5-hit-rate">2/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #552583;">
-        <div class="prop-rank-num">11</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630559.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">A. Reaves</span>
-                    <span class="prop-team-opp">LAL vs LAC</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 82</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 25.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">-0.1</div>
-            <div class="prop-note">Avg 25.4 pts // 66% TS vs 114 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">18</span><span class="l5-val l5-miss">16</span><span class="l5-val l5-miss">16</span><span class="l5-val l5-hit">35</span><span class="l5-val l5-miss">15</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-under" style="border-left: 3px solid #000000;">
-        <div class="prop-rank-num">12</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629008.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">M. Porter Jr.</span>
-                    <span class="prop-team-opp">BKN vs OKC</span>
-                </div>
-                <div class="prop-meta">⚡ Small-Ball 4 · DS 72</div>
-            </div>
-            <div class="prop-pick-compact prop-under">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▼</span> 35.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">UNDER PRA</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.1</div>
-            <div class="prop-note">25p + 7r + 3a vs elite D // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-hit">32</span><span class="l5-val l5-hit">13</span><span class="l5-val l5-hit">34</span><span class="l5-val l5-miss">51</span><span class="l5-val l5-miss">44</span>
-            <span class="l5-hit-rate">3/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #0E2240;">
-        <div class="prop-rank-num">13</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">J. Murray</span>
-                    <span class="prop-team-opp">DEN vs POR</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 85</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 21.9</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+3.8</div>
-            <div class="prop-note">Avg 25.7 pts // 62% TS vs 114 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-hit">23</span><span class="l5-val l5-miss">17</span><span class="l5-val l5-hit">28</span><span class="l5-val l5-hit">39</span><span class="l5-val l5-hit">32</span>
-            <span class="l5-hit-rate">4/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #0E2240;">
-        <div class="prop-rank-num">14</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">J. Murray</span>
-                    <span class="prop-team-opp">DEN vs LAC</span>
-                </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 85</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 21.9</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+3.8</div>
-            <div class="prop-note">Avg 25.7 pts // 62% TS vs 114 DRTG // 🔥 HEATING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-hit">23</span><span class="l5-val l5-miss">17</span><span class="l5-val l5-hit">28</span><span class="l5-val l5-hit">39</span><span class="l5-val l5-hit">32</span>
-            <span class="l5-hit-rate">4/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #002B5C;">
-        <div class="prop-rank-num">15</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628374.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">L. Markkanen</span>
-                    <span class="prop-team-opp">UTA vs MEM</span>
-                </div>
-                <div class="prop-meta">⚡ Small-Ball 4 · DS 74</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 22.5</span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+4.2</div>
-            <div class="prop-note">Avg 26.7 pts // 61% TS vs 114 DRTG // 📈 TRENDING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">19</span><span class="l5-val l5-miss">17</span><span class="l5-val l5-hit">27</span><span class="l5-val l5-miss">18</span><span class="l5-val l5-hit">27</span>
-            <span class="l5-hit-rate">2/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #E03A3E;">
-        <div class="prop-rank-num">16</div>
-        <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630166.png" class="prop-face" onerror="this.style.display='none'">
-            <div class="prop-info">
-                <div class="prop-name-row">
-                    <span class="prop-name">D. Avdija</span>
-                    <span class="prop-team-opp">POR vs DEN</span>
-                </div>
-                <div class="prop-meta">🧠 Point Forward · DS 80</div>
-            </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 25.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
-            </div>
-            <div class="prop-conf-pill conf-high">8</div>
-        </div>
-        <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.2</div>
-            <div class="prop-note">Avg 25.2 pts // 61% TS vs 116 DRTG // 📈 TRENDING UP (5G)</div>
-            
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">11</span><span class="l5-val l5-hit">26</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
-        </div>
-    </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #5D76A9;">
-        <div class="prop-rank-num">17</div>
         <div class="prop-row">
             <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641744.png" class="prop-face" onerror="this.style.display='none'">
             <div class="prop-info">
@@ -6092,26 +5671,22 @@
                     <span class="prop-name">Z. Edey</span>
                     <span class="prop-team-opp">MEM vs UTA</span>
                 </div>
-                <div class="prop-meta">◆ nan · DS 75</div>
+                <div class="prop-meta">◆ Unclassified · <span style="color:var(--amber)">DS 75</span></div>
             </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 11.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER REB</span>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">13.6p | 1.1a | 11.1r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
             </div>
-            <div class="prop-conf-pill conf-high">8</div>
         </div>
         <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.1</div>
-            <div class="prop-note">Avg 11.1 reb // 26 mpg // ❄️ COOLING DOWN (5G)</div>
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
             
-        <div class="prop-last5">
-            <span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">10</span><span class="l5-val l5-miss">8</span><span class="l5-val l5-hit">15</span>
-            <span class="l5-hit-rate">1/5</span>
-        </div>
+            <div class="prop-note">Avg 13.6 pts // 67% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
         </div>
     </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #5D76A9;">
-        <div class="prop-rank-num">18</div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
+        <div class="prop-rank-num">2</div>
         <div class="prop-row">
             <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629660.png" class="prop-face" onerror="this.style.display='none'">
             <div class="prop-info">
@@ -6119,75 +5694,483 @@
                     <span class="prop-name">T. Jerome</span>
                     <span class="prop-team-opp">MEM vs UTA</span>
                 </div>
-                <div class="prop-meta">◆ nan · DS 75</div>
+                <div class="prop-meta">◆ Unclassified · <span style="color:var(--amber)">DS 75</span></div>
             </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 19.5 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER PTS</span>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">19.7p | 6.0a | 2.2r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
             </div>
-            <div class="prop-conf-pill conf-high">8</div>
         </div>
         <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+0.2</div>
+            <div class="prop-edge" style="color:rgba(0,255,85,0.6)">Δ +0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 19.5 <span class="proj-tag">PROJ</span></span></div>
             <div class="prop-note">Avg 19.7 pts // 69% TS vs 119 DRTG // 🔥 HEATING UP (5G)</div>
             
         <div class="prop-last5">
-            <span class="l5-val l5-miss">19</span><span class="l5-val l5-miss">19</span><span class="l5-val l5-miss">13</span><span class="l5-val l5-hit">28</span><span class="l5-val l5-miss">19</span>
-            <span class="l5-hit-rate">1/5</span>
+            <span class="l5-val l5-neutral">19</span><span class="l5-val l5-neutral">19</span><span class="l5-val l5-neutral">13</span><span class="l5-val l5-neutral">28</span><span class="l5-val l5-neutral">19</span>
+            <span class="l5-hit-rate">L5 avg: 20</span>
         </div>
         </div>
     </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #860038;">
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
+        <div class="prop-rank-num">3</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629630.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">J. Morant</span>
+                    <span class="prop-team-opp">MEM vs UTA</span>
+                </div>
+                <div class="prop-meta">🎯 Playmaking Guard · <span style="color:rgba(255,255,255,0.5)">DS 66</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">19.5p | 8.1a | 3.3r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 19.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 19.5 pts // 52% TS vs 119 DRTG // 🔥 HEATING UP (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">23</span><span class="l5-val l5-neutral">16</span><span class="l5-val l5-neutral">40</span><span class="l5-val l5-neutral">21</span><span class="l5-val l5-neutral">17</span>
+            <span class="l5-hit-rate">L5 avg: 23</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002D62;">
+        <div class="prop-rank-num">4</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627783.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">P. Siakam</span>
+                    <span class="prop-team-opp">IND vs WAS</span>
+                </div>
+                <div class="prop-meta">⚡ Small-Ball 4 · <span style="color:rgba(255,255,255,0.5)">DS 69</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">23.7p | 3.9a | 6.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(0,255,85,0.6)">Δ +0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 23.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 23.7 pts // 56% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">30</span><span class="l5-val l5-neutral">18</span><span class="l5-val l5-neutral">19</span><span class="l5-val l5-neutral">0</span><span class="l5-val l5-neutral">27</span>
+            <span class="l5-hit-rate">L5 avg: 19</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
+        <div class="prop-rank-num">5</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642285.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">C. Spencer</span>
+                    <span class="prop-team-opp">MEM vs UTA</span>
+                </div>
+                <div class="prop-meta">🔄 Combo Guard · <span style="color:rgba(255,255,255,0.5)">DS 57</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">11.6p | 5.6a | 2.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,80,80,0.5)">Δ -4.9</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 16.5</span><span class="stat-line-ref">AST 8.5</span><span class="stat-line-ref">REB 3.5</span><span class="stat-line-ref">PRA 29.5</span></div>
+            <div class="prop-note">Avg 11.6 pts // 66% TS vs 119 DRTG // 📉 TRENDING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002D62;">
+        <div class="prop-rank-num">6</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627826.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">I. Zubac</span>
+                    <span class="prop-team-opp">IND vs WAS</span>
+                </div>
+                <div class="prop-meta">🏋️ Traditional Center · <span style="color:rgba(255,255,255,0.5)">DS 62</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">14.4p | 2.2a | 11.0r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
+            
+            <div class="prop-note">Avg 14.4 pts // 64% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
+        <div class="prop-rank-num">7</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630583.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">S. Aldama</span>
+                    <span class="prop-team-opp">MEM vs UTA</span>
+                </div>
+                <div class="prop-meta">📐 Stretch 5 · <span style="color:rgba(255,255,255,0.5)">DS 56</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">14.0p | 2.9a | 6.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
+            
+            <div class="prop-note">Avg 14.0 pts // 57% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #00471B;">
+        <div class="prop-rank-num">8</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203507.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">G. Antetokounmpo</span>
+                    <span class="prop-team-opp">MIL vs NOP</span>
+                </div>
+                <div class="prop-meta">⚡ Small-Ball 4 · <span style="color:var(--green)">DS 91</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">28.0p | 5.6a | 10.0r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 117</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 28.0 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 28.0 pts // 68% TS vs 117 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">22</span><span class="l5-val l5-neutral">19</span><span class="l5-val l5-neutral">21</span><span class="l5-val l5-neutral">21</span><span class="l5-val l5-neutral">25</span>
+            <span class="l5-hit-rate">L5 avg: 22</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002D62;">
+        <div class="prop-rank-num">9</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629614.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">A. Nembhard</span>
+                    <span class="prop-team-opp">IND vs WAS</span>
+                </div>
+                <div class="prop-meta">🎯 Playmaking Guard · <span style="color:rgba(255,255,255,0.5)">DS 60</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">17.4p | 7.5a | 3.0r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(0,255,85,0.6)">Δ +0.9</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 16.5</span><span class="stat-line-ref">AST 6.5</span><span class="stat-line-ref">REB 2.5</span><span class="stat-line-ref">PRA 26.5</span></div>
+            <div class="prop-note">Avg 17.4 pts // 56% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">24</span><span class="l5-val l5-neutral">10</span><span class="l5-val l5-neutral">22</span><span class="l5-val l5-neutral">0</span><span class="l5-val l5-neutral">7</span>
+            <span class="l5-hit-rate">L5 avg: 13</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #007AC1;">
+        <div class="prop-rank-num">10</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">S. Gilgeous-Alexander</span>
+                    <span class="prop-team-opp">OKC vs BKN</span>
+                </div>
+                <div class="prop-meta">⚡ Scoring Guard · <span style="color:var(--green)">DS 99</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">31.8p | 6.4a | 4.4r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">Δ -0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 32.0 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 31.8 pts // 67% TS vs 117 DRTG // 📉 TRENDING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">20</span><span class="l5-val l5-neutral">34</span><span class="l5-val l5-neutral">30</span><span class="l5-val l5-neutral">29</span><span class="l5-val l5-neutral">24</span>
+            <span class="l5-hit-rate">L5 avg: 27</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #5D76A9;">
+        <div class="prop-rank-num">11</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642377.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">J. Wells</span>
+                    <span class="prop-team-opp">MEM vs UTA</span>
+                </div>
+                <div class="prop-meta">📐 Stretch Big · <span style="color:rgba(255,255,255,0.5)">DS 47</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">12.1p | 1.7a | 3.4r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,80,80,0.5)">Δ -5.4</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 17.5</span><span class="stat-line-ref">AST 1.5</span><span class="stat-line-ref">REB 4.5</span><span class="stat-line-ref">PRA 24.5</span></div>
+            <div class="prop-note">Avg 12.1 pts // 54% TS vs 119 DRTG // 📉 TRENDING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002D62;">
+        <div class="prop-rank-num">12</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630174.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">A. Nesmith</span>
+                    <span class="prop-team-opp">IND vs WAS</span>
+                </div>
+                <div class="prop-meta">🔒 3-and-D Wing · <span style="color:rgba(255,255,255,0.5)">DS 50</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">13.6p | 2.1a | 4.8r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
+            
+            <div class="prop-note">Avg 13.6 pts // 53% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002D62;">
+        <div class="prop-rank-num">13</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630167.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">O. Toppin</span>
+                    <span class="prop-team-opp">IND vs WAS</span>
+                </div>
+                <div class="prop-meta">◆ Unclassified · <span style="color:rgba(255,255,255,0.5)">DS 49</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">14.0p | 1.7a | 6.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 119</div>
+            
+            <div class="prop-note">Avg 14.0 pts // 53% TS vs 119 DRTG // ❄️ COOLING DOWN (5G)</div>
+            
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #00471B;">
+        <div class="prop-rank-num">14</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629645.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">K. Porter Jr.</span>
+                    <span class="prop-team-opp">MIL vs NOP</span>
+                </div>
+                <div class="prop-meta">🎯 Playmaking Guard · <span style="color:var(--amber)">DS 70</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">17.3p | 7.6a | 5.2r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">Δ -0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 17.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 17.3 pts // 56% TS vs 117 DRTG // 🔥 HEATING UP (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">12</span><span class="l5-val l5-neutral">18</span><span class="l5-val l5-neutral">28</span><span class="l5-val l5-neutral">23</span><span class="l5-val l5-neutral">18</span>
+            <span class="l5-hit-rate">L5 avg: 20</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #007AC1;">
+        <div class="prop-rank-num">15</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">C. Holmgren</span>
+                    <span class="prop-team-opp">OKC vs BKN</span>
+                </div>
+                <div class="prop-meta">🏰 Rim Protector · <span style="color:var(--amber)">DS 76</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">17.4p | 1.6a | 8.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">Δ -0.1</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 17.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 17.4 pts // 65% TS vs 117 DRTG // 📉 TRENDING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">16</span><span class="l5-val l5-neutral">13</span><span class="l5-val l5-neutral">13</span><span class="l5-val l5-neutral">17</span><span class="l5-val l5-neutral">0</span>
+            <span class="l5-hit-rate">L5 avg: 12</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #00471B;">
+        <div class="prop-rank-num">16</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631157.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">R. Rollins</span>
+                    <span class="prop-team-opp">MIL vs NOP</span>
+                </div>
+                <div class="prop-meta">🎯 Sharpshooter · <span style="color:rgba(255,255,255,0.5)">DS 65</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">16.9p | 5.5a | 4.6r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">Δ -0.1</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 17.0 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 16.9 pts // 57% TS vs 117 DRTG // 🔥 HEATING UP (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">14</span><span class="l5-val l5-neutral">22</span><span class="l5-val l5-neutral">27</span><span class="l5-val l5-neutral">21</span><span class="l5-val l5-neutral">25</span>
+            <span class="l5-hit-rate">L5 avg: 22</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #E03A3E;">
+        <div class="prop-rank-num">17</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630166.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">D. Avdija</span>
+                    <span class="prop-team-opp">POR vs DEN</span>
+                </div>
+                <div class="prop-meta">🧠 Point Forward · <span style="color:var(--amber)">DS 80</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">25.2p | 6.6a | 7.2r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(0,255,85,0.6)">Δ +0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 25.0 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 25.2 pts // 61% TS vs 116 DRTG // 📈 TRENDING UP (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">0</span><span class="l5-val l5-neutral">11</span><span class="l5-val l5-neutral">26</span><span class="l5-val l5-neutral">0</span><span class="l5-val l5-neutral">0</span>
+            <span class="l5-hit-rate">L5 avg: 7</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #0E2240;">
+        <div class="prop-rank-num">18</div>
+        <div class="prop-row">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203999.png" class="prop-face" onerror="this.style.display='none'">
+            <div class="prop-info">
+                <div class="prop-name-row">
+                    <span class="prop-name">N. Jokić</span>
+                    <span class="prop-team-opp">DEN vs POR</span>
+                </div>
+                <div class="prop-meta">🔮 Versatile Big · <span style="color:var(--green)">DS 99</span></div>
+            </div>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">28.7p | 10.7a | 12.3r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
+            </div>
+        </div>
+        <div class="prop-bottom">
+            <div class="prop-edge" style="color:rgba(0,255,85,0.6)">Δ +0.2</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 28.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 28.7 pts // 70% TS vs 114 DRTG // 📉 TRENDING DOWN (5G)</div>
+            
+        <div class="prop-last5">
+            <span class="l5-val l5-neutral">26</span><span class="l5-val l5-neutral">22</span><span class="l5-val l5-neutral">22</span><span class="l5-val l5-neutral">30</span><span class="l5-val l5-neutral">24</span>
+            <span class="l5-hit-rate">L5 avg: 25</span>
+        </div>
+        </div>
+    </div>
+    <div class="stat-spotlight-card" style="border-left: 3px solid #007AC1;">
         <div class="prop-rank-num">19</div>
         <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201935.png" class="prop-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631114.png" class="prop-face" onerror="this.style.display='none'">
             <div class="prop-info">
                 <div class="prop-name-row">
-                    <span class="prop-name">J. Harden</span>
-                    <span class="prop-team-opp">CLE vs CHA</span>
+                    <span class="prop-name">J. Williams</span>
+                    <span class="prop-team-opp">OKC vs BKN</span>
                 </div>
-                <div class="prop-meta">⚡ Scoring Guard · DS 83</div>
+                <div class="prop-meta">🧠 Point Forward · <span style="color:var(--amber)">DS 71</span></div>
             </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 20.5</span>
-                <span class="prop-type-label">OVER PTS</span>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">17.5p | 5.4a | 4.7r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
             </div>
-            <div class="prop-conf-pill conf-high">8</div>
         </div>
         <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(0,255,85,0.7)">+4.5</div>
-            <div class="prop-note">Avg 25.0 pts // 60% TS vs 113 DRTG // ❄️ COOLING DOWN (5G)</div>
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">DRTG 117</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 17.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 17.5 pts // 56% TS vs 117 DRTG</div>
             
         <div class="prop-last5">
-            <span class="l5-val l5-miss">13</span><span class="l5-val l5-hit">22</span><span class="l5-val l5-hit">23</span><span class="l5-val l5-hit">25</span><span class="l5-val l5-miss">16</span>
-            <span class="l5-hit-rate">3/5</span>
+            <span class="l5-val l5-neutral">28</span><span class="l5-val l5-neutral">23</span><span class="l5-val l5-neutral">8</span><span class="l5-val l5-neutral">6</span><span class="l5-val l5-neutral">20</span>
+            <span class="l5-hit-rate">L5 avg: 17</span>
         </div>
         </div>
     </div>
-    <div class="prop-card prop-over" style="border-left: 3px solid #002B5C;">
+    <div class="stat-spotlight-card" style="border-left: 3px solid #002B5C;">
         <div class="prop-rank-num">20</div>
         <div class="prop-row">
-            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629027.png" class="prop-face" onerror="this.style.display='none'">
+            <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203076.png" class="prop-face" onerror="this.style.display='none'">
             <div class="prop-info">
                 <div class="prop-name-row">
-                    <span class="prop-name">T. Young</span>
+                    <span class="prop-name">A. Davis</span>
                     <span class="prop-team-opp">WAS vs IND</span>
                 </div>
-                <div class="prop-meta">◆ nan · DS 65</div>
+                <div class="prop-meta">🏰 Rim Protector · <span style="color:rgba(255,255,255,0.5)">DS 68</span></div>
             </div>
-            <div class="prop-pick-compact prop-over">
-                <span class="prop-dir-line"><span class="prop-dir-icon">▲</span> 9.0 <span class="proj-tag">PROJ</span></span>
-                <span class="prop-type-label">OVER AST</span>
+            <div class="stat-summary-box">
+                <span class="stat-summary-line">20.4p | 2.8a | 11.1r</span>
+                <span class="stat-matchup-badge" style="color:#00FF55;background:rgba(0,255,85,0.12)">ELITE</span>
             </div>
-            <div class="prop-conf-pill conf-high">7</div>
         </div>
         <div class="prop-bottom">
-            <div class="prop-edge" style="color:rgba(255,80,80,0.7)">-0.1</div>
-            <div class="prop-note">Avg 8.9 ast // 28 mpg // ❄️ COOLING DOWN (5G)</div>
+            <div class="prop-edge" style="color:rgba(255,255,255,0.3)">Δ -0.1</div>
+            <div class="stat-lines-row"><span class="stat-line-ref">PTS 20.5 <span class="proj-tag">PROJ</span></span></div>
+            <div class="prop-note">Avg 20.4 pts // 55% TS vs 116 DRTG // ❄️ COOLING DOWN (5G)</div>
             
         <div class="prop-last5">
-            <span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-miss">0</span><span class="l5-val l5-hit">10</span><span class="l5-val l5-miss">6</span>
-            <span class="l5-hit-rate">1/5</span>
+            <span class="l5-val l5-neutral">21</span><span class="l5-val l5-neutral">19</span><span class="l5-val l5-neutral">26</span><span class="l5-val l5-neutral">13</span><span class="l5-val l5-neutral">3</span>
+            <span class="l5-hit-rate">L5 avg: 16</span>
         </div>
         </div>
     </div>
