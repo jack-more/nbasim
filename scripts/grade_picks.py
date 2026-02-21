@@ -174,6 +174,8 @@ def fetch_scores():
 # The automated system will fetch these from the Odds API / nba_api.
 KNOWN_SCORES = {
     "PHX @ SAS": {"home_abbr": "SAS", "away_abbr": "PHX", "home_score": 91, "away_score": 65},
+    "DAL @ MIN": {"home_abbr": "MIN", "away_abbr": "DAL", "home_score": 122, "away_score": 111},
+    "UTA @ MEM": {"home_abbr": "MEM", "away_abbr": "UTA", "home_score": 123, "away_score": 114},
 }
 
 KNOWN_PLAYER_STATS = {
