@@ -284,8 +284,14 @@ def fetch_odds_api_player_props(event_ids):
 
 
 def compute_dynamic_score(row):
-    """Compute a quick dynamic score from available stats.
-    Returns (score, breakdown_dict) for tooltip display."""
+    """Compute a dynamic score with 75% offense / 25% defense split.
+
+    Offensive sub-score: scoring, playmaking, efficiency, usage
+    Defensive sub-score: stocks (STL+BLK amplified) + defensive rating
+    Shared: rebounds, net rating impact, minutes
+
+    Returns (score, breakdown_dict) for tooltip display.
+    """
     pts = row.get("pts_pg", 0) or 0
     ast = row.get("ast_pg", 0) or 0
     reb = row.get("reb_pg", 0) or 0
@@ -295,31 +301,51 @@ def compute_dynamic_score(row):
     net = row.get("net_rating", 0) or 0
     usg = row.get("usg_pct", 0) or 0
     mpg = row.get("minutes_per_game", 0) or 0
+    drtg = row.get("def_rating", 0) or 0
+    if drtg == 0:
+        drtg = 112  # league average fallback
 
+    # ── Offensive sub-score (0-99 scale) ──
     scoring_c = pts * 1.2
     playmaking_c = ast * 1.8
-    rebounding_c = reb * 0.8
-    defense_c = stl * 2.0 + blk * 1.5
     efficiency_c = ts * 40
-    impact_c = net * 0.8
     usage_c = usg * 15
+    off_raw = scoring_c + playmaking_c + efficiency_c + usage_c
+    off_score = min(99, max(0, off_raw / 0.85))
+
+    # ── Defensive sub-score (0-99 scale) ──
+    stocks_c = stl * 8.0 + blk * 6.0
+    drtg_c = max(0, (115 - drtg) * 2.5)  # 107 DRtg → 20pts, 112 → 7.5, 115+ → 0
+    def_raw = stocks_c + drtg_c
+    def_score = min(99, max(0, def_raw / 0.5))
+
+    # ── Shared components ──
+    rebounding_c = reb * 0.8
+    impact_c = net * 0.8
     minutes_c = mpg * 0.3
+    shared_raw = rebounding_c + impact_c + minutes_c
 
-    raw = (scoring_c + playmaking_c + rebounding_c + defense_c
-           + efficiency_c + impact_c + usage_c + minutes_c)
-    score = min(99, max(40, int(raw / 1.1)))
+    # ── Blend: 75% offense + 25% defense + shared ──
+    blended = 0.75 * off_score + 0.25 * def_score + shared_raw
+    score = min(99, max(40, int(blended / 1.1)))
 
+    # Breakdown for tooltip — preserve existing keys for compatibility
+    total_raw = off_raw + def_raw + shared_raw
     breakdown = {
         "pts": round(pts, 1), "ast": round(ast, 1), "reb": round(reb, 1),
         "stl": round(stl, 1), "blk": round(blk, 1),
         "ts_pct": round(ts * 100, 1) if ts < 1 else round(ts, 1),
-        "net_rating": round(net, 1), "usg_pct": round(usg * 100, 1) if usg < 1 else round(usg, 1),
+        "net_rating": round(net, 1),
+        "usg_pct": round(usg * 100, 1) if usg < 1 else round(usg, 1),
         "mpg": round(mpg, 1),
-        "scoring_c": round(scoring_c / raw * 100, 0) if raw else 0,
-        "playmaking_c": round(playmaking_c / raw * 100, 0) if raw else 0,
-        "defense_c": round(defense_c / raw * 100, 0) if raw else 0,
-        "efficiency_c": round(efficiency_c / raw * 100, 0) if raw else 0,
-        "impact_c": round(impact_c / raw * 100, 0) if raw else 0,
+        "def_rating": round(drtg, 1),
+        "off_score": round(off_score, 1),
+        "def_score": round(def_score, 1),
+        "scoring_c": round(scoring_c / max(1, off_raw) * 100, 0) if off_raw else 0,
+        "playmaking_c": round(playmaking_c / max(1, off_raw) * 100, 0) if off_raw else 0,
+        "defense_c": round(def_score, 0),
+        "efficiency_c": round(efficiency_c / max(1, off_raw) * 100, 0) if off_raw else 0,
+        "impact_c": round(impact_c / max(1, shared_raw) * 100, 0) if shared_raw else 0,
     }
     return score, breakdown
 
@@ -380,7 +406,9 @@ _DSI_CONSTANTS = {
     "NRTG_WEIGHT":  0.50,   # adjusted net rating share in final blend
     "HCA":          3.0,    # home court advantage added to home net rating
     "B2B_PENALTY":  3.0,    # back-to-back penalty subtracted from net rating
-    "USAGE_DECAY":  0.995,  # DS multiplier per 1% extra usage (efficiency tax)
+    "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
+    "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
+    "STOCKS_PENALTY":   0.8,    # DSI points lost per lost stock (STL+BLK scaled by minutes)
 }
 
 # Archetype groups for usage redistribution
@@ -394,6 +422,10 @@ _PLAYMAKING_ARCHETYPES = {
 _BIG_ARCHETYPES = {
     "Rim Protector", "Stretch 5", "Traditional Center", "Versatile Big",
     "Stretch Big", "Traditional PF",
+}
+_DEFENSIVE_ARCHETYPES = {
+    "Defensive Specialist", "Two-Way Wing", "3-and-D Wing", "Two-Way Forward",
+    "Rim Protector",  # dual membership with _BIG_ARCHETYPES
 }
 _GUARD_POSITIONS = {"PG", "SG"}
 _WING_POSITIONS = {"SF", "SG"}
@@ -688,6 +720,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
     """Compute DSI: Dynamic Scores adjusted for who's actually playing.
 
     Uses archetypes to route usage from missing players to remaining ones.
+    Applies stocks loss penalty when high-STL/BLK players are OUT.
     Returns (team_dsi, player_ds_dict, breakdown_notes).
     """
     K = _DSI_CONSTANTS
@@ -697,13 +730,19 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
     if available.empty:
         return 50.0, {}, []
 
-    # Calculate total usage being redistributed
+    # Calculate total usage + stocks being lost from OUT players
     missing_usage = 0
+    missing_stocks = 0.0
     missing_archetypes = []
     missing_positions = []
     for _, out_row in out_players.iterrows():
         usg = out_row.get("usg_pct", 0) or 0
         missing_usage += usg
+        # Stocks loss: STL + BLK weighted by minutes share
+        stl = out_row.get("stl_pg", 0) or 0
+        blk = out_row.get("blk_pg", 0) or 0
+        mpg = out_row.get("minutes_per_game", 0) or 0
+        missing_stocks += (stl + blk) * (mpg / 36.0)
         arch = str(out_row.get("archetype_label", "") or "")
         pos = str(out_row.get("position_group", "") or out_row.get("listed_position", ""))
         if arch and arch != "nan":
@@ -715,6 +754,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
     missing_is_scoring = any(a in _SCORING_ARCHETYPES for a in missing_archetypes)
     missing_is_playmaking = any(a in _PLAYMAKING_ARCHETYPES for a in missing_archetypes)
     missing_is_big = any(a in _BIG_ARCHETYPES for a in missing_archetypes)
+    missing_is_defensive = any(a in _DEFENSIVE_ARCHETYPES for a in missing_archetypes)
     missing_is_guard = any(p in _GUARD_POSITIONS for p in missing_positions)
     missing_is_wing = any(p in _WING_POSITIONS for p in missing_positions)
     missing_is_bigpos = any(p in _BIG_POSITIONS for p in missing_positions)
@@ -738,7 +778,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
         # Calculate usage boost from missing players
         usage_boost = 0
         if missing_usage > 0 and len(available) > 0:
-            # Same archetype/position gets 60% of redistributed usage
+            # Same archetype gets 60% of redistributed usage
             same_arch = arch in missing_archetypes
             same_pos_category = (
                 (pos in _GUARD_POSITIONS and missing_is_guard) or
@@ -748,19 +788,21 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
             same_scoring = (arch in _SCORING_ARCHETYPES and missing_is_scoring)
             same_playmaking = (arch in _PLAYMAKING_ARCHETYPES and missing_is_playmaking)
             same_big = (arch in _BIG_ARCHETYPES and missing_is_big)
+            same_defensive = (arch in _DEFENSIVE_ARCHETYPES and missing_is_defensive)
 
             if same_arch:
                 usage_boost = missing_usage * 0.60 / max(1, sum(
                     1 for _, r in available.iterrows()
                     if str(r.get("archetype_label", "")) in missing_archetypes
                 ))
-            elif same_pos_category or same_scoring or same_playmaking or same_big:
+            elif same_pos_category or same_scoring or same_playmaking or same_big or same_defensive:
                 usage_boost = missing_usage * 0.25 / max(1, sum(
                     1 for _, r in available.iterrows()
                     if str(r.get("position_group", "") or r.get("listed_position", "")) in missing_positions
                     or (str(r.get("archetype_label", "")) in _SCORING_ARCHETYPES and missing_is_scoring)
                     or (str(r.get("archetype_label", "")) in _PLAYMAKING_ARCHETYPES and missing_is_playmaking)
                     or (str(r.get("archetype_label", "")) in _BIG_ARCHETYPES and missing_is_big)
+                    or (str(r.get("archetype_label", "")) in _DEFENSIVE_ARCHETYPES and missing_is_defensive)
                 ))
             else:
                 # Everyone else gets remaining share
@@ -771,15 +813,25 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
 
         # Build a modified row for DS calculation
         modified_row = dict(row)
-        modified_row["usg_pct"] = adjusted_usg
         modified_row["minutes_per_game"] = proj_min
+
+        # Defensive archetypes only absorb 50% of offensive usage boost
+        if arch in _DEFENSIVE_ARCHETYPES and usage_boost > 0:
+            modified_row["usg_pct"] = base_usg + (usage_boost * 0.5)
+        else:
+            modified_row["usg_pct"] = adjusted_usg
 
         ds, _ = compute_dynamic_score(modified_row)
 
-        # Efficiency penalty: more usage = slight DS decay
+        # Efficiency penalty: more usage = DS decay
         if usage_boost > 0:
             usage_increase_pct = (usage_boost / base_usg * 100) if base_usg > 0 else 0
-            efficiency_penalty = K["USAGE_DECAY"] ** usage_increase_pct
+            # Defensive archetypes suffer MORE from offensive usage absorption
+            if arch in _DEFENSIVE_ARCHETYPES:
+                decay_rate = K["USAGE_DECAY_DEF"]   # 0.985 — harsh
+            else:
+                decay_rate = K["USAGE_DECAY"]        # 0.995 — standard
+            efficiency_penalty = decay_rate ** usage_increase_pct
             ds = int(ds * efficiency_penalty)
             ds = max(40, ds)
 
@@ -787,7 +839,11 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
         total_weighted_ds += ds * proj_min
         total_minutes += proj_min
 
-    team_dsi = total_weighted_ds / total_minutes if total_minutes > 0 else 50.0
+    raw_team_dsi = total_weighted_ds / total_minutes if total_minutes > 0 else 50.0
+
+    # Stocks loss penalty: team loses DSI for missing STL+BLK production
+    stocks_penalty = missing_stocks * K["STOCKS_PENALTY"]
+    team_dsi = max(40.0, raw_team_dsi - stocks_penalty)
 
     return team_dsi, player_ds, notes
 
@@ -1393,7 +1449,7 @@ def get_team_roster(abbreviation, limit=8):
     players = read_query("""
         SELECT p.player_id, p.full_name, ps.pts_pg, ps.ast_pg, ps.reb_pg,
                ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
-               ps.minutes_per_game, ra.listed_position,
+               ps.minutes_per_game, ps.def_rating, ra.listed_position,
                pa.archetype_label, pa.confidence as arch_confidence
         FROM player_season_stats ps
         JOIN players p ON ps.player_id = p.player_id
@@ -1430,7 +1486,8 @@ def get_top_combos():
             players = read_query(
                 f"""SELECT p.full_name, p.player_id, pa.archetype_label,
                            ps.pts_pg, ps.ast_pg, ps.reb_pg, ps.stl_pg, ps.blk_pg,
-                           ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game
+                           ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game,
+                           ps.def_rating
                     FROM players p
                     LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '2025-26'
                     LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '2025-26'
@@ -1497,7 +1554,8 @@ def get_fade_combos():
             players = read_query(
                 f"""SELECT p.full_name, p.player_id, pa.archetype_label,
                            ps.pts_pg, ps.ast_pg, ps.reb_pg, ps.stl_pg, ps.blk_pg,
-                           ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game
+                           ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game,
+                           ps.def_rating
                     FROM players p
                     LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '2025-26'
                     LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '2025-26'
@@ -1755,23 +1813,27 @@ def get_top_50_ds():
         SELECT p.player_id, p.full_name, t.abbreviation,
                ps.pts_pg, ps.ast_pg, ps.reb_pg,
                ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
-               ps.minutes_per_game,
+               ps.minutes_per_game, ps.def_rating,
                pa.archetype_label
         FROM player_season_stats ps
         JOIN players p ON ps.player_id = p.player_id
         JOIN teams t ON ps.team_id = t.team_id
         LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
         WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 20
-        ORDER BY (ps.pts_pg * 1.2 + ps.ast_pg * 1.8 + ps.reb_pg * 0.8
-                  + ps.stl_pg * 2.0 + ps.blk_pg * 1.5
-                  + ps.ts_pct * 40 + ps.net_rating * 0.8
-                  + ps.usg_pct * 15 + ps.minutes_per_game * 0.3) DESC
-        LIMIT 50
+        ORDER BY ps.minutes_per_game DESC
+        LIMIT 100
     """, DB_PATH)
 
-    ranked = []
+    # Compute DS for each player, then sort by DS and take top 50
+    all_scored = []
     for _, p in players.iterrows():
         ds, breakdown = compute_dynamic_score(p)
+        all_scored.append((p, ds, breakdown))
+    all_scored.sort(key=lambda x: x[1], reverse=True)
+    all_scored = all_scored[:50]
+
+    ranked = []
+    for p, ds, breakdown in all_scored:
         low, high = compute_ds_range(ds)
         ranked.append({
             "rank": len(ranked) + 1,
