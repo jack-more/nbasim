@@ -63,6 +63,16 @@ CURRENT_PICKS = [
     {"slate_date": "2026-02-20", "pick_type": "spread", "matchup": "UTA @ MEM",
      "side": "MEM -4.5", "line_value": 4.5, "direction": "home_spread",
      "confidence": 7, "risk_amount": 30},
+    # FEB 21 — SATURDAY (DSI Model Leans)
+    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "PHI @ NOP",
+     "side": "NOP +4.0", "line_value": -4.0, "direction": "home_spread",
+     "confidence": 8, "risk_amount": 40},
+    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "SAC @ SAS",
+     "side": "SAS -18.5", "line_value": 18.5, "direction": "home_spread",
+     "confidence": 7, "risk_amount": 30},
+    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "HOU @ NYK",
+     "side": "HOU +3.5", "line_value": 3.5, "direction": "away_spread",
+     "confidence": 7, "risk_amount": 30},
 ]
 
 
@@ -226,16 +236,26 @@ def grade_pick(pick, scores):
 
     if pick["pick_type"] == "spread":
         # Spread grading
-        # "home_spread" means we bet on the home team covering
         actual_margin = home_score - away_score
         line = pick["line_value"]
 
-        if actual_margin > line:
-            result = "W"
-        elif actual_margin == line:
-            result = "P"
+        if pick.get("direction") == "away_spread":
+            # Betting on the away team: away covers if home margin < |line|
+            # Flip: away wins their spread if home does NOT cover
+            if actual_margin < line:
+                result = "W"
+            elif actual_margin == line:
+                result = "P"
+            else:
+                result = "L"
         else:
-            result = "L"
+            # "home_spread" — home team covering
+            if actual_margin > line:
+                result = "W"
+            elif actual_margin == line:
+                result = "P"
+            else:
+                result = "L"
 
         profit = compute_profit(result, pick["risk_amount"])
         return result, profit, actual_margin, home_score, away_score
