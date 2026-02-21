@@ -124,6 +124,47 @@ ODDS_TEAM_MAP = {
 }
 
 
+def fetch_nba_schedule():
+    """Fetch today's NBA schedule from NBA.com for game times and statuses.
+
+    Returns:
+        dict: {(home_abbr, away_abbr): {"utc": datetime, "status": int, "status_text": str}}
+              status: 1=scheduled, 2=in-progress, 3=final
+    """
+    url = "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json"
+    try:
+        resp = requests.get(url, timeout=10, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"[NBA Schedule] Failed to fetch: {e}")
+        return {}
+
+    schedule = {}
+    for game in data.get("scoreboard", {}).get("games", []):
+        home = game.get("homeTeam", {}).get("teamTricode", "")
+        away = game.get("awayTeam", {}).get("teamTricode", "")
+        time_utc = game.get("gameTimeUTC", "")
+        status = game.get("gameStatus", 0)
+        status_text = game.get("gameStatusText", "")
+
+        if home and away and time_utc:
+            try:
+                dt = datetime.fromisoformat(time_utc.replace("Z", "+00:00"))
+                schedule[(home, away)] = {
+                    "utc": dt,
+                    "status": status,
+                    "status_text": status_text.strip(),
+                }
+            except Exception:
+                pass
+
+    print(f"[NBA Schedule] Found {len(schedule)} games for today")
+    return schedule
+
+
 def fetch_odds_api_lines():
     """Fetch real NBA spreads and totals from The Odds API.
 
@@ -450,7 +491,7 @@ def scrape_rotowire():
         html = resp.text
     except Exception as e:
         print(f"[RotoWire] Failed to fetch: {e}")
-        return {}, {}, [], None
+        return {}, {}, [], None, {}
 
     soup = BeautifulSoup(html, "html.parser")
 
@@ -459,7 +500,7 @@ def scrape_rotowire():
     team_abbrs = [el.get_text(strip=True) for el in team_els]
     if len(team_abbrs) < 2:
         print("[RotoWire] No teams found")
-        return {}, {}, [], None
+        return {}, {}, [], None, {}
 
     # Build matchup pairs (every 2 teams = 1 game: away, home)
     matchup_pairs = []
@@ -469,6 +510,46 @@ def scrape_rotowire():
         matchup_pairs.append((home, away))
 
     print(f"[RotoWire] Found {len(matchup_pairs)} games, {len(team_abbrs)} teams")
+
+    # ── Extract game times from parent containers ──
+    # Structure: .lineup.is-nba > .lineup__time (text: "7:00 PM ET" or "Final")
+    #                            > .lineup__box > ...
+    game_times = {}
+    game_containers = soup.select(".lineup.is-nba")
+    for container in game_containers:
+        # Skip ad/tools containers
+        container_classes = " ".join(container.get("class", []))
+        if "is-tools" in container_classes:
+            continue
+
+        time_el = container.select_one(".lineup__time")
+        if not time_el:
+            continue
+        time_text = time_el.get_text(strip=True)
+
+        # Find the home/away teams in this container's box
+        box = container.select_one(".lineup__box")
+        if not box:
+            continue
+        abbr_els = box.select(".lineup__abbr")
+        if len(abbr_els) < 2:
+            continue
+
+        c_home, c_away = None, None
+        for abbr_el in abbr_els:
+            abbr_text = abbr_el.get_text(strip=True)
+            parent_link = abbr_el.parent
+            parent_classes = " ".join(parent_link.get("class", []) if parent_link else [])
+            if "is-visit" in parent_classes:
+                c_away = abbr_text
+            elif "is-home" in parent_classes:
+                c_home = abbr_text
+
+        if c_home and c_away:
+            game_times[(c_home, c_away)] = time_text
+
+    if game_times:
+        print(f"[RotoWire] Extracted {len(game_times)} game times")
 
     # ── Extract lineups per team ──
     # Each .lineup__box = one game, containing:
@@ -607,7 +688,93 @@ def scrape_rotowire():
         else:
             print(f"  {away}@{home}: {away} {-sp:+.1f}, O/U {line_data['total']}")
 
-    return lineups, lines, matchup_pairs, slate_date
+    return lineups, lines, matchup_pairs, slate_date, game_times
+
+
+def filter_started_games(matchup_pairs, game_times, rw_lines):
+    """Step 0: Remove games that have already started or finished.
+
+    Uses NBA.com scoreboard API (primary) and RotoWire time text (fallback).
+    Games with status text like 'Final', 'Q3 5:42', 'Halftime' are always filtered.
+
+    Returns:
+        (filtered_pairs, filtered_lines, removed_count)
+    """
+    from zoneinfo import ZoneInfo
+
+    now_utc = datetime.now(timezone.utc)
+    et_tz = ZoneInfo("America/New_York")
+    now_et = now_utc.astimezone(et_tz)
+
+    # Fetch NBA.com schedule for precise UTC times and game status
+    nba_schedule = fetch_nba_schedule()
+
+    filtered_pairs = []
+    removed = []
+
+    for pair in matchup_pairs:
+        home, away = pair
+        should_keep = True
+
+        # ── Check 1: NBA.com status (most reliable) ──
+        nba_game = nba_schedule.get(pair)
+        if nba_game:
+            if nba_game["status"] in (2, 3):
+                # In-progress or final
+                should_keep = False
+                removed.append(f"{away}@{home} ({nba_game['status_text']})")
+            elif nba_game["status"] == 1 and nba_game["utc"] <= now_utc:
+                # Scheduled but commence time already passed
+                should_keep = False
+                removed.append(f"{away}@{home} (past tip: {nba_game['status_text']})")
+
+        # ── Check 2: RotoWire time text (fallback if NBA.com missed it) ──
+        if should_keep and pair in game_times:
+            time_text = game_times[pair]
+
+            # Non-time strings indicate started/finished games
+            started_keywords = ["FINAL", "HALF", " OT", "Q1 ", "Q2 ", "Q3 ", "Q4 ",
+                                "END OF", "1ST", "2ND", "3RD", "4TH"]
+            if any(kw in time_text.upper() for kw in started_keywords):
+                should_keep = False
+                removed.append(f"{away}@{home} (RW: {time_text})")
+            else:
+                # Parse "7:00 PM ET" format
+                try:
+                    m = re.match(r'(\d{1,2}):(\d{2})\s*(AM|PM)\s*ET', time_text, re.IGNORECASE)
+                    if m:
+                        hour = int(m.group(1))
+                        minute = int(m.group(2))
+                        ampm = m.group(3).upper()
+                        if ampm == "PM" and hour != 12:
+                            hour += 12
+                        elif ampm == "AM" and hour == 12:
+                            hour = 0
+
+                        # Build ET datetime for today
+                        game_et = now_et.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+                        if game_et <= now_et:
+                            should_keep = False
+                            removed.append(f"{away}@{home} (tip {time_text} already passed)")
+                except Exception as e:
+                    print(f"[Step 0] Could not parse time for {away}@{home}: {time_text} ({e})")
+
+        if should_keep:
+            filtered_pairs.append(pair)
+
+    if removed:
+        print(f"[Step 0] Filtered {len(removed)} started/completed games:")
+        for r in removed:
+            print(f"  - {r}")
+    else:
+        print("[Step 0] All games are upcoming — no filtering needed")
+
+    # Prune lines dict for removed games
+    removed_set = set(matchup_pairs) - set(filtered_pairs)
+    filtered_lines = {k: v for k, v in rw_lines.items() if k not in removed_set}
+
+    return filtered_pairs, filtered_lines, len(removed)
 
 
 def detect_back_to_back(team_id):
@@ -1230,7 +1397,7 @@ def get_matchups():
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
 
     # ── Scrape RotoWire for lineups + real sportsbook lines ──
-    rw_lineups, rw_lines, rw_pairs, rw_slate_date = scrape_rotowire()
+    rw_lineups, rw_lines, rw_pairs, rw_slate_date, rw_game_times = scrape_rotowire()
 
     # Also try Odds API as fallback
     api_lines, api_pairs, api_slate_date, event_ids = fetch_odds_api_lines()
@@ -1268,6 +1435,14 @@ def get_matchups():
         ]
         slate_date = "FEB 20"
         print(f"[Matchups] Using hardcoded fallback slate ({len(matchup_pairs)} games)")
+
+    # ── STEP 0: Filter out games that have already started ──
+    game_times_for_filter = rw_game_times if matchup_pairs == rw_pairs else {}
+    matchup_pairs, real_lines, removed_count = filter_started_games(
+        matchup_pairs, game_times_for_filter, real_lines
+    )
+    if removed_count > 0:
+        print(f"[Matchups] {len(matchup_pairs)} games remaining after Step 0 filtering")
 
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
@@ -1944,8 +2119,20 @@ def generate_html():
 
     # ── Build matchup cards HTML (with projected player lines) ──
     matchup_cards = ""
-    for idx, m in enumerate(matchups):
-        matchup_cards += render_matchup_card(m, idx, team_map)
+    if matchups:
+        for idx, m in enumerate(matchups):
+            matchup_cards += render_matchup_card(m, idx, team_map)
+    else:
+        matchup_cards = """
+        <div style="text-align:center; padding:60px 20px; color:#888;">
+            <div style="font-size:2.5rem; margin-bottom:16px;">&#127936;</div>
+            <div style="font-size:1.2rem; font-weight:700; color:#ccc; margin-bottom:8px;">No Upcoming Games</div>
+            <div style="font-size:0.9rem; line-height:1.5;">
+                All games for today have started or finished.<br>
+                Check back tomorrow for fresh predictions.
+            </div>
+        </div>
+        """
 
     # ── Build player stats HTML ──
     props_cards = ""
