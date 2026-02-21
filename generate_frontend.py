@@ -1291,6 +1291,93 @@ def get_player_trend(player_id, team_abbreviation):
     return trend
 
 
+def get_top_trending_players():
+    """Get top 4 risers and top 4 fallers by PRA delta (last 7 days vs prior 7 days).
+    Uses most recent data date as anchor (not today) in case boxscores are delayed."""
+    # Find the most recent game date with player stats
+    latest_df = read_query("""
+        SELECT MAX(g.game_date) as latest
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+    """, DB_PATH)
+    if latest_df.empty or latest_df.iloc[0]["latest"] is None:
+        return [], []
+    latest_date = latest_df.iloc[0]["latest"]
+    latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
+    today = latest_date
+    seven_ago = (latest_dt - timedelta(days=7)).strftime("%Y-%m-%d")
+    fourteen_ago = (latest_dt - timedelta(days=14)).strftime("%Y-%m-%d")
+
+    # Recent 7 days averages
+    recent = read_query("""
+        SELECT pgs.player_id,
+               p.full_name,
+               t.abbreviation AS team,
+               pa.archetype_label,
+               COUNT(*) as gp,
+               AVG(pgs.pts) as avg_pts,
+               AVG(pgs.ast) as avg_ast,
+               AVG(pgs.reb) as avg_reb,
+               AVG(pgs.pts + pgs.ast + pgs.reb) as avg_pra
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        JOIN players p ON pgs.player_id = p.player_id
+        JOIN roster_assignments ra ON pgs.player_id = ra.player_id AND ra.season_id = '2025-26'
+        JOIN teams t ON ra.team_id = t.team_id
+        LEFT JOIN player_archetypes pa ON pgs.player_id = pa.player_id AND pa.season_id = '2025-26'
+        WHERE g.game_date >= ? AND g.game_date <= ?
+          AND pgs.minutes >= 15
+        GROUP BY pgs.player_id
+        HAVING COUNT(*) >= 2
+    """, DB_PATH, [seven_ago, today])
+
+    # Prior 7 days averages
+    prior = read_query("""
+        SELECT pgs.player_id,
+               AVG(pgs.pts + pgs.ast + pgs.reb) as avg_pra
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE g.game_date >= ? AND g.game_date < ?
+          AND pgs.minutes >= 15
+        GROUP BY pgs.player_id
+        HAVING COUNT(*) >= 2
+    """, DB_PATH, [fourteen_ago, seven_ago])
+
+    if recent.empty or prior.empty:
+        return [], []
+
+    prior_map = {int(row["player_id"]): row["avg_pra"] for _, row in prior.iterrows()}
+
+    trending = []
+    for _, row in recent.iterrows():
+        pid = int(row["player_id"])
+        if pid not in prior_map:
+            continue
+        recent_pra = row["avg_pra"]
+        prior_pra = prior_map[pid]
+        delta = recent_pra - prior_pra
+        trending.append({
+            "player_id": pid,
+            "name": row["full_name"],
+            "team": row["team"],
+            "archetype": row.get("archetype_label") or "Unclassified",
+            "recent_pra": round(recent_pra, 1),
+            "prior_pra": round(prior_pra, 1),
+            "delta": round(delta, 1),
+            "gp": int(row["gp"]),
+            "avg_pts": round(row["avg_pts"], 1),
+            "avg_ast": round(row["avg_ast"], 1),
+            "avg_reb": round(row["avg_reb"], 1),
+        })
+
+    # Top 4 risers (biggest positive delta), top 4 fallers (biggest negative delta)
+    trending.sort(key=lambda x: x["delta"], reverse=True)
+    risers = trending[:4]
+    fallers = sorted(trending, key=lambda x: x["delta"])[:4]
+
+    return risers, fallers
+
+
 def get_player_context(player, opponent_abbr, team_map):
     """Generate a short context summary for a player entering a game."""
     name = player.get("full_name", "?")
@@ -2247,6 +2334,57 @@ def generate_html():
             </div>
         </div>"""
 
+    # ── Build Top 8 Trending Players HTML ──
+    risers, fallers = get_top_trending_players()
+    trending_html = ""
+    if risers or fallers:
+        riser_cards = ""
+        for p in risers:
+            icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
+            headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+            riser_cards += f"""
+            <div class="trend-card trend-up">
+                <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
+                <div class="trend-info">
+                    <span class="trend-name">{p['name']}</span>
+                    <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
+                    <span class="trend-stats">{p['avg_pts']}p {p['avg_ast']}a {p['avg_reb']}r ({p['gp']}G)</span>
+                </div>
+                <div class="trend-delta trend-pos">+{p['delta']:.1f} PRA</div>
+            </div>"""
+
+        faller_cards = ""
+        for p in fallers:
+            icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
+            headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+            faller_cards += f"""
+            <div class="trend-card trend-down">
+                <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
+                <div class="trend-info">
+                    <span class="trend-name">{p['name']}</span>
+                    <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
+                    <span class="trend-stats">{p['avg_pts']}p {p['avg_ast']}a {p['avg_reb']}r ({p['gp']}G)</span>
+                </div>
+                <div class="trend-delta trend-neg">{p['delta']:.1f} PRA</div>
+            </div>"""
+
+        trending_html = f"""
+            <div class="section-header">
+                <h2>TOP 8 TRENDING PLAYERS</h2>
+                <span class="section-sub">Biggest PRA movers — last 7 days vs prior 7</span>
+            </div>
+            <div class="trends-grid">
+                <div class="trends-column">
+                    <div class="trends-col-header hot">📈 RISERS</div>
+                    {riser_cards}
+                </div>
+                <div class="trends-column">
+                    <div class="trends-col-header fade">📉 FALLERS</div>
+                    {faller_cards}
+                </div>
+            </div>
+        """
+
     # ── Build INFO page content ──
     info_content = render_info_page()
 
@@ -2284,7 +2422,7 @@ def generate_html():
         <div class="filter-bar-inner">
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Stats</button>
-            <button class="filter-btn" data-tab="trends">Trends + Stats</button>
+            <button class="filter-btn" data-tab="trends">Trends</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
     </div>
@@ -2331,12 +2469,9 @@ def generate_html():
             <div class="proj-lines-list">
                 {proj_lines_html}
             </div>
-        </div>
 
-        <!-- TRENDS + STATS TAB -->
-        <div class="tab-content" id="tab-trends">
-            <!-- Top 50 DS Rankings — collapsible -->
-            <div class="rankings-section">
+            <!-- Top 50 DS Rankings — collapsible (moved from Trends) -->
+            <div class="rankings-section" style="margin-top:32px">
                 <div class="rankings-header" onclick="toggleRankings()">
                     <div>
                         <h2 class="rankings-title">TOP 50 DYNAMIC SCORE</h2>
@@ -2354,6 +2489,11 @@ def generate_html():
                     {top50_rows}
                 </div>
             </div>
+        </div>
+
+        <!-- TRENDS TAB -->
+        <div class="tab-content" id="tab-trends">
+            {trending_html}
 
             <div class="section-header" style="margin-top:24px">
                 <h2>LINEUP TRENDS</h2>
@@ -2670,6 +2810,11 @@ def render_matchup_card(m, idx, team_map):
         nrtg_fav = "EVEN"
         nrtg_fav_val = ""
 
+    # Model weighting computations
+    dsi_weighted = 0.50 * dsi_pts
+    nrtg_weighted = 0.50 * nrtg_diff
+    proj_spread_val = m.get("proj_spread", 0)
+
     breakdown_html = f"""
         <div class="dsi-breakdown">
             <div class="dsi-row">
@@ -2688,6 +2833,10 @@ def render_matchup_card(m, idx, team_map):
                 <div class="dsi-mid-spacer"></div>
                 <span class="dsi-val">{ha} {home_nrtg:+.1f}</span>
                 <span class="dsi-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
+            </div>
+            <div class="dsi-row dsi-model-row">
+                <span class="dsi-label">MODEL</span>
+                <span class="dsi-model-formula">50% DSI ({dsi_weighted:+.1f}) + 50% NRtg ({nrtg_weighted:+.1f}) = <strong>PROJ {proj_spread_val:+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
                 <span class="hca-badge">HCA +3 {ha}</span>
@@ -3029,20 +3178,27 @@ def render_info_page():
         <div class="info-section">
             <h2 class="info-title">DYNAMIC SCORE (DS) — 40 TO 99</h2>
             <p class="info-text">
-                Every player gets a Dynamic Score from 40-99 based on a weighted formula combining production,
-                efficiency, and impact metrics. The formula weights:
+                Every player gets a Dynamic Score from 40-99 using a <strong>75% offense / 25% defense</strong>
+                split plus shared impact components.
             </p>
             <div class="info-formula">
+                <div class="formula-row" style="color:rgba(0,0,0,0.7)"><span><strong>OFFENSE (75%)</strong></span><span></span></div>
                 <div class="formula-row"><span>Points</span><span>× 1.2</span></div>
                 <div class="formula-row"><span>Assists</span><span>× 1.8</span></div>
-                <div class="formula-row"><span>Rebounds</span><span>× 0.8</span></div>
-                <div class="formula-row"><span>Steals</span><span>× 2.0</span></div>
-                <div class="formula-row"><span>Blocks</span><span>× 1.5</span></div>
                 <div class="formula-row"><span>True Shooting %</span><span>× 40</span></div>
-                <div class="formula-row"><span>Net Rating</span><span>× 0.8</span></div>
                 <div class="formula-row"><span>Usage %</span><span>× 15</span></div>
+                <div class="formula-row" style="color:rgba(0,0,0,0.7); margin-top:4px"><span><strong>DEFENSE (25%)</strong></span><span></span></div>
+                <div class="formula-row"><span>Stocks (STL × 8.0 + BLK × 6.0)</span><span></span></div>
+                <div class="formula-row"><span>Def Rating bonus</span><span>(115 − DRtg) × 2.5</span></div>
+                <div class="formula-row" style="color:rgba(0,0,0,0.7); margin-top:4px"><span><strong>SHARED</strong></span><span></span></div>
+                <div class="formula-row"><span>Rebounds</span><span>× 0.8</span></div>
+                <div class="formula-row"><span>Net Rating</span><span>× 0.8</span></div>
                 <div class="formula-row"><span>Minutes/Game</span><span>× 0.3</span></div>
             </div>
+            <p class="info-text">
+                <strong>Defensive Rating (DRtg)</strong> matters: a player with 107 DRtg earns ~20 defensive points,
+                while 112 DRtg earns only ~7.5. Elite defenders and rim protectors get a meaningful DS boost.
+            </p>
             <div class="ds-tiers">
                 <div class="ds-tier"><span class="ds-elite">85-99</span><span>Elite / All-Star caliber</span></div>
                 <div class="ds-tier"><span class="ds-good">70-84</span><span>Above Average / Strong Starter</span></div>
@@ -3056,9 +3212,7 @@ def render_info_page():
             </p>
             <p class="info-text">
                 <strong>Team DS Ranking (1-30)</strong> is the minutes-weighted average Dynamic Score across
-                each team's top 10 rotation players. Each player's DS is weighted by their minutes per game,
-                so high-minute stars influence the team rank more than bench players. This gives a roster-strength
-                ranking that accounts for how much each player actually plays.
+                each team's top 10 rotation players, weighted by minutes per game.
             </p>
         </div>
 
@@ -3107,19 +3261,27 @@ def render_info_page():
         </div>
 
         <div class="info-section">
-            <h2 class="info-title">SPREAD & TOTAL METHODOLOGY</h2>
+            <h2 class="info-title">DSI SPREAD MODEL — 9-STEP PIPELINE</h2>
             <p class="info-text">
-                <strong>Real lines</strong> are pulled from sportsbooks via The Odds API when available.
-                When no sportsbook lines exist (e.g. pre-release, All-Star break), the SIM generates
-                <strong>projected lines</strong> marked as (PROJ. SPREAD) and (PROJ O/U).
-            </p>
-            <p class="info-text">
-                Projected spreads use team net rating differentials + a 3-point home court advantage.
-                Projected totals use offensive/defensive rating matchups × pace. All rounded to nearest 0.5.
+                The SIM runs a 9-step pipeline to produce projected spreads and totals for every game.
+                <strong>Real lines</strong> from sportsbooks replace projections when available via The Odds API.
             </p>
             <div class="info-formula">
-                <div class="formula-row"><span>Proj. Spread</span><span>= -(Home Net Rtg − Away Net Rtg + 3.0 HCA)</span></div>
-                <div class="formula-row"><span>Proj. Total</span><span>= ((ORtg+DRtg)/2 × MatchupPace/100) × 2</span></div>
+                <div class="formula-row"><span>Step 0</span><span>Filter out started/completed games</span></div>
+                <div class="formula-row"><span>Step 1</span><span>Get starting lineups from RotoWire</span></div>
+                <div class="formula-row"><span>Step 2</span><span>Project minutes for available players</span></div>
+                <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
+                <div class="formula-row"><span>Step 4</span><span>Compute adjusted DSI with archetype-aware usage redistribution</span></div>
+                <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
+                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 3.0 HCA, with B2B −3.0)</span></div>
+                <div class="formula-row"><span>Step 7</span><span>Blend: 50% DSI + 50% Adjusted NRtg = raw power</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
+            </div>
+            <div class="info-formula" style="margin-top:12px">
+                <div class="formula-row"><span>Stocks Penalty</span><span>0.8 DSI pts per lost stock (STL+BLK × min share)</span></div>
+                <div class="formula-row"><span>Home Court Adv.</span><span>+3.0 added to home net rating</span></div>
+                <div class="formula-row"><span>B2B Penalty</span><span>−3.0 subtracted for back-to-back teams</span></div>
+                <div class="formula-row"><span>Proj. Total</span><span>((ORtg+DRtg)/2 × Matchup Pace/100) × 2</span></div>
             </div>
             <p class="info-text" style="margin-top:8px; font-size:12px; color: rgba(0,0,0,0.5);">
                 Player props marked (PROJ. LINE) are season averages adjusted for opponent defense and pace.
@@ -3162,7 +3324,7 @@ def render_info_page():
         </div>
 
         <div class="info-section info-footer">
-            <p>NBA SIM v3.3 // 2025-26 Season Data // Built with Python + nba_api</p>
+            <p>NBA SIM v3.4 // 2025-26 Season Data // Built with Python + nba_api</p>
         </div>
     </div>"""
 
@@ -3631,6 +3793,23 @@ def generate_css():
             min-width: 50px;
             text-align: right;
         }
+        .dsi-model-row {
+            margin-top: 4px;
+            padding-top: 5px;
+            border-top: 1px dashed rgba(0,0,0,0.10);
+        }
+        .dsi-model-formula {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.55);
+            flex: 1;
+            text-align: center;
+        }
+        .dsi-model-formula strong {
+            color: rgba(0,0,0,0.85);
+            font-size: 10px;
+        }
         .dsi-tags {
             display: flex;
             gap: 6px;
@@ -4031,6 +4210,55 @@ def generate_css():
             background: var(--surface-dark);
             color: var(--red);
         }
+
+        /* Trending player cards */
+        .trend-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--surface);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .trend-face {
+            width: 40px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .trend-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .trend-name {
+            font-weight: 700;
+            font-size: 12px;
+            color: #111;
+        }
+        .trend-meta {
+            font-size: 9px;
+            color: rgba(0,0,0,0.4);
+            font-family: var(--font-mono);
+        }
+        .trend-stats {
+            font-size: 9.5px;
+            color: rgba(0,0,0,0.5);
+            font-family: var(--font-mono);
+        }
+        .trend-delta {
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 12px;
+            min-width: 70px;
+            text-align: right;
+        }
+        .trend-pos { color: #00AA33; }
+        .trend-neg { color: #DD2222; }
+
         .combo-card {
             background: var(--surface);
             border: var(--border);
