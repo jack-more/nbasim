@@ -694,6 +694,9 @@ def scrape_rotowire():
 # Basketball Monster abbreviation mapping (BM → our system)
 BM_ABBR_MAP = {"PHO": "PHX"}
 
+# Basketball Reference abbreviation mapping (BREF → our system)
+BREF_ABBR_MAP = {"BRK": "BKN", "CHO": "CHA", "PHO": "PHX"}
+
 
 def scrape_basketball_monster():
     """Fallback lineup scraper using Basketball Monster for overnight gaps.
@@ -850,6 +853,64 @@ def scrape_basketball_monster():
     return lineups, lines, matchup_pairs, slate_date, game_times
 
 
+def scrape_bref_injuries():
+    """Scrape Basketball Reference injury report for league-wide OUT players.
+
+    Returns dict: {team_abbr: [player_name, ...]} for players marked
+    'Out' or 'Out For Season'. Excludes 'Day To Day' players.
+    Non-blocking — returns empty dict on failure.
+    """
+    url = "https://www.basketball-reference.com/friv/injuries.fcgi"
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        })
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        table = soup.find("table", id="injuries")
+        if not table:
+            print("[Injuries] BREF: no injury table found")
+            return {}
+
+        tbody = table.find("tbody")
+        rows = tbody.find_all("tr") if tbody else table.find_all("tr")[1:]
+
+        out_by_team = {}
+        for row in rows:
+            cells = row.find_all(["td", "th"])
+            if len(cells) < 4:
+                continue
+
+            # Player name
+            player_name = cells[0].get_text(strip=True)
+
+            # Team abbreviation from href: /teams/ATL/2026.html → ATL
+            team_link = cells[1].find("a")
+            if not team_link or not team_link.get("href"):
+                continue
+            parts = team_link["href"].split("/")
+            team_abbr = parts[2] if len(parts) >= 3 else None
+            if not team_abbr:
+                continue
+            team_abbr = BREF_ABBR_MAP.get(team_abbr, team_abbr)
+
+            # Description — filter for OUT only
+            desc = cells[3].get_text(strip=True)
+            if not desc.startswith("Out"):
+                continue  # Skip "Day To Day"
+
+            out_by_team.setdefault(team_abbr, []).append(player_name)
+
+        total = sum(len(v) for v in out_by_team.values())
+        print(f"[Injuries] Basketball Reference: {total} OUT players across {len(out_by_team)} teams")
+        return out_by_team
+
+    except Exception as e:
+        print(f"[Injuries] Basketball Reference scrape failed: {e}")
+        return {}
+
+
 def filter_started_games(matchup_pairs, game_times, rw_lines):
     """Step 0: Remove games that have already started or finished.
 
@@ -979,34 +1040,54 @@ def _get_full_roster(team_abbr):
     """, DB_PATH, [team_abbr])
 
 
+_NAME_SUFFIXES = {"jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"}
+
+
+def _normalize_name(name):
+    """Strip suffixes (Jr., III, etc.) and lowercase for matching.
+
+    Returns list of name parts with suffixes removed.
+    Example: "Jimmy Butler III" → ["jimmy", "butler"]
+    """
+    parts = name.lower().strip().split()
+    while parts and parts[-1] in _NAME_SUFFIXES:
+        parts.pop()
+    return parts
+
+
 def _match_player_name(scraped_name, db_players):
     """Fuzzy match a scraped name (e.g. 'D. Mitchell') to a full DB name.
 
     Returns player_id or None.
     """
     scraped_lower = scraped_name.lower().strip()
+    scraped_norm = _normalize_name(scraped_name)
 
-    # Try exact match first
+    # Try exact match first (with and without suffix)
     for _, row in db_players.iterrows():
-        if row["full_name"].lower() == scraped_lower:
+        db_lower = row["full_name"].lower()
+        if db_lower == scraped_lower:
+            return row["player_id"]
+        # Normalized match: "Jimmy Butler" == "Jimmy Butler III"
+        db_norm = _normalize_name(row["full_name"])
+        if db_norm == scraped_norm and scraped_norm:
             return row["player_id"]
 
     # Try "First Last" vs "F. Last" matching
     for _, row in db_players.iterrows():
-        db_name = row["full_name"]
-        parts = db_name.split()
-        if len(parts) >= 2:
+        db_norm = _normalize_name(row["full_name"])
+        if len(db_norm) >= 2:
             # "D. Mitchell" matches "Donovan Mitchell"
-            abbrev = f"{parts[0][0]}. {' '.join(parts[1:])}"
-            if abbrev.lower() == scraped_lower:
+            abbrev = f"{db_norm[0][0]}. {' '.join(db_norm[1:])}"
+            if abbrev == scraped_lower or abbrev == " ".join(scraped_norm):
                 return row["player_id"]
-            # "Donovan Mitchell" matches "Donovan Mitchell"
-            if db_name.lower() == scraped_lower:
-                return row["player_id"]
-            # Last name match as fallback
-            if parts[-1].lower() == scraped_lower.split()[-1].lower():
-                # Check first initial too
-                if scraped_lower[0] == parts[0][0].lower():
+            # Last name + first initial fallback (suffix-safe)
+            scraped_last = scraped_norm[-1] if scraped_norm else ""
+            db_last = db_norm[-1] if db_norm else ""
+            if db_last == scraped_last and scraped_last:
+                scraped_init = scraped_norm[0][0] if scraped_norm else ""
+                db_init = db_norm[0][0] if db_norm else ""
+                if scraped_init == db_init and scraped_init:
                     return row["player_id"]
 
     return None
@@ -1714,6 +1795,20 @@ def get_matchups():
                     print(f"[Rollover] BM shows same games as today — no tomorrow slate yet")
         except Exception as e:
             print(f"[Rollover] Basketball Monster fallback failed: {e}")
+
+    # ── Supplement: merge Basketball Reference injury data ──
+    bref_out = scrape_bref_injuries()
+    if bref_out:
+        added = 0
+        for team_abbr, out_names in bref_out.items():
+            if team_abbr not in rw_lineups:
+                rw_lineups[team_abbr] = {"starters": [], "out": [], "questionable": []}
+            existing_out = set(rw_lineups[team_abbr].get("out", []))
+            for name in out_names:
+                if name not in existing_out:
+                    rw_lineups[team_abbr]["out"].append(name)
+                    added += 1
+        print(f"[Injuries] Merged {added} new BREF OUT players into lineups")
 
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
@@ -2835,30 +2930,33 @@ def render_matchup_card(m, idx, team_map):
     away_rw = rw_lineups.get(aa, {})
 
     def _rw_status_for_player(player_name, rw_data):
-        """Check if a player is OUT or GTD based on RotoWire data."""
+        """Check if a player is OUT or GTD based on RotoWire/BREF data.
+
+        Uses _normalize_name() to strip suffixes (Jr., III, etc.)
+        so 'Jimmy Butler' matches 'Jimmy Butler III'.
+        """
         if not rw_data:
             return "IN"
-        out_names = [n.lower() for n in rw_data.get("out", [])]
-        gtd_names = [n.lower() for n in rw_data.get("questionable", [])]
-        pname = player_name.lower()
-        parts = player_name.split()
-        last = parts[-1].lower() if parts else ""
-        first_init = parts[0][0].lower() if parts else ""
+        out_names = rw_data.get("out", [])
+        gtd_names = rw_data.get("questionable", [])
+        p_norm = _normalize_name(player_name)
+        p_last = p_norm[-1] if p_norm else ""
+        p_init = p_norm[0][0] if p_norm else ""
         for out_n in out_names:
-            out_parts = out_n.split()
-            out_last = out_parts[-1] if out_parts else ""
-            out_init = out_parts[0][0] if out_parts else ""
-            if out_last == last and out_init == first_init:
+            o_norm = _normalize_name(out_n)
+            o_last = o_norm[-1] if o_norm else ""
+            o_init = o_norm[0][0] if o_norm else ""
+            if o_last == p_last and o_init == p_init and p_last:
                 return "OUT"
-            if out_n == pname:
+            if " ".join(o_norm) == " ".join(p_norm) and p_norm:
                 return "OUT"
         for gtd_n in gtd_names:
-            gtd_parts = gtd_n.split()
-            gtd_last = gtd_parts[-1] if gtd_parts else ""
-            gtd_init = gtd_parts[0][0] if gtd_parts else ""
-            if gtd_last == last and gtd_init == first_init:
+            g_norm = _normalize_name(gtd_n)
+            g_last = g_norm[-1] if g_norm else ""
+            g_init = g_norm[0][0] if g_norm else ""
+            if g_last == p_last and g_init == p_init and p_last:
                 return "GTD"
-            if gtd_n == pname:
+            if " ".join(g_norm) == " ".join(p_norm) and p_norm:
                 return "GTD"
         return "IN"
 
@@ -2866,18 +2964,16 @@ def render_matchup_card(m, idx, team_map):
         """Check if player is listed as a RotoWire starter."""
         if not rw_data:
             return False
-        pname = player_name.lower()
-        parts = player_name.split()
-        last = parts[-1].lower() if parts else ""
-        first_init = parts[0][0].lower() if parts else ""
+        p_norm = _normalize_name(player_name)
+        p_last = p_norm[-1] if p_norm else ""
+        p_init = p_norm[0][0] if p_norm else ""
         for sname, spos, sstatus in rw_data.get("starters", []):
-            sn = sname.lower()
-            sparts = sn.split()
-            slast = sparts[-1] if sparts else ""
-            sinit = sparts[0][0] if sparts else ""
-            if slast == last and sinit == first_init:
+            s_norm = _normalize_name(sname)
+            s_last = s_norm[-1] if s_norm else ""
+            s_init = s_norm[0][0] if s_norm else ""
+            if s_last == p_last and s_init == p_init and p_last:
                 return True
-            if sn == pname:
+            if " ".join(s_norm) == " ".join(p_norm) and p_norm:
                 return True
         return False
 
