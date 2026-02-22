@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-02-21T17:24:41.440503+00:00",
+  "graded_at": "2026-02-22T17:24:38.780944+00:00",
   "picks": [
     {
       "matchup": "BKN @ CLE",
@@ -84,16 +84,64 @@
       "home_score": 91,
       "away_score": 65,
       "risk_amount": 10.0
+    },
+    {
+      "matchup": "DAL @ MIN",
+      "side": "MIN -12.0",
+      "pick_type": "spread",
+      "player_name": null,
+      "result": "L",
+      "profit": -50.0,
+      "actual_value": 11.0,
+      "home_score": 122,
+      "away_score": 111,
+      "risk_amount": 50.0
+    },
+    {
+      "matchup": "UTA @ MEM",
+      "side": "MEM -4.5",
+      "pick_type": "spread",
+      "player_name": null,
+      "result": "W",
+      "profit": 27.27,
+      "actual_value": 9.0,
+      "home_score": 123,
+      "away_score": 114,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "DAL @ MIN",
+      "side": "UNDER 235.5",
+      "pick_type": "total",
+      "player_name": null,
+      "result": "W",
+      "profit": 27.27,
+      "actual_value": 233.0,
+      "home_score": 122,
+      "away_score": 111,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "UTA @ MEM",
+      "side": "OVER 241.5",
+      "pick_type": "total",
+      "player_name": null,
+      "result": "L",
+      "profit": -30.0,
+      "actual_value": 237.0,
+      "home_score": 123,
+      "away_score": 114,
+      "risk_amount": 30.0
     }
   ],
-  "pending_count": 5,
+  "pending_count": 4,
   "record": {
-    "W": 2,
-    "L": 5,
+    "W": 4,
+    "L": 7,
     "P": 0
   },
-  "total_profit": -57.28,
+  "total_profit": -82.74,
   "starting_bankroll": 1000.0,
-  "new_bankroll": 942.72,
+  "new_bankroll": 917.26,
   "status": "PARTIAL"
 }
