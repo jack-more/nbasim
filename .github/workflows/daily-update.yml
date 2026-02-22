@@ -2,13 +2,17 @@ name: Daily NBA SIM Update
 
 on:
   schedule:
-    # ── PRE-GAME AM: 11:30 AM PST = 7:30 PM UTC ──
-    # Morning update — fresh lineups + DSI model
-    - cron: '30 19 * * *'
-
-    # ── PRE-GAME PM: 11:30 PM PST = 7:30 AM UTC ──
-    # Evening update — final lineups + DSI model before tip-off
+    # ── POST-GAME: 11:30 PM PST = 7:30 AM UTC ──
+    # Settle blog + load tomorrow's slate (BM fallback if RotoWire stale)
     - cron: '30 7 * * *'
+
+    # ── EARLY AM: 5:00 AM PST = 1:00 PM UTC ──
+    # Overnight refresh — BM fallback or RotoWire with confirmed lineups
+    - cron: '0 13 * * *'
+
+    # ── PRE-GAME: 9:30 AM PST = 5:30 PM UTC ──
+    # Final pre-tip update — RotoWire confirmed lineups + fresh DSI
+    - cron: '30 17 * * *'
 
     # ── POST-GAME SETTLEMENT: 9:00 AM PST = 5:00 PM UTC ──
     # Grades yesterday's picks, updates bankroll + blog

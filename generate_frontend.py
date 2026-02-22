@@ -691,6 +691,165 @@ def scrape_rotowire():
     return lineups, lines, matchup_pairs, slate_date, game_times
 
 
+# Basketball Monster abbreviation mapping (BM → our system)
+BM_ABBR_MAP = {"PHO": "PHX"}
+
+
+def scrape_basketball_monster():
+    """Fallback lineup scraper using Basketball Monster for overnight gaps.
+
+    Used when RotoWire hasn't updated to tomorrow's slate yet.
+    Returns same format as scrape_rotowire():
+        (lineups, lines, matchup_pairs, slate_date, game_times)
+    """
+    import re
+
+    url = "https://basketballmonster.com/nbalineups.aspx"
+    try:
+        resp = requests.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        })
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"[BM] Failed to fetch: {e}")
+        return {}, {}, [], "", {}
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # Parse date from heading: "NBA Lineups for Sunday 2/22 (11 games)"
+    heading = soup.find("h1")
+    slate_date = ""
+    if heading:
+        h_text = heading.get_text(strip=True)
+        date_match = re.search(r"(\d{1,2})/(\d{1,2})", h_text)
+        if date_match:
+            months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+            month_idx = int(date_match.group(1)) - 1
+            day = int(date_match.group(2))
+            slate_date = f"{months[month_idx]} {day}"
+        print(f"[BM] Heading: {h_text}")
+
+    lineups = {}
+    lines = {}
+    matchup_pairs = []
+    game_times = {}
+
+    tables = soup.find_all("table")
+    for table in tables:
+        rows = table.find_all("tr")
+        if len(rows) < 7:
+            continue
+
+        # Row 0: Header — "CLE @ OKC 1:00 PM ET in 9.7h CLE by 3.5 o/u 226.5"
+        header_th = rows[0].find("th")
+        if not header_th:
+            continue
+        header_text = header_th.get_text(" ", strip=True)
+
+        # Parse matchup: AWAY @ HOME
+        matchup_match = re.match(r"(\w{2,3})\s*@\s*(\w{2,3})", header_text)
+        if not matchup_match:
+            continue
+        away_raw = matchup_match.group(1)
+        home_raw = matchup_match.group(2)
+        away = BM_ABBR_MAP.get(away_raw, away_raw)
+        home = BM_ABBR_MAP.get(home_raw, home_raw)
+
+        # Parse time: "1:00 PM ET"
+        time_match = re.search(r"(\d{1,2}:\d{2}\s*[AP]M\s*ET)", header_text)
+        game_time = time_match.group(1) if time_match else ""
+
+        # Parse spread: "CLE by 3.5" or could be home team
+        spread_val = 0.0
+        spread_match = re.search(r"(\w{2,3})\s+by\s+([\d.]+)", header_text)
+        if spread_match:
+            fav_raw = spread_match.group(1)
+            fav = BM_ABBR_MAP.get(fav_raw, fav_raw)
+            points = float(spread_match.group(2))
+            # Spread convention: negative = home favored
+            if fav == home:
+                spread_val = -points
+            else:
+                spread_val = points
+
+        # Parse total: "o/u 226.5"
+        total_val = 0.0
+        total_match = re.search(r"o/u\s+([\d.]+)", header_text)
+        if total_match:
+            total_val = float(total_match.group(1))
+
+        # Row 1: Team headers (skip)
+        # Rows 2-6: PG, SG, SF, PF, C — position | away player | home player
+        positions = ["PG", "SG", "SF", "PF", "C"]
+        away_starters = []
+        home_starters = []
+        away_out = []
+        home_out = []
+        away_questionable = []
+        home_questionable = []
+
+        for i, pos in enumerate(positions):
+            row_idx = i + 2
+            if row_idx >= len(rows):
+                break
+            cells = rows[row_idx].find_all("td")
+            if len(cells) < 3:
+                continue
+
+            for col_idx, (starters_list, out_list, q_list) in [
+                (1, (away_starters, away_out, away_questionable)),
+                (2, (home_starters, home_out, home_questionable)),
+            ]:
+                cell = cells[col_idx]
+                cell_text = cell.get_text(strip=True)
+
+                # Check injury status
+                status = "IN"
+                name = cell_text
+                if cell_text.endswith("Off Inj"):
+                    name = cell_text[:-7].strip()
+                    status = "OUT"
+                    out_list.append(name)
+                elif cell_text.endswith(" Q"):
+                    name = cell_text[:-2].strip()
+                    status = "GTD"
+                    q_list.append(name)
+
+                # Get player name from link if available
+                link = cell.find("a")
+                if link:
+                    name = link.get_text(strip=True)
+
+                starters_list.append((name, pos, status))
+
+        # Build lineups dict (same format as RotoWire)
+        lineups[away] = {
+            "starters": away_starters,
+            "out": away_out,
+            "questionable": away_questionable,
+        }
+        lineups[home] = {
+            "starters": home_starters,
+            "out": home_out,
+            "questionable": home_questionable,
+        }
+
+        pair = (home, away)
+        matchup_pairs.append(pair)
+        game_times[pair] = game_time
+
+        if spread_val != 0 or total_val != 0:
+            lines[pair] = {"spread": spread_val, "total": total_val}
+
+    print(f"[BM] Found {len(matchup_pairs)} games, {len(lineups)} teams ({slate_date})")
+    for home, away in matchup_pairs:
+        sp = lines.get((home, away), {}).get("spread", 0)
+        total = lines.get((home, away), {}).get("total", 0)
+        print(f"  {away}@{home}: {home} {sp:+.1f}, O/U {total}")
+
+    return lineups, lines, matchup_pairs, slate_date, game_times
+
+
 def filter_started_games(matchup_pairs, game_times, rw_lines):
     """Step 0: Remove games that have already started or finished.
 
@@ -1500,6 +1659,7 @@ def get_matchups():
     has_any_real = len(real_lines) > 0
 
     # Use RotoWire matchup pairs first, then API, then hardcoded
+    using_bm_fallback = False
     if rw_pairs:
         matchup_pairs = rw_pairs
         slate_date = rw_slate_date
@@ -1530,6 +1690,30 @@ def get_matchups():
     )
     if removed_count > 0:
         print(f"[Matchups] {len(matchup_pairs)} games remaining after Step 0 filtering")
+
+    # ── ROLLOVER: If ALL games filtered, try Basketball Monster for tomorrow ──
+    if len(matchup_pairs) == 0 and removed_count > 0:
+        print("[Rollover] All games completed — checking Basketball Monster for tomorrow's slate...")
+        try:
+            bm_lineups, bm_lines, bm_pairs, bm_date, bm_times = scrape_basketball_monster()
+            if bm_pairs:
+                # Check if BM has different games (tomorrow's slate)
+                rw_set = set(rw_pairs) if rw_pairs else set()
+                bm_set = set(bm_pairs)
+                overlap = len(rw_set & bm_set)
+                if overlap < len(bm_set) * 0.5:
+                    # BM has mostly different games → it's tomorrow's slate
+                    print(f"[Rollover] Basketball Monster has tomorrow's slate: {bm_date} ({len(bm_pairs)} games)")
+                    matchup_pairs = bm_pairs
+                    slate_date = bm_date
+                    rw_lineups = bm_lineups  # Use BM lineups for DSI model
+                    real_lines = bm_lines
+                    rw_game_times = bm_times
+                    using_bm_fallback = True
+                else:
+                    print(f"[Rollover] BM shows same games as today — no tomorrow slate yet")
+        except Exception as e:
+            print(f"[Rollover] Basketball Monster fallback failed: {e}")
 
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
