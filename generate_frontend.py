@@ -4291,8 +4291,8 @@ def generate_css():
             font-family: var(--font-mono);
             font-size: 9px;
             font-weight: 700;
-            color: rgba(255,255,255,0.25);
-            background: rgba(255,255,255,0.06);
+            color: rgba(0,0,0,0.35);
+            background: rgba(0,0,0,0.06);
             padding: 2px 6px;
             border-radius: 0 0 6px 0;
         }
@@ -4306,8 +4306,8 @@ def generate_css():
             height: 36px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid rgba(255,255,255,0.15);
-            background: #222;
+            border: 2px solid rgba(0,0,0,0.15);
+            background: #eee;
             flex-shrink: 0;
         }
         .prop-info {
@@ -4322,6 +4322,7 @@ def generate_css():
         .prop-name {
             font-weight: 700;
             font-size: 14px;
+            color: #000;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -4329,12 +4330,12 @@ def generate_css():
         .prop-team-opp {
             font-family: var(--font-mono);
             font-size: 10px;
-            color: rgba(255,255,255,0.35);
+            color: rgba(0,0,0,0.45);
             white-space: nowrap;
         }
         .prop-meta {
             font-size: 10px;
-            color: rgba(255,255,255,0.3);
+            color: rgba(0,0,0,0.5);
             margin-top: 1px;
             white-space: nowrap;
             overflow: hidden;
@@ -4347,15 +4348,15 @@ def generate_css():
             padding: 6px 10px;
             border-radius: 8px;
             min-width: 90px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.12);
         }
         .stat-summary-line {
             font-family: var(--font-mono);
             font-size: 12px;
             font-weight: 700;
             display: block;
-            color: rgba(255,255,255,0.8);
+            color: #000;
             line-height: 1.2;
             letter-spacing: 0.3px;
         }
@@ -4380,14 +4381,14 @@ def generate_css():
         .stat-line-ref {
             font-family: var(--font-mono);
             font-size: 9px;
-            color: rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.04);
+            color: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.06);
             padding: 1px 5px;
             border-radius: 2px;
             white-space: nowrap;
         }
         .stat-line-ref .proj-tag {
-            color: rgba(255,255,255,0.2);
+            color: rgba(0,0,0,0.3);
             font-size: 7px;
             margin-left: 2px;
         }
@@ -4397,16 +4398,19 @@ def generate_css():
             flex-direction: column;
             gap: 0;
             padding: 10px 10px 10px 12px;
-            margin-bottom: 6px;
-            border-radius: 6px;
-            background: #111;
+            margin-bottom: 12px;
+            border-radius: var(--radius);
+            background: var(--surface);
+            border: var(--border);
+            box-shadow: var(--shadow);
+            color: var(--ink);
             position: relative;
         }
-        .stat-spotlight-card:hover { background: #1a1a1a; }
+        .stat-spotlight-card:hover { transform: translateY(-1px); }
         /* Neutral last 5 game dots (no hit/miss) */
         .l5-neutral {
-            background: rgba(255,255,255,0.08);
-            color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.08);
+            color: rgba(0,0,0,0.6);
         }
         .prop-bottom {
             display: flex;
@@ -4414,7 +4418,7 @@ def generate_css():
             gap: 8px;
             margin-top: 6px;
             padding-top: 6px;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            border-top: 1px solid rgba(0,0,0,0.08);
         }
         .prop-edge {
             font-family: var(--font-mono);
@@ -4427,7 +4431,7 @@ def generate_css():
         .prop-note {
             font-family: var(--font-mono);
             font-size: 10px;
-            color: rgba(255,255,255,0.3);
+            color: rgba(0,0,0,0.5);
             flex: 1;
             min-width: 0;
             white-space: nowrap;
@@ -4453,16 +4457,16 @@ def generate_css():
         }
         .l5-hit {
             background: rgba(0,255,85,0.15);
-            color: #00FF55;
+            color: #00994D;
         }
         .l5-miss {
             background: rgba(255,51,51,0.1);
-            color: #FF5555;
+            color: #CC0000;
         }
         .l5-hit-rate {
             font-family: var(--font-mono);
             font-size: 9px;
-            color: rgba(255,255,255,0.35);
+            color: rgba(0,0,0,0.45);
             margin-left: 1px;
         }
 
