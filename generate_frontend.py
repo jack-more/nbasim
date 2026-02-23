@@ -4274,7 +4274,7 @@ def generate_css():
         .ds-low .pr-ds-num { color: #FF3333; }
 
         /* ─── PROPS ─── */
-        .props-list { display: flex; flex-direction: column; gap: 10px; background: var(--surface-dark); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+        .props-list { display: flex; flex-direction: column; gap: 10px; }
         /* ─── PROP CARDS — Compact Row Layout ─── */
         .prop-card {
             background: var(--surface-dark);
