@@ -106,8 +106,8 @@ jobs:
           git commit -m "Auto-update lines — ${DATE}"
           git push
 
-  # ── Sync blog picks ──
-  update-blog:
+  # ── Sync to MORELLOSIMS (blog + nbasim dashboard) ──
+  sync-to-morellosims:
     needs: update-lines
     if: github.event.schedule != '0 17 * * *' && inputs.settle_only != 'true'
     runs-on: ubuntu-latest
@@ -137,7 +137,24 @@ jobs:
       - name: Sync pick data to blog
         run: python nbasim/scripts/update_blog.py nbasim/index.html morellosims/index.html
 
-      - name: Commit and push blog
+      - name: Copy NBA SIM dashboard + inject auth
+        run: |
+          cp nbasim/index.html morellosims/nbasim/index.html
+          FILE=morellosims/nbasim/index.html
+
+          # Inject auth CSS before </head>
+          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
+
+          # Add dark theme attribute to body
+          sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
+
+          # Add status-indicators div for profile button
+          sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
+
+          # Inject Firebase SDK + auth JS before </body>
+          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
+
+      - name: Commit and push
         working-directory: morellosims
         run: |
           git config user.name "github-actions[bot]"
@@ -145,10 +162,10 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html
+          git add index.html nbasim/index.html
 
           if git diff --cached --quiet; then
-            echo "No blog changes"
+            echo "No changes"
             exit 0
           fi
 
@@ -201,7 +218,7 @@ jobs:
           git commit -m "Grade picks — ${DATE}"
           git push
 
-  settle-blog:
+  settle-morellosims:
     needs: grade-picks
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -227,7 +244,24 @@ jobs:
       - name: Settle blog with results
         run: python nbasim/scripts/settle_blog.py nbasim/data/settlement_results.json morellosims/index.html
 
-      - name: Commit and push blog
+      - name: Copy NBA SIM dashboard + inject auth
+        run: |
+          cp nbasim/index.html morellosims/nbasim/index.html
+          FILE=morellosims/nbasim/index.html
+
+          # Inject auth CSS before </head>
+          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
+
+          # Add dark theme attribute to body
+          sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
+
+          # Add status-indicators div for profile button
+          sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
+
+          # Inject Firebase SDK + auth JS before </body>
+          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
+
+      - name: Commit and push
         working-directory: morellosims
         run: |
           git config user.name "github-actions[bot]"
@@ -235,7 +269,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html
+          git add index.html nbasim/index.html
 
           if git diff --cached --quiet; then
             echo "No settlement blog changes"
