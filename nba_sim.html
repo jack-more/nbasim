@@ -688,8 +688,8 @@
             font-family: var(--font-mono);
             font-size: 9px;
             font-weight: 700;
-            color: rgba(255,255,255,0.25);
-            background: rgba(255,255,255,0.06);
+            color: rgba(0,0,0,0.35);
+            background: rgba(0,0,0,0.06);
             padding: 2px 6px;
             border-radius: 0 0 6px 0;
         }
@@ -703,8 +703,8 @@
             height: 36px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid rgba(255,255,255,0.15);
-            background: #222;
+            border: 2px solid rgba(0,0,0,0.15);
+            background: #eee;
             flex-shrink: 0;
         }
         .prop-info {
@@ -719,6 +719,7 @@
         .prop-name {
             font-weight: 700;
             font-size: 14px;
+            color: #000;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -726,12 +727,12 @@
         .prop-team-opp {
             font-family: var(--font-mono);
             font-size: 10px;
-            color: rgba(255,255,255,0.35);
+            color: rgba(0,0,0,0.45);
             white-space: nowrap;
         }
         .prop-meta {
             font-size: 10px;
-            color: rgba(255,255,255,0.3);
+            color: rgba(0,0,0,0.5);
             margin-top: 1px;
             white-space: nowrap;
             overflow: hidden;
@@ -744,15 +745,15 @@
             padding: 6px 10px;
             border-radius: 8px;
             min-width: 90px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.12);
         }
         .stat-summary-line {
             font-family: var(--font-mono);
             font-size: 12px;
             font-weight: 700;
             display: block;
-            color: rgba(255,255,255,0.8);
+            color: #000;
             line-height: 1.2;
             letter-spacing: 0.3px;
         }
@@ -777,14 +778,14 @@
         .stat-line-ref {
             font-family: var(--font-mono);
             font-size: 9px;
-            color: rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.04);
+            color: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.06);
             padding: 1px 5px;
             border-radius: 2px;
             white-space: nowrap;
         }
         .stat-line-ref .proj-tag {
-            color: rgba(255,255,255,0.2);
+            color: rgba(0,0,0,0.3);
             font-size: 7px;
             margin-left: 2px;
         }
@@ -794,16 +795,19 @@
             flex-direction: column;
             gap: 0;
             padding: 10px 10px 10px 12px;
-            margin-bottom: 6px;
-            border-radius: 6px;
-            background: #111;
+            margin-bottom: 12px;
+            border-radius: var(--radius);
+            background: var(--surface);
+            border: var(--border);
+            box-shadow: var(--shadow);
+            color: var(--ink);
             position: relative;
         }
-        .stat-spotlight-card:hover { background: #1a1a1a; }
+        .stat-spotlight-card:hover { transform: translateY(-1px); }
         /* Neutral last 5 game dots (no hit/miss) */
         .l5-neutral {
-            background: rgba(255,255,255,0.08);
-            color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.08);
+            color: rgba(0,0,0,0.6);
         }
         .prop-bottom {
             display: flex;
@@ -811,7 +815,7 @@
             gap: 8px;
             margin-top: 6px;
             padding-top: 6px;
-            border-top: 1px solid rgba(255,255,255,0.06);
+            border-top: 1px solid rgba(0,0,0,0.08);
         }
         .prop-edge {
             font-family: var(--font-mono);
@@ -824,7 +828,7 @@
         .prop-note {
             font-family: var(--font-mono);
             font-size: 10px;
-            color: rgba(255,255,255,0.3);
+            color: rgba(0,0,0,0.5);
             flex: 1;
             min-width: 0;
             white-space: nowrap;
@@ -850,16 +854,16 @@
         }
         .l5-hit {
             background: rgba(0,255,85,0.15);
-            color: #00FF55;
+            color: #00994D;
         }
         .l5-miss {
             background: rgba(255,51,51,0.1);
-            color: #FF5555;
+            color: #CC0000;
         }
         .l5-hit-rate {
             font-family: var(--font-mono);
             font-size: 9px;
-            color: rgba(255,255,255,0.35);
+            color: rgba(0,0,0,0.45);
             margin-left: 1px;
         }
 
@@ -1531,7 +1535,7 @@
             </div>
             <div class="matchup-list" id="matchupList">
                 
-    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="232.0" data-idx="0">
+    <div class="matchup-card" data-conf="3" data-edge="0.5" data-total="232.0" data-idx="0">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg" class="mc-logo" alt="SAS" onerror="this.style.display='none'">
@@ -1544,9 +1548,9 @@
             <div class="mc-center">
                 <div class="mc-spread" style="color:#888">DET -1.5</div>
                 <div class="mc-total">O/U 232.0</div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> DET -1.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> DET -1.5 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
                 <div class="mc-implied">SAS 115 — DET 117</div>
-                <div class="mc-sim-proj">DET -1.5 (SIM) · EDGE 0.0 </div>
+                <div class="mc-sim-proj">DET -2.0 (SIM) · EDGE 0.5 DET</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -1585,11 +1589,11 @@
                 <span class="dsi-label">DSI</span>
                 <span class="dsi-val">SAS 65.0</span>
                 <div class="dsi-bar-mini">
-                    <div class="dsi-bar-away" style="width:51%; background:#C4CED4;"></div>
-                    <div class="dsi-bar-home" style="width:49%; background:#C8102E;"></div>
+                    <div class="dsi-bar-away" style="width:50%; background:#C4CED4;"></div>
+                    <div class="dsi-bar-home" style="width:50%; background:#C8102E;"></div>
                 </div>
-                <span class="dsi-val">DET 62.8</span>
-                <span class="dsi-edge-sm">SAS +2.3</span>
+                <span class="dsi-val">DET 64.0</span>
+                <span class="dsi-edge-sm">SAS +1.0</span>
             </div>
             <div class="dsi-row">
                 <span class="dsi-label">NRtg</span>
@@ -1600,12 +1604,12 @@
             </div>
             <div class="dsi-row dsi-model-row">
                 <span class="dsi-label">MODEL</span>
-                <span class="dsi-model-formula">50% DSI (-1.1) + 50% NRtg (+2.6) = <strong>PROJ -1.5</strong></span>
+                <span class="dsi-model-formula">50% DSI (-0.5) + 50% NRtg (+2.6) = <strong>PROJ -2.0</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
                 <span class="hca-badge">HCA +3 DET</span>
                 
-                <span class="out-badge">DET: 1 OUT</span>
+                <span class="out-badge">DET: 2 OUT</span>
             </div>
         </div>
 
@@ -1850,6 +1854,29 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
+         data-name="Lindy Waters III" data-arch="nan" data-ds="40" data-range="40-48"
+         data-pts="1.9" data-ast="0.4" data-reb="0.8"
+         data-stl="0.1" data-blk="0" data-ts="49.6"
+         data-net="-4.1" data-usg="12.4" data-mpg="6.8"
+         data-team="SAS" data-pid="1630322"
+         data-scoring-pct="9.0" data-playmaking-pct="3.0"
+         data-defense-pct="25.0" data-efficiency-pct="80.0"
+         data-impact-pct="-328.0">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630322.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">L. Waters III </span>
+            <span class="pr-meta">F ◆ nan</span>
+        </div>
+        <div class="pr-stats">
+            <span>2p 0a 1r</span>
+            <span>7 mpg</span>
+        </div>
+        <div class="pr-ds ds-low">
+            <span class="pr-ds-num">40</span>
+            <span class="pr-ds-range">40-48</span>
+        </div>
+    </div>
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Jordan McLaughlin" data-arch="nan" data-ds="40" data-range="40-48"
          data-pts="2.2" data-ast="0.8" data-reb="0.7"
          data-stl="0.5" data-blk="0" data-ts="54.9"
@@ -1889,29 +1916,6 @@
         <div class="pr-stats">
             <span>1p 0a 1r</span>
             <span>6 mpg</span>
-        </div>
-        <div class="pr-ds ds-low">
-            <span class="pr-ds-num">40</span>
-            <span class="pr-ds-range">40-48</span>
-        </div>
-    </div>
-    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
-         data-name="Lindy Waters III" data-arch="nan" data-ds="40" data-range="40-48"
-         data-pts="1.9" data-ast="0.4" data-reb="0.8"
-         data-stl="0.1" data-blk="0" data-ts="49.6"
-         data-net="-4.1" data-usg="12.4" data-mpg="6.8"
-         data-team="SAS" data-pid="1630322"
-         data-scoring-pct="9.0" data-playmaking-pct="3.0"
-         data-defense-pct="25.0" data-efficiency-pct="80.0"
-         data-impact-pct="-328.0">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630322.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">L. Waters III <span class="rw-status-badge rw-gtd">GTD</span></span>
-            <span class="pr-meta">F ◆ nan</span>
-        </div>
-        <div class="pr-stats">
-            <span>2p 0a 1r</span>
-            <span>7 mpg</span>
         </div>
         <div class="pr-ds ds-low">
             <span class="pr-ds-num">40</span>
@@ -2270,7 +2274,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="6" data-edge="3.0" data-total="233.0" data-idx="1">
+    <div class="matchup-card" data-conf="6" data-edge="3.5" data-total="232.5" data-idx="1">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612758/global/L/logo.svg" class="mc-logo" alt="SAC" onerror="this.style.display='none'">
@@ -2281,11 +2285,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:#FFD600">MEM -3.5</div>
-                <div class="mc-total">O/U 233.0</div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> MEM -3.5 <span class="mc-conf-num" style="color:#7FFF00">6</span></div>
+                <div class="mc-spread" style="color:#00FF55">MEM -3.0</div>
+                <div class="mc-total">O/U 232.5</div>
+                <div class="mc-pick"><span class="pick-label">SPREAD</span> MEM -3.0 <span class="mc-conf-num" style="color:#7FFF00">6</span></div>
                 <div class="mc-implied">SAC 115 — MEM 118</div>
-                <div class="mc-sim-proj">MEM -6.5 (SIM) · EDGE 3.0 MEM</div>
+                <div class="mc-sim-proj">MEM -6.5 (SIM) · EDGE 3.5 MEM</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -2684,7 +2688,7 @@
             <span class="pr-ds-range">40-51</span>
         </div>
     </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-gtd" onclick="openPlayerSheet(this)"
          data-name="Ty Jerome" data-arch="nan" data-ds="71" data-range="67-74"
          data-pts="19.7" data-ast="6.0" data-reb="2.2"
          data-stl="1.2" data-blk="0.3" data-ts="69.0"
@@ -2695,7 +2699,7 @@
          data-impact-pct="43.0">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629660.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">T. Jerome </span>
+            <span class="pr-name">T. Jerome <span class="rw-status-badge rw-gtd">GTD</span></span>
             <span class="pr-meta">G-F ◆ nan</span>
         </div>
         <div class="pr-stats">
