@@ -32,7 +32,7 @@ def _load_value_scores():
     df = read_query("""
         SELECT player_id, base_value, solo_impact, two_man_synergy,
                three_man_synergy, four_man_synergy, five_man_synergy,
-               composite_value, archetype_fit_score
+               composite_value, archetype_fit_score, minutes_weight
         FROM player_value_scores WHERE season_id = '2025-26'
     """, DB_PATH)
     if df.empty:
@@ -47,6 +47,7 @@ def _load_value_scores():
             "five": float(row["five_man_synergy"] or 50),
             "fit": float(row["archetype_fit_score"] or 50),
             "composite": float(row["composite_value"] or 50),
+            "minutes": float(row["minutes_weight"] or 20),
         }
 
 
@@ -1746,11 +1747,31 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
         # Each plugged player is 1/5 of the lineup; pair fit deviation from 50 maps to NRtg
         adj += ((avg_plug_fit - 50.0) * 0.4) / 5.0
 
-    # Also factor in plugged player's DS vs team avg
+    # Factor in plugged player's DS vs team avg + ceiling optimism
     for plug_pid in plugged_pids:
         ds = player_ds_dict.get(plug_pid, 50)
         team_avg = sum(player_ds_dict.get(p, 50) for p in current_pids) / 5
-        adj += (ds - team_avg) * 0.05 / 5.0
+
+        # Ceiling optimism: if this player has a wide DS range and is getting
+        # elevated minutes (stepping into a star's role), bias toward ceiling.
+        ds_low, ds_high = compute_ds_range(ds, plug_pid)
+        ds_range = ds_high - ds_low
+        proj_mpg = projected_minutes.get(plug_pid, 0)
+
+        # Check if player is getting a significant minutes bump (>25% over avg)
+        vs = _VALUE_SCORES.get(plug_pid)
+        season_mpg = vs.get("minutes", 20) if vs else 20
+        minutes_bump = (proj_mpg - season_mpg) / max(season_mpg, 1)
+
+        # Wide range (>15 pts) + minutes bump = optimism toward ceiling
+        # Scale: 0-1 blend between current DS and ceiling DS
+        if ds_range > 10 and minutes_bump > 0.15:
+            optimism = min(0.4, minutes_bump * 0.5) * min(1.0, ds_range / 25.0)
+            effective_ds = ds + (ds_high - ds) * optimism
+        else:
+            effective_ds = ds
+
+        adj += (effective_ds - team_avg) * 0.05 / 5.0
 
     return [{
         "player_ids": current_pids,
