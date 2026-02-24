@@ -1655,88 +1655,129 @@ def _build_pair_lookup(pairs_df):
     return lookup
 
 
-def _get_alive_5man_lineups(five_man_df, avail_set):
-    """Filter 5-man lineups to those where all 5 players are available tonight."""
+def _get_alive_lineups(lineup_df, avail_set, group_size):
+    """Filter N-man lineups to those where all N players are available tonight."""
     alive = []
-    if five_man_df is None or five_man_df.empty:
+    if lineup_df is None or lineup_df.empty:
         return alive
-    for _, row in five_man_df.iterrows():
+    for _, row in lineup_df.iterrows():
         try:
             pids = [int(p) for p in json.loads(row["player_ids"])]
         except (json.JSONDecodeError, ValueError, TypeError):
             continue
-        if len(pids) == 5 and all(p in avail_set for p in pids):
+        if len(pids) == group_size and all(p in avail_set for p in pids):
             alive.append({
                 "player_ids": pids,
                 "raw_nrtg": float(row["net_rating"]),
                 "possessions": float(row["possessions"]),
                 "historical_minutes": float(row["minutes"] or 0),
-                "has_history": True,
-                "est_minutes": 0.0,
+                "group_size": group_size,
             })
     alive.sort(key=lambda x: x["historical_minutes"], reverse=True)
     return alive
 
 
-def _generate_synthetic_lineups(avail_ids, projected_minutes, player_ds_dict, existing_lineups):
-    """Generate plausible 5-man lineups when historical data is sparse."""
-    existing_sets = {frozenset(lu["player_ids"]) for lu in existing_lineups}
-    sorted_by_min = sorted(avail_ids, key=lambda p: projected_minutes.get(p, 0), reverse=True)
-    sorted_by_ds = sorted(avail_ids, key=lambda p: player_ds_dict.get(p, 50), reverse=True)
+def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minutes,
+                              player_ds_dict, usg_min_rank):
+    """Build 5-man lineups by plugging missing players into a core (4/3/2-man combo).
 
-    candidates = []
+    For each missing slot, pick the best available player by archetype fit
+    (average pair synergy with every player already in the lineup).
+    Players are candidates based on usg_min_rank (usage + minutes ordering).
 
-    # Starters: top 5 by projected minutes
-    if len(sorted_by_min) >= 5:
-        combo = sorted_by_min[:5]
-        if frozenset(combo) not in existing_sets:
-            candidates.append(combo)
+    Returns list of completed 5-man lineup dicts.
+    """
+    core_pids = set(core_lineup["player_ids"])
+    n_missing = 5 - len(core_pids)
+    if n_missing <= 0:
+        return []
 
-    # Bench-heavy: players 6-10 or 4-8
-    if len(sorted_by_min) >= 10:
-        combo = sorted_by_min[5:10]
-        if frozenset(combo) not in existing_sets:
-            candidates.append(combo)
-    elif len(sorted_by_min) >= 8:
-        combo = sorted_by_min[3:8]
-        if frozenset(combo) not in existing_sets:
-            candidates.append(combo)
+    # Candidates: available players not in the core, sorted by usage+minutes rank
+    candidates = [p for p in usg_min_rank if p not in core_pids]
+    if len(candidates) < n_missing:
+        return []
 
-    # Closing lineup: top 5 by DS
-    if len(sorted_by_ds) >= 5:
-        combo = sorted_by_ds[:5]
-        if frozenset(combo) not in existing_sets:
-            candidates.append(combo)
+    # Greedily pick best-fitting players one at a time
+    current_pids = list(core_pids)
+    for _ in range(n_missing):
+        best_pid = None
+        best_fit = -999
+        for cand in candidates:
+            if cand in current_pids:
+                continue
+            # Archetype fit = average pair synergy with everyone already in the lineup
+            fit_scores = []
+            for existing in current_pids:
+                key = (min(cand, existing), max(cand, existing))
+                pair_data = pair_lookup.get(key)
+                if pair_data:
+                    fit_scores.append(pair_data["syn"])
+                else:
+                    fit_scores.append(50.0)
+            avg_fit = sum(fit_scores) / len(fit_scores) if fit_scores else 50.0
+            # Boost by projected minutes (higher usage guys preferred)
+            mpg_bonus = projected_minutes.get(cand, 0) * 0.1
+            total_fit = avg_fit + mpg_bonus
+            if total_fit > best_fit:
+                best_fit = total_fit
+                best_pid = cand
+        if best_pid is None:
+            break
+        current_pids.append(best_pid)
 
-    # Mixed: top 3 minutes + best 2 bench DS
-    if len(sorted_by_min) >= 3:
-        core = sorted_by_min[:3]
-        bench_by_ds = [p for p in sorted_by_ds if p not in core]
-        if len(bench_by_ds) >= 2:
-            combo = core + bench_by_ds[:2]
-            if frozenset(combo) not in existing_sets:
-                candidates.append(combo)
+    if len(current_pids) != 5:
+        return []
+
+    # Estimate NRtg: start from core's real NRtg, adjust for plugged-in players
+    # Each plugged player contributes based on their pair fit with the core
+    plugged_pids = [p for p in current_pids if p not in core_pids]
+    core_nrtg = core_lineup["raw_nrtg"]
+
+    # Adjustment: each plugged player shifts NRtg based on how good their pair
+    # synergy is with the core vs neutral (50). Scale by fraction of lineup they represent.
+    adj = 0.0
+    for plug_pid in plugged_pids:
+        plug_fits = []
+        for cp in core_lineup["player_ids"]:
+            key = (min(plug_pid, cp), max(plug_pid, cp))
+            pair_data = pair_lookup.get(key)
+            plug_fits.append(pair_data["syn"] if pair_data else 50.0)
+        avg_plug_fit = sum(plug_fits) / len(plug_fits)
+        # Each plugged player is 1/5 of the lineup; pair fit deviation from 50 maps to NRtg
+        adj += ((avg_plug_fit - 50.0) * 0.4) / 5.0
+
+    # Also factor in plugged player's DS vs team avg
+    for plug_pid in plugged_pids:
+        ds = player_ds_dict.get(plug_pid, 50)
+        team_avg = sum(player_ds_dict.get(p, 50) for p in current_pids) / 5
+        adj += (ds - team_avg) * 0.05 / 5.0
 
     return [{
-        "player_ids": pids,
-        "raw_nrtg": 0.0,
-        "possessions": 0,
-        "historical_minutes": 0.0,
-        "has_history": False,
-        "est_minutes": 0.0,
-    } for pids in candidates]
+        "player_ids": current_pids,
+        "raw_nrtg": core_nrtg + adj,
+        "possessions": core_lineup["possessions"],
+        "historical_minutes": core_lineup["historical_minutes"],
+        "group_size": 5,
+        "base_group": core_lineup["group_size"],  # track what we built from
+    }]
 
 
 def _assign_lineup_minutes(all_lineups, projected_minutes):
-    """Estimate minutes per lineup using bottleneck heuristic, normalize to 48."""
+    """Estimate minutes per lineup using bottleneck heuristic, normalize to 48.
+
+    Lineups built from higher group sizes (direct 5-man) get more weight than
+    those built from 2-man cores with 3 plugged players.
+    """
+    # Confidence factor by base group size: 5-man data is most reliable
+    group_confidence = {5: 1.0, 4: 0.8, 3: 0.5, 2: 0.3}
+
     raw_estimates = []
     for lu in all_lineups:
         bottleneck = min((projected_minutes.get(p, 0) for p in lu["player_ids"]), default=0)
-        if lu["has_history"]:
-            history_bonus = min(lu["historical_minutes"] / 20.0, 1.0)
-            estimate = bottleneck * (0.5 + 0.5 * history_bonus)
-        else:
-            estimate = bottleneck * 0.3
+        history_bonus = min(lu["historical_minutes"] / 20.0, 1.0)
+        base_group = lu.get("base_group", lu.get("group_size", 5))
+        confidence = group_confidence.get(base_group, 0.5)
+        estimate = bottleneck * (0.3 + 0.7 * history_bonus) * confidence
         raw_estimates.append(max(estimate, 0.5))
 
     total_raw = sum(raw_estimates)
@@ -1803,16 +1844,16 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
                                      season="2025-26"):
     """SYN v2: Lineup-simulation synergy model.
 
-    Builds plausible 5-man lineups from tonight's available players,
-    scores them using historical lineup NRtg + pair-composite fallback + DSI boost,
-    weights by estimated minutes, and returns a 0-100 SYN score.
+    Cascading lineup build: 5-man → 4-man → 3-man → 2-man.
+    Start with best available data, plug missing players by archetype fit.
+    Players sorted by usage rate + minutes (highest first).
     """
     from config import SCHEME_QUALITY_FACTORS
     from utils.stats_math import bayesian_shrinkage
 
     K = _DSI_CONSTANTS
 
-    if not avail_ids or len(avail_ids) < 5:
+    if not avail_ids or len(avail_ids) < 2:
         return 50.0
 
     if projected_minutes is None:
@@ -1828,12 +1869,20 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         scheme_quality, {"advantage_scale": 1.0, "disadvantage_scale": 1.0}
     )
 
-    # ── Load data ──
-    five_man_df = read_query("""
-        SELECT player_ids, net_rating, minutes, possessions
+    # ── Sort available players by usage + minutes (descending) ──
+    # This is the priority order for plugging in missing players
+    usg_min_rank = sorted(
+        list(avail_set),
+        key=lambda p: (projected_minutes.get(p, 0) + player_ds_dict.get(p, 50) * 0.1),
+        reverse=True
+    )
+
+    # ── Load lineup data (all group sizes) ──
+    lineup_df = read_query("""
+        SELECT player_ids, net_rating, minutes, possessions, group_quantity
         FROM lineup_stats
-        WHERE season_id = ? AND group_quantity = 5
-              AND team_id = ? AND net_rating IS NOT NULL AND possessions > ?
+        WHERE season_id = ? AND team_id = ?
+              AND net_rating IS NOT NULL AND possessions > ?
     """, DB_PATH, [season, team_id, K["SYN_MIN_POSS"]])
 
     pairs_df = read_query("""
@@ -1845,47 +1894,93 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
 
     pair_lookup = _build_pair_lookup(pairs_df)
 
-    # ── Phase A: Build rotation lineups ──
-    alive_lineups = _get_alive_5man_lineups(five_man_df, avail_set)
+    # ── Phase A: Cascade 5 → 4 → 3 → 2 to build 5-man lineups ──
+    all_lineups = []
+    seen_sets = set()
 
-    synthetic_lineups = []
-    if len(alive_lineups) < 3:
-        synthetic_lineups = _generate_synthetic_lineups(
-            list(avail_set), projected_minutes, player_ds_dict, alive_lineups
-        )
+    # Level 1: Direct 5-man combos where all 5 are available
+    if lineup_df is not None and not lineup_df.empty:
+        five_df = lineup_df[lineup_df["group_quantity"] == 5]
+        alive_5 = _get_alive_lineups(five_df, avail_set, 5)
+        for lu in alive_5:
+            fs = frozenset(lu["player_ids"])
+            if fs not in seen_sets:
+                seen_sets.add(fs)
+                all_lineups.append(lu)
 
-    all_lineups = alive_lineups + synthetic_lineups
+    # Level 2: 4-man combos → plug in 1 missing player by archetype fit
+    if lineup_df is not None and not lineup_df.empty:
+        four_df = lineup_df[lineup_df["group_quantity"] == 4]
+        alive_4 = _get_alive_lineups(four_df, avail_set, 4)
+        for core in alive_4[:20]:  # cap to avoid excessive iteration
+            built = _estimate_5man_from_core(
+                core, list(avail_set), pair_lookup,
+                projected_minutes, player_ds_dict, usg_min_rank
+            )
+            for lu in built:
+                fs = frozenset(lu["player_ids"])
+                if fs not in seen_sets:
+                    seen_sets.add(fs)
+                    all_lineups.append(lu)
+
+    # Level 3: 3-man combos → plug in 2 missing players
+    if len(all_lineups) < 3 and lineup_df is not None and not lineup_df.empty:
+        three_df = lineup_df[lineup_df["group_quantity"] == 3]
+        alive_3 = _get_alive_lineups(three_df, avail_set, 3)
+        for core in alive_3[:15]:
+            built = _estimate_5man_from_core(
+                core, list(avail_set), pair_lookup,
+                projected_minutes, player_ds_dict, usg_min_rank
+            )
+            for lu in built:
+                fs = frozenset(lu["player_ids"])
+                if fs not in seen_sets:
+                    seen_sets.add(fs)
+                    all_lineups.append(lu)
+
+    # Level 4: 2-man combos → plug in 3 missing players (last resort)
+    if len(all_lineups) < 3 and lineup_df is not None and not lineup_df.empty:
+        two_df = lineup_df[lineup_df["group_quantity"] == 2]
+        alive_2 = _get_alive_lineups(two_df, avail_set, 2)
+        for core in alive_2[:10]:
+            built = _estimate_5man_from_core(
+                core, list(avail_set), pair_lookup,
+                projected_minutes, player_ds_dict, usg_min_rank
+            )
+            for lu in built:
+                fs = frozenset(lu["player_ids"])
+                if fs not in seen_sets:
+                    seen_sets.add(fs)
+                    all_lineups.append(lu)
+
     if not all_lineups:
-        return 50.0
+        # Ultimate fallback: pair composite of all available players
+        pair_composite = _compute_pair_composite(usg_min_rank[:5], pair_lookup)
+        return max(0.0, min(100.0, pair_composite))
 
+    # ── Phase B: Assign minutes & score each lineup ──
     _assign_lineup_minutes(all_lineups, projected_minutes)
-
-    # ── Phase B: Score each lineup ──
     team_avg_dsi = _compute_team_avg_dsi(projected_minutes, player_ds_dict)
 
     for lu in all_lineups:
-        # Base quality (NRtg scale)
-        if lu["has_history"]:
-            lu["base_quality"] = bayesian_shrinkage(
-                lu["raw_nrtg"], lu["possessions"], 0.0, K["SYN_5MAN_PRIOR"]
-            )
-        else:
-            pair_composite = _compute_pair_composite(lu["player_ids"], pair_lookup)
-            lu["base_quality"] = (pair_composite - 50) * K["SYN_PAIR_TO_NRTG"]
+        # Base quality: Bayesian-shrunk NRtg (already adjusted for plugged players)
+        lu["base_quality"] = bayesian_shrinkage(
+            lu["raw_nrtg"], lu["possessions"], 0.0, K["SYN_5MAN_PRIOR"]
+        )
 
-        # DSI bonus: star lineups get boosted, bench lineups penalized
+        # DSI bonus: star lineups boosted, bench lineups penalized
         lineup_dsi_vals = [player_ds_dict.get(p, 50) for p in lu["player_ids"]]
         lineup_avg_dsi = sum(lineup_dsi_vals) / len(lineup_dsi_vals)
         lu["dsi_bonus"] = (lineup_avg_dsi - team_avg_dsi) * K["SYN_DSI_BONUS"]
 
-        # Scheme multiplier
+        # Scheme multiplier across all 10 pairs
         lu["scheme_mult"] = _compute_lineup_scheme_mult(
             lu["player_ids"], pair_lookup, scheme_type, quality_factors
         )
 
         lu["final_quality"] = (lu["base_quality"] + lu["dsi_bonus"]) * lu["scheme_mult"]
 
-    # ── Phase C: Aggregate ──
+    # ── Phase C: Minutes-weighted aggregate → 0-100 ──
     total_min = sum(lu["est_minutes"] for lu in all_lineups)
     if total_min == 0:
         return 50.0
@@ -1893,7 +1988,6 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     weighted_quality = sum(lu["final_quality"] * lu["est_minutes"] for lu in all_lineups)
     team_syn_nrtg = weighted_quality / total_min
 
-    # Convert NRtg → 0-100
     syn_score = 50.0 + (team_syn_nrtg / K["SYN_NRTG_RANGE"]) * 50.0
     return max(0.0, min(100.0, syn_score))
 
