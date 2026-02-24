@@ -10,6 +10,22 @@ from db.connection import save_dataframe
 
 logger = logging.getLogger(__name__)
 
+# Browser-like headers to avoid NBA.com blocking
+NBA_HEADERS = {
+    "Host": "stats.nba.com",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "x-nba-stats-origin": "stats",
+    "x-nba-stats-token": "true",
+    "Connection": "keep-alive",
+    "Referer": "https://stats.nba.com/",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin",
+}
+
 
 class BaseCollector:
     """Base class for all data collectors."""
@@ -24,6 +40,10 @@ class BaseCollector:
         Rate-limited wrapper around any nba_api endpoint class.
         Returns list of DataFrames from get_data_frames().
         """
+        # Inject browser headers and extended timeout
+        params.setdefault("headers", NBA_HEADERS)
+        params.setdefault("timeout", 120)
+
         for attempt in range(self.max_retries):
             self.rate_limiter.wait()
             try:
