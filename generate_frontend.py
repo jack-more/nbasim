@@ -1861,7 +1861,6 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     Players sorted by usage rate + minutes (highest first).
     """
     from config import SCHEME_QUALITY_FACTORS
-    from utils.stats_math import bayesian_shrinkage
 
     K = _DSI_CONSTANTS
 
@@ -1975,10 +1974,10 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     team_avg_dsi = _compute_team_avg_dsi(projected_minutes, player_ds_dict)
 
     for lu in all_lineups:
-        # Base quality: Bayesian-shrunk NRtg (already adjusted for plugged players)
-        lu["base_quality"] = bayesian_shrinkage(
-            lu["raw_nrtg"], lu["possessions"], 0.0, K["SYN_5MAN_PRIOR"]
-        )
+        # Base quality: pair-level WOWY chemistry (NOT lineup NRtg — that's redundant with NRtg component)
+        # Average the pair synergy scores for all C(5,2)=10 pairs in the lineup
+        # This captures how well these specific players work TOGETHER, not just team quality
+        lu["base_quality"] = _compute_pair_composite(lu["player_ids"], pair_lookup)
 
         # DSI bonus: star lineups boosted, bench lineups penalized
         lineup_dsi_vals = [player_ds_dict.get(p, 50) for p in lu["player_ids"]]
@@ -1990,7 +1989,10 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
             lu["player_ids"], pair_lookup, scheme_type, quality_factors
         )
 
-        lu["final_quality"] = (lu["base_quality"] + lu["dsi_bonus"]) * lu["scheme_mult"]
+        # base_quality is 0-100 pair WOWY chemistry
+        # dsi_bonus is NRtg scale (±2ish) — convert to 0-100 scale: multiply by ~3.3
+        dsi_adj_100 = lu["dsi_bonus"] * (50.0 / K["SYN_NRTG_RANGE"])
+        lu["final_quality"] = (lu["base_quality"] + dsi_adj_100) * lu["scheme_mult"]
 
     # ── Phase C: Minutes-weighted aggregate → 0-100 ──
     total_min = sum(lu["est_minutes"] for lu in all_lineups)
@@ -1998,9 +2000,8 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         return 50.0
 
     weighted_quality = sum(lu["final_quality"] * lu["est_minutes"] for lu in all_lineups)
-    team_syn_nrtg = weighted_quality / total_min
+    syn_score = weighted_quality / total_min
 
-    syn_score = 50.0 + (team_syn_nrtg / K["SYN_NRTG_RANGE"]) * 50.0
     return max(0.0, min(100.0, syn_score))
 
 
