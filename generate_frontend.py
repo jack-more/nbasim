@@ -721,7 +721,8 @@ _DSI_CONSTANTS = {
     "SYN_WEIGHT":   0.10,   # lineup synergy share in final blend
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
     "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
-    "B2B_PENALTY":  3.0,    # back-to-back penalty subtracted from net rating
+    "B2B_HOME":     2.0,    # home back-to-back penalty (less severe — still at home)
+    "B2B_ROAD":     2.5,    # road back-to-back penalty (travel + fatigue)
     "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
     "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
     "STOCKS_PENALTY":   0.8,    # DSI points lost per lost stock (STL+BLK scaled by minutes)
@@ -1696,7 +1697,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     2. Project minutes for available players
     3. Compute lineup quality rating
     4. Compute adjusted Dynamic Scores (DSI) with archetype-aware usage redistribution
-    5. Compare home net rating + 3 vs away net rating (with B2B penalties)
+    5. Compare home net rating + HCA vs away net rating (with B2B penalties)
     6. Compute lineup synergy adjusted by opponent coaching scheme
     7. Blend 45% DSI + 45% adjusted NRtg + 10% SYN
 
@@ -1762,7 +1763,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     home_lineup_q = compute_lineup_rating(home_abbr, home_avail_ids, h_net)
     away_lineup_q = compute_lineup_rating(away_abbr, away_avail_ids, a_net)
 
-    # ── Adjusted net rating: home + 3 vs away, with B2B penalty ──
+    # ── Adjusted net rating: home + HCA vs away, with split B2B penalties ──
     home_b2b = detect_back_to_back(home_tid)
     away_b2b = detect_back_to_back(away_tid)
 
@@ -1770,11 +1771,11 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     away_adj_nrtg = a_net
 
     if home_b2b:
-        home_adj_nrtg -= K["B2B_PENALTY"]
-        print(f"  [B2B] {home_abbr} is on a back-to-back (-{K['B2B_PENALTY']})")
+        home_adj_nrtg -= K["B2B_HOME"]
+        print(f"  [B2B] {home_abbr} is on a home back-to-back (-{K['B2B_HOME']})")
     if away_b2b:
-        away_adj_nrtg -= K["B2B_PENALTY"]
-        print(f"  [B2B] {away_abbr} is on a back-to-back (-{K['B2B_PENALTY']})")
+        away_adj_nrtg -= K["B2B_ROAD"]
+        print(f"  [B2B] {away_abbr} is on a road back-to-back (-{K['B2B_ROAD']})")
 
     nrtg_diff = home_adj_nrtg - away_adj_nrtg
 
@@ -4083,9 +4084,9 @@ def render_matchup_card(m, idx, team_map):
     # B2B badge HTML
     b2b_badges = ""
     if home_b2b:
-        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {ha} (-3)</span>'
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {ha} (-2)</span>'
     if away_b2b:
-        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {aa} (-3)</span>'
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {aa} (-2.5)</span>'
 
     # OUT player count badges
     out_badges = ""
@@ -4615,7 +4616,7 @@ def render_info_page():
                 <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
                 <div class="formula-row"><span>Step 4</span><span>Compute adjusted DSI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
-                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −3.0)</span></div>
+                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
                 <div class="formula-row"><span>Step 8</span><span>Blend: 45% DSI + 45% Adjusted NRtg + 10% SYN = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
@@ -4623,7 +4624,7 @@ def render_info_page():
             <div class="info-formula" style="margin-top:12px">
                 <div class="formula-row"><span>Stocks Penalty</span><span>0.8 DSI pts per lost stock (STL+BLK × min share)</span></div>
                 <div class="formula-row"><span>Home Court Adv.</span><span>+2.0 added to home net rating</span></div>
-                <div class="formula-row"><span>B2B Penalty</span><span>−3.0 subtracted for back-to-back teams</span></div>
+                <div class="formula-row"><span>B2B Penalty</span><span>−2.0 home / −2.5 road for back-to-back teams</span></div>
                 <div class="formula-row"><span>Proj. Total</span><span>((ORtg+DRtg)/2 × Matchup Pace/100) × 2</span></div>
             </div>
             <p class="info-text" style="margin-top:8px; font-size:12px; color: rgba(0,0,0,0.5);">
