@@ -1734,44 +1734,35 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
     plugged_pids = [p for p in current_pids if p not in core_pids]
     core_nrtg = core_lineup["raw_nrtg"]
 
-    # Adjustment: each plugged player shifts NRtg based on how good their pair
-    # synergy is with the core vs neutral (50). Scale by fraction of lineup they represent.
+    # For each plugged player: estimate their NRtg contribution using
+    # WOWY pair synergy with the core players, amplified if they're in an expanded role
     adj = 0.0
     for plug_pid in plugged_pids:
+        # WOWY signal: average pair synergy with every core player
         plug_fits = []
         for cp in core_lineup["player_ids"]:
             key = (min(plug_pid, cp), max(plug_pid, cp))
             pair_data = pair_lookup.get(key)
             plug_fits.append(pair_data["syn"] if pair_data else 50.0)
-        avg_plug_fit = sum(plug_fits) / len(plug_fits)
-        # Each plugged player is 1/5 of the lineup; pair fit deviation from 50 maps to NRtg
-        adj += ((avg_plug_fit - 50.0) * 0.4) / 5.0
+        wowy_with_core = sum(plug_fits) / len(plug_fits) if plug_fits else 50.0
 
-    # Factor in plugged player's DS vs team avg + ceiling optimism
-    for plug_pid in plugged_pids:
-        ds = player_ds_dict.get(plug_pid, 50)
-        team_avg = sum(player_ds_dict.get(p, 50) for p in current_pids) / 5
-
-        # Ceiling optimism: if this player has a wide DS range and is getting
-        # elevated minutes (stepping into a star's role), bias toward ceiling.
-        ds_low, ds_high = compute_ds_range(ds, plug_pid)
-        ds_range = ds_high - ds_low
+        # Elevated role: if projected minutes >> season average,
+        # this player shares more court time with the core → WOWY data is more predictive
         proj_mpg = projected_minutes.get(plug_pid, 0)
-
-        # Check if player is getting a significant minutes bump (>25% over avg)
         vs = _VALUE_SCORES.get(plug_pid)
         season_mpg = vs.get("minutes", 20) if vs else 20
-        minutes_bump = (proj_mpg - season_mpg) / max(season_mpg, 1)
+        minutes_bump = max(0, (proj_mpg - season_mpg) / max(season_mpg, 1))
 
-        # Wide range (>15 pts) + minutes bump = optimism toward ceiling
-        # Scale: 0-1 blend between current DS and ceiling DS
-        if ds_range > 10 and minutes_bump > 0.15:
-            optimism = min(0.4, minutes_bump * 0.5) * min(1.0, ds_range / 25.0)
-            effective_ds = ds + (ds_high - ds) * optimism
-        else:
-            effective_ds = ds
+        # Amplify WOWY adjustment: up to 1.5× when player is in a much bigger role
+        wowy_amplifier = 1.0 + min(0.5, minutes_bump * 0.5)
+        wowy_adj = ((wowy_with_core - 50.0) * 0.4) / 5.0 * wowy_amplifier
 
-        adj += (effective_ds - team_avg) * 0.05 / 5.0
+        # Small DS kicker (raw player quality vs lineup avg)
+        ds = player_ds_dict.get(plug_pid, 50)
+        team_avg = sum(player_ds_dict.get(p, 50) for p in current_pids) / 5
+        ds_adj = (ds - team_avg) * 0.03 / 5.0
+
+        adj += wowy_adj + ds_adj
 
     return [{
         "player_ids": current_pids,
