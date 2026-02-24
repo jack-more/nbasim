@@ -1532,8 +1532,9 @@ def get_player_trend(player_id, team_abbreviation):
 
 
 def get_top_trending_players():
-    """Get top 4 risers and top 4 fallers by PRA delta (last 7 days vs prior 7 days).
-    Uses most recent data date as anchor (not today) in case boxscores are delayed."""
+    """Get top 4 risers and top 4 fallers by PRA delta (last 14 days vs prior 14 days).
+    Uses most recent data date as anchor (not today) in case boxscores are delayed.
+    14-day trailing window updated daily at 8 AM PST."""
     # Find the most recent game date with player stats
     latest_df = read_query("""
         SELECT MAX(g.game_date) as latest
@@ -1545,8 +1546,8 @@ def get_top_trending_players():
     latest_date = latest_df.iloc[0]["latest"]
     latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
     today = latest_date
-    seven_ago = (latest_dt - timedelta(days=7)).strftime("%Y-%m-%d")
-    fourteen_ago = (latest_dt - timedelta(days=14)).strftime("%Y-%m-%d")
+    seven_ago = (latest_dt - timedelta(days=14)).strftime("%Y-%m-%d")
+    fourteen_ago = (latest_dt - timedelta(days=28)).strftime("%Y-%m-%d")
 
     # Recent 7 days averages
     recent = read_query("""
@@ -2650,7 +2651,7 @@ def generate_html():
         trending_html = f"""
             <div class="section-header">
                 <h2>TOP 8 TRENDING PLAYERS</h2>
-                <span class="section-sub">Biggest PRA movers — last 7 days vs prior 7</span>
+                <span class="section-sub">Biggest PRA movers — 14-day trailing window (updated daily 8 AM)</span>
             </div>
             <div class="trends-grid">
                 <div class="trends-column">

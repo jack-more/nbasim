@@ -14,6 +14,10 @@ on:
     # Final pre-tip update — RotoWire confirmed lineups + fresh DSI
     - cron: '30 17 * * *'
 
+    # ── TRENDS REFRESH: 8:00 AM PST = 4:00 PM UTC ──
+    # Collect missing boxscores (14-day window) + refresh lineup combos + regenerate HTML
+    - cron: '0 16 * * *'
+
     # ── POST-GAME SETTLEMENT: 9:00 AM PST = 5:00 PM UTC ──
     # Grades yesterday's picks, updates bankroll + blog
     - cron: '0 17 * * *'
@@ -47,7 +51,7 @@ jobs:
 
   update-lines:
     # Skip on morning settlement cron (5 PM UTC = 9 AM PST)
-    if: github.event.schedule != '0 17 * * *' && inputs.settle_only != 'true'
+    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -109,7 +113,7 @@ jobs:
   # ── Sync to MORELLOSIMS (blog + nbasim dashboard) ──
   sync-to-morellosims:
     needs: update-lines
-    if: github.event.schedule != '0 17 * * *' && inputs.settle_only != 'true'
+    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -170,6 +174,104 @@ jobs:
           fi
 
           git commit -m "Auto-sync lines from NBA SIM — ${DATE}"
+          git push
+
+  # ════════════════════════════════════════════
+  # DAILY TRENDS REFRESH (8 AM PST cron)
+  # ════════════════════════════════════════════
+
+  refresh-trends:
+    # Only run on the 8 AM PST trends cron (4 PM UTC)
+    if: github.event.schedule == '0 16 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout nbasim
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env
+        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+
+      - name: Refresh trends (collect missing boxscores + lineup stats)
+        timeout-minutes: 20
+        run: python scripts/refresh_trends.py
+
+      - name: Regenerate dashboard with fresh trends
+        run: python generate_frontend.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add index.html nba_sim.html db/nba_sim.db
+
+          if git diff --cached --quiet; then
+            echo "No trend changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Daily trends refresh — ${DATE}"
+          git push
+
+  # Sync trends update to MORELLOSIMS
+  sync-trends-to-morellosims:
+    needs: refresh-trends
+    if: github.event.schedule == '0 16 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout MORELLOSIMS
+        uses: actions/checkout@v4
+        with:
+          repository: jack-more/MORELLOSIMS
+          token: ${{ secrets.MORELLOSIMS_PAT }}
+          path: morellosims
+
+      - name: Checkout nbasim (fresh HTML)
+        uses: actions/checkout@v4
+        with:
+          path: nbasim
+
+      - name: Copy NBA SIM dashboard + inject auth
+        run: |
+          cp nbasim/index.html morellosims/nbasim/index.html
+          FILE=morellosims/nbasim/index.html
+
+          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
+          sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
+          sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
+          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
+
+      - name: Commit and push
+        working-directory: morellosims
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
+
+          git add nbasim/index.html
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+
+          git commit -m "Daily trends refresh sync — ${DATE}"
           git push
 
   # ════════════════════════════════════════════
