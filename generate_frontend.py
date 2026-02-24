@@ -716,16 +716,23 @@ def compute_spread_and_total(home_data, away_data):
 # Model constants
 _DSI_CONSTANTS = {
     "DS_SCALE":     1.0,    # 1pt DS gap → 1.0 points on spread scale
-    "DSI_WEIGHT":   0.45,   # DSI share in final blend (was 0.50)
-    "NRTG_WEIGHT":  0.45,   # adjusted net rating share in final blend (was 0.50)
-    "SYN_WEIGHT":   0.10,   # lineup synergy share in final blend
+    "DSI_WEIGHT":   0.20,   # DSI share in final blend
+    "NRTG_WEIGHT":  0.15,   # adjusted net rating share in final blend
+    "SYN_WEIGHT":   0.45,   # lineup synergy share in final blend (SYN v2)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
+    "H2H_WEIGHT":   0.20,   # head-to-head backstop share in final blend
     "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
     "B2B_HOME":     2.0,    # home back-to-back penalty (less severe — still at home)
     "B2B_ROAD":     2.5,    # road back-to-back penalty (travel + fatigue)
     "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
     "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
     "STOCKS_PENALTY":   0.8,    # DSI points lost per lost stock (STL+BLK scaled by minutes)
+    # SYN v2: lineup-simulation synergy
+    "SYN_DSI_BONUS":    0.15,   # NRtg bonus per DSI point above team avg in a lineup
+    "SYN_PAIR_TO_NRTG": 0.4,    # pair composite (0-100) → NRtg scale for synthetic lineups
+    "SYN_NRTG_RANGE":   15.0,   # NRtg range for 0-100 mapping [-15, +15]
+    "SYN_5MAN_PRIOR":   100,    # Bayesian prior possessions for 5-man NRtg shrinkage
+    "SYN_MIN_POSS":     10,     # minimum possessions for a 5-man lineup to count
 }
 
 # Archetype groups for usage redistribution
@@ -1618,75 +1625,313 @@ def _classify_pair_category(arch_a, arch_b):
     return f"{cats[0]}_{cats[1]}"
 
 
-def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme, season="2025-26"):
-    """Compute team's synergy adjusted by opponent defensive scheme.
-
-    Returns a 0-100 score reflecting how well the available players' pair combos
-    perform, adjusted for scheme interaction and opponent defensive quality.
-    """
-    from config import SCHEME_INTERACTION, SCHEME_QUALITY_FACTORS
-
-    if not avail_ids or len(avail_ids) < 2:
-        return 50.0  # neutral
-
-    # Get pair synergies for available players
-    pairs = read_query("""
-        SELECT player_a_id, player_b_id, synergy_score, net_rating,
-               possessions, archetype_a, archetype_b
-        FROM pair_synergy
-        WHERE season_id = ? AND team_id = ?
-    """, DB_PATH, [season, team_id])
-
-    if pairs.empty:
-        return 50.0
-
-    avail_set = set(int(x) for x in avail_ids)
-
-    # Parse opponent scheme: "Switch-Everything (Elite)" → type="Switch-Everything", quality="Elite"
-    scheme_type = "Drop-Coverage"  # default
+def _parse_scheme(opp_def_scheme):
+    """Parse 'Switch-Everything (Elite)' → ('Switch-Everything', 'Elite')."""
+    scheme_type = "Drop-Coverage"
     scheme_quality = "Avg"
     if opp_def_scheme:
         parts = opp_def_scheme.split(" (")
         scheme_type = parts[0]
         if len(parts) > 1:
             scheme_quality = parts[1].rstrip(")")
+    return scheme_type, scheme_quality
 
-    quality_factors = SCHEME_QUALITY_FACTORS.get(scheme_quality, {"advantage_scale": 1.0, "disadvantage_scale": 1.0})
 
-    weighted_syn = 0.0
-    total_poss = 0.0
-
-    for _, row in pairs.iterrows():
+def _build_pair_lookup(pairs_df):
+    """Build {(min_pid, max_pid): {syn, poss, arch_a, arch_b}} from pair_synergy DataFrame."""
+    lookup = {}
+    if pairs_df is None or pairs_df.empty:
+        return lookup
+    for _, row in pairs_df.iterrows():
         a = int(row["player_a_id"])
         b = int(row["player_b_id"])
-        if a not in avail_set or b not in avail_set:
+        key = (min(a, b), max(a, b))
+        lookup[key] = {
+            "syn": float(row["synergy_score"] or 50),
+            "poss": float(row["possessions"] or 1),
+            "arch_a": row.get("archetype_a") or "",
+            "arch_b": row.get("archetype_b") or "",
+        }
+    return lookup
+
+
+def _get_alive_5man_lineups(five_man_df, avail_set):
+    """Filter 5-man lineups to those where all 5 players are available tonight."""
+    alive = []
+    if five_man_df is None or five_man_df.empty:
+        return alive
+    for _, row in five_man_df.iterrows():
+        try:
+            pids = [int(p) for p in json.loads(row["player_ids"])]
+        except (json.JSONDecodeError, ValueError, TypeError):
             continue
+        if len(pids) == 5 and all(p in avail_set for p in pids):
+            alive.append({
+                "player_ids": pids,
+                "raw_nrtg": float(row["net_rating"]),
+                "possessions": float(row["possessions"]),
+                "historical_minutes": float(row["minutes"] or 0),
+                "has_history": True,
+                "est_minutes": 0.0,
+            })
+    alive.sort(key=lambda x: x["historical_minutes"], reverse=True)
+    return alive
 
-        syn = float(row["synergy_score"] or 50)
-        poss = float(row["possessions"] or 1)
-        arch_a = row.get("archetype_a") or ""
-        arch_b = row.get("archetype_b") or ""
 
-        # Get scheme interaction multiplier
+def _generate_synthetic_lineups(avail_ids, projected_minutes, player_ds_dict, existing_lineups):
+    """Generate plausible 5-man lineups when historical data is sparse."""
+    existing_sets = {frozenset(lu["player_ids"]) for lu in existing_lineups}
+    sorted_by_min = sorted(avail_ids, key=lambda p: projected_minutes.get(p, 0), reverse=True)
+    sorted_by_ds = sorted(avail_ids, key=lambda p: player_ds_dict.get(p, 50), reverse=True)
+
+    candidates = []
+
+    # Starters: top 5 by projected minutes
+    if len(sorted_by_min) >= 5:
+        combo = sorted_by_min[:5]
+        if frozenset(combo) not in existing_sets:
+            candidates.append(combo)
+
+    # Bench-heavy: players 6-10 or 4-8
+    if len(sorted_by_min) >= 10:
+        combo = sorted_by_min[5:10]
+        if frozenset(combo) not in existing_sets:
+            candidates.append(combo)
+    elif len(sorted_by_min) >= 8:
+        combo = sorted_by_min[3:8]
+        if frozenset(combo) not in existing_sets:
+            candidates.append(combo)
+
+    # Closing lineup: top 5 by DS
+    if len(sorted_by_ds) >= 5:
+        combo = sorted_by_ds[:5]
+        if frozenset(combo) not in existing_sets:
+            candidates.append(combo)
+
+    # Mixed: top 3 minutes + best 2 bench DS
+    if len(sorted_by_min) >= 3:
+        core = sorted_by_min[:3]
+        bench_by_ds = [p for p in sorted_by_ds if p not in core]
+        if len(bench_by_ds) >= 2:
+            combo = core + bench_by_ds[:2]
+            if frozenset(combo) not in existing_sets:
+                candidates.append(combo)
+
+    return [{
+        "player_ids": pids,
+        "raw_nrtg": 0.0,
+        "possessions": 0,
+        "historical_minutes": 0.0,
+        "has_history": False,
+        "est_minutes": 0.0,
+    } for pids in candidates]
+
+
+def _assign_lineup_minutes(all_lineups, projected_minutes):
+    """Estimate minutes per lineup using bottleneck heuristic, normalize to 48."""
+    raw_estimates = []
+    for lu in all_lineups:
+        bottleneck = min((projected_minutes.get(p, 0) for p in lu["player_ids"]), default=0)
+        if lu["has_history"]:
+            history_bonus = min(lu["historical_minutes"] / 20.0, 1.0)
+            estimate = bottleneck * (0.5 + 0.5 * history_bonus)
+        else:
+            estimate = bottleneck * 0.3
+        raw_estimates.append(max(estimate, 0.5))
+
+    total_raw = sum(raw_estimates)
+    if total_raw > 0:
+        for i, lu in enumerate(all_lineups):
+            lu["est_minutes"] = (raw_estimates[i] / total_raw) * 48.0
+
+
+def _compute_pair_composite(player_ids, pair_lookup):
+    """Average pair synergy for all C(5,2)=10 pairs in a 5-man lineup."""
+    from itertools import combinations
+    total_syn = 0.0
+    total_w = 0.0
+    for a, b in combinations(player_ids, 2):
+        key = (min(a, b), max(a, b))
+        pair_data = pair_lookup.get(key)
+        if pair_data:
+            total_syn += pair_data["syn"] * pair_data["poss"]
+            total_w += pair_data["poss"]
+        else:
+            total_syn += 50.0
+            total_w += 1.0
+    return total_syn / total_w if total_w > 0 else 50.0
+
+
+def _compute_lineup_scheme_mult(player_ids, pair_lookup, scheme_type, quality_factors):
+    """Average scheme interaction multiplier across all 10 pairs in a 5-man lineup."""
+    from itertools import combinations
+    from config import SCHEME_INTERACTION
+    mults = []
+    for a, b in combinations(player_ids, 2):
+        key = (min(a, b), max(a, b))
+        pair_data = pair_lookup.get(key)
+        arch_a = pair_data["arch_a"] if pair_data else ""
+        arch_b = pair_data["arch_b"] if pair_data else ""
+
         pair_cat = _classify_pair_category(arch_a, arch_b)
         base_mult = SCHEME_INTERACTION.get((pair_cat, scheme_type), 1.0)
 
-        # Apply quality factor
         if base_mult > 1.0:
             mult = 1.0 + (base_mult - 1.0) * quality_factors["advantage_scale"]
         elif base_mult < 1.0:
             mult = 1.0 - (1.0 - base_mult) * quality_factors["disadvantage_scale"]
         else:
             mult = 1.0
+        mults.append(mult)
 
-        adjusted_syn = syn * mult
-        weighted_syn += adjusted_syn * poss
-        total_poss += poss
+    return sum(mults) / len(mults) if mults else 1.0
 
-    if total_poss == 0:
+
+def _compute_team_avg_dsi(projected_minutes, player_ds_dict):
+    """Minutes-weighted average DSI for the rotation."""
+    total_ds_min = 0.0
+    total_min = 0.0
+    for pid, mpg in projected_minutes.items():
+        ds = player_ds_dict.get(pid, 50)
+        total_ds_min += ds * mpg
+        total_min += mpg
+    return total_ds_min / total_min if total_min > 0 else 50.0
+
+
+def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
+                                     projected_minutes=None, player_ds_dict=None,
+                                     season="2025-26"):
+    """SYN v2: Lineup-simulation synergy model.
+
+    Builds plausible 5-man lineups from tonight's available players,
+    scores them using historical lineup NRtg + pair-composite fallback + DSI boost,
+    weights by estimated minutes, and returns a 0-100 SYN score.
+    """
+    from config import SCHEME_QUALITY_FACTORS
+    from utils.stats_math import bayesian_shrinkage
+
+    K = _DSI_CONSTANTS
+
+    if not avail_ids or len(avail_ids) < 5:
         return 50.0
 
-    return weighted_syn / total_poss
+    if projected_minutes is None:
+        projected_minutes = {}
+    if player_ds_dict is None:
+        player_ds_dict = {}
+
+    avail_set = set(int(x) for x in avail_ids)
+
+    # Parse opponent scheme
+    scheme_type, scheme_quality = _parse_scheme(opp_def_scheme)
+    quality_factors = SCHEME_QUALITY_FACTORS.get(
+        scheme_quality, {"advantage_scale": 1.0, "disadvantage_scale": 1.0}
+    )
+
+    # ── Load data ──
+    five_man_df = read_query("""
+        SELECT player_ids, net_rating, minutes, possessions
+        FROM lineup_stats
+        WHERE season_id = ? AND group_quantity = 5
+              AND team_id = ? AND net_rating IS NOT NULL AND possessions > ?
+    """, DB_PATH, [season, team_id, K["SYN_MIN_POSS"]])
+
+    pairs_df = read_query("""
+        SELECT player_a_id, player_b_id, synergy_score, possessions,
+               archetype_a, archetype_b
+        FROM pair_synergy
+        WHERE season_id = ? AND team_id = ?
+    """, DB_PATH, [season, team_id])
+
+    pair_lookup = _build_pair_lookup(pairs_df)
+
+    # ── Phase A: Build rotation lineups ──
+    alive_lineups = _get_alive_5man_lineups(five_man_df, avail_set)
+
+    synthetic_lineups = []
+    if len(alive_lineups) < 3:
+        synthetic_lineups = _generate_synthetic_lineups(
+            list(avail_set), projected_minutes, player_ds_dict, alive_lineups
+        )
+
+    all_lineups = alive_lineups + synthetic_lineups
+    if not all_lineups:
+        return 50.0
+
+    _assign_lineup_minutes(all_lineups, projected_minutes)
+
+    # ── Phase B: Score each lineup ──
+    team_avg_dsi = _compute_team_avg_dsi(projected_minutes, player_ds_dict)
+
+    for lu in all_lineups:
+        # Base quality (NRtg scale)
+        if lu["has_history"]:
+            lu["base_quality"] = bayesian_shrinkage(
+                lu["raw_nrtg"], lu["possessions"], 0.0, K["SYN_5MAN_PRIOR"]
+            )
+        else:
+            pair_composite = _compute_pair_composite(lu["player_ids"], pair_lookup)
+            lu["base_quality"] = (pair_composite - 50) * K["SYN_PAIR_TO_NRTG"]
+
+        # DSI bonus: star lineups get boosted, bench lineups penalized
+        lineup_dsi_vals = [player_ds_dict.get(p, 50) for p in lu["player_ids"]]
+        lineup_avg_dsi = sum(lineup_dsi_vals) / len(lineup_dsi_vals)
+        lu["dsi_bonus"] = (lineup_avg_dsi - team_avg_dsi) * K["SYN_DSI_BONUS"]
+
+        # Scheme multiplier
+        lu["scheme_mult"] = _compute_lineup_scheme_mult(
+            lu["player_ids"], pair_lookup, scheme_type, quality_factors
+        )
+
+        lu["final_quality"] = (lu["base_quality"] + lu["dsi_bonus"]) * lu["scheme_mult"]
+
+    # ── Phase C: Aggregate ──
+    total_min = sum(lu["est_minutes"] for lu in all_lineups)
+    if total_min == 0:
+        return 50.0
+
+    weighted_quality = sum(lu["final_quality"] * lu["est_minutes"] for lu in all_lineups)
+    team_syn_nrtg = weighted_quality / total_min
+
+    # Convert NRtg → 0-100
+    syn_score = 50.0 + (team_syn_nrtg / K["SYN_NRTG_RANGE"]) * 50.0
+    return max(0.0, min(100.0, syn_score))
+
+
+def compute_h2h(home_tid, away_tid, season="2025-26"):
+    """Head-to-head backstop: how these two teams have performed against each other.
+
+    Returns a spread-scale value from the home team's perspective.
+    Positive = home has dominated H2H, negative = away has dominated.
+    Returns 0.0 if no H2H games found.
+    """
+    h2h_df = read_query("""
+        SELECT home_team_id, away_team_id, home_score, away_score
+        FROM games
+        WHERE season_id = ?
+              AND ((home_team_id = ? AND away_team_id = ?)
+                OR (home_team_id = ? AND away_team_id = ?))
+              AND home_score IS NOT NULL AND away_score IS NOT NULL
+    """, DB_PATH, [season, home_tid, away_tid, away_tid, home_tid])
+
+    if h2h_df.empty:
+        return 0.0
+
+    # Compute average margin from home team's perspective
+    total_margin = 0.0
+    for _, g in h2h_df.iterrows():
+        if int(g["home_team_id"]) == home_tid:
+            total_margin += int(g["home_score"]) - int(g["away_score"])
+        else:
+            total_margin += int(g["away_score"]) - int(g["home_score"])
+
+    avg_margin = total_margin / len(h2h_df)
+
+    # Dampen: H2H sample is small (2-4 games), shrink toward 0
+    # More games = more confidence. At 4 games, ~67% of raw signal kept.
+    n_games = len(h2h_df)
+    dampening = n_games / (n_games + 2.0)
+    return avg_margin * dampening
 
 
 def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
@@ -1699,7 +1944,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     4. Compute adjusted Dynamic Scores (DSI) with archetype-aware usage redistribution
     5. Compare home net rating + HCA vs away net rating (with B2B penalties)
     6. Compute lineup synergy adjusted by opponent coaching scheme
-    7. Blend 45% DSI + 45% adjusted NRtg + 10% SYN
+    7. Blend 45% SYN + 20% DSI + 15% adjusted NRtg + 20% H2H
 
     Returns (spread, total, breakdown).
     """
@@ -1793,19 +2038,27 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     away_def_scheme = away_scheme_df.iloc[0]["def_scheme_label"] if not away_scheme_df.empty else None
     home_def_scheme = home_scheme_df.iloc[0]["def_scheme_label"] if not home_scheme_df.empty else None
 
-    home_syn = compute_team_synergy_vs_opponent(home_avail_ids, home_tid, away_def_scheme)
-    away_syn = compute_team_synergy_vs_opponent(away_avail_ids, away_tid, home_def_scheme)
+    home_syn = compute_team_synergy_vs_opponent(
+        home_avail_ids, home_tid, away_def_scheme, home_proj_min, home_player_ds
+    )
+    away_syn = compute_team_synergy_vs_opponent(
+        away_avail_ids, away_tid, home_def_scheme, away_proj_min, away_player_ds
+    )
 
     syn_diff = home_syn - away_syn
     synergy_as_points = syn_diff * K["SYN_SCALE"]
 
-    # ── Final blend: 45% DSI + 45% adjusted NRtg + 10% SYN ──
+    # ── Head-to-head backstop ──
+    h2h_margin = compute_h2h(home_tid, away_tid)
+
+    # ── Final blend: 45% SYN + 20% DSI + 15% NRtg + 20% H2H ──
     dsi_diff = home_dsi - away_dsi
     dsi_as_points = dsi_diff * K["DS_SCALE"]
 
-    raw_power = (K["DSI_WEIGHT"] * dsi_as_points +
+    raw_power = (K["SYN_WEIGHT"] * synergy_as_points +
+                 K["DSI_WEIGHT"] * dsi_as_points +
                  K["NRTG_WEIGHT"] * nrtg_diff +
-                 K["SYN_WEIGHT"] * synergy_as_points)
+                 K["H2H_WEIGHT"] * h2h_margin)
 
     proj_spread = -raw_power
     proj_spread = round(proj_spread * 2) / 2  # round to nearest 0.5
@@ -1836,6 +2089,8 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
         "away_syn": round(away_syn, 1),
         "syn_diff": round(syn_diff, 1),
         "syn_pts": round(synergy_as_points, 1),
+        "h2h_margin": round(h2h_margin, 1),
+        "h2h_weighted": round(K["H2H_WEIGHT"] * h2h_margin, 1),
         "home_b2b": home_b2b,
         "away_b2b": away_b2b,
         "home_out": len(home_out_ids),
@@ -1848,6 +2103,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     print(f"  [DSI] {away_abbr}@{home_abbr}: DSI {home_dsi:.1f}v{away_dsi:.1f} | "
           f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
           f"SYN {home_syn:.1f}v{away_syn:.1f} | "
+          f"H2H {h2h_margin:+.1f} | "
           f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
           f"OUT: {len(home_out_ids)}h/{len(away_out_ids)}a"
           f"{' B2B:'+home_abbr if home_b2b else ''}{' B2B:'+away_abbr if away_b2b else ''}")
@@ -4085,6 +4341,8 @@ def render_matchup_card(m, idx, team_map):
     away_syn = bd.get("away_syn", 50)
     syn_diff = bd.get("syn_diff", 0)
     syn_pts = bd.get("syn_pts", 0)
+    h2h_margin = bd.get("h2h_margin", 0)
+    h2h_weighted = bd.get("h2h_weighted", 0)
     home_b2b = bd.get("home_b2b", False)
     away_b2b = bd.get("away_b2b", False)
     home_out_n = bd.get("home_out", 0)
@@ -4134,9 +4392,10 @@ def render_matchup_card(m, idx, team_map):
         nrtg_fav_val = ""
 
     # Model weighting computations
-    dsi_weighted = 0.45 * dsi_pts
-    nrtg_weighted = 0.45 * nrtg_diff
-    syn_weighted = 0.10 * syn_pts
+    syn_weighted = 0.45 * syn_pts
+    dsi_weighted = 0.20 * dsi_pts
+    nrtg_weighted = 0.15 * nrtg_diff
+    h2h_display = h2h_margin
     proj_spread_val = m.get("proj_spread", 0)
 
     # Which team SYN favors
@@ -4176,9 +4435,14 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-val">{ha} {home_syn:.1f}</span>
                 <span class="dsi-edge-sm">{syn_fav} {syn_fav_val}</span>
             </div>
+            <div class="dsi-row">
+                <span class="dsi-label">H2H</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">{ha if h2h_margin >= 0 else aa} {abs(h2h_margin):+.1f} avg margin</span>
+            </div>
             <div class="dsi-row dsi-model-row">
                 <span class="dsi-label">MODEL</span>
-                <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 45% NRtg ({nrtg_weighted:+.1f}) + 10% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
+                <span class="dsi-model-formula">45% SYN ({syn_weighted:+.1f}) + 20% DSI ({dsi_weighted:+.1f}) + 15% NRtg ({nrtg_weighted:+.1f}) + 20% H2H ({h2h_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
                 <span class="hca-badge">HCA +2 {ha}</span>
@@ -4630,7 +4894,7 @@ def render_info_page():
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
                 <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
-                <div class="formula-row"><span>Step 8</span><span>Blend: 45% DSI + 45% Adjusted NRtg + 10% SYN = raw power</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Blend: 45% SYN + 20% DSI + 15% Adjusted NRtg + 20% H2H = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">
