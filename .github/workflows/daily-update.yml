@@ -40,6 +40,14 @@ on:
         options:
           - 'false'
           - 'true'
+      trends_only:
+        description: 'Run trends refresh only (collect boxscores + lineup stats)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write
@@ -50,8 +58,8 @@ jobs:
   # ════════════════════════════════════════════
 
   update-lines:
-    # Skip on morning settlement cron (5 PM UTC = 9 AM PST)
-    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true'
+    # Skip on morning settlement cron (5 PM UTC = 9 AM PST), trends cron, or manual trends/settle
+    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true' && inputs.trends_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -113,7 +121,7 @@ jobs:
   # ── Sync to MORELLOSIMS (blog + nbasim dashboard) ──
   sync-to-morellosims:
     needs: update-lines
-    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true'
+    if: github.event.schedule != '0 17 * * *' && github.event.schedule != '0 16 * * *' && inputs.settle_only != 'true' && inputs.trends_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -181,8 +189,8 @@ jobs:
   # ════════════════════════════════════════════
 
   refresh-trends:
-    # Only run on the 8 AM PST trends cron (4 PM UTC)
-    if: github.event.schedule == '0 16 * * *'
+    # Run on the 8 AM PST trends cron (4 PM UTC) or manual trends_only trigger
+    if: github.event.schedule == '0 16 * * *' || inputs.trends_only == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -229,7 +237,7 @@ jobs:
   # Sync trends update to MORELLOSIMS
   sync-trends-to-morellosims:
     needs: refresh-trends
-    if: github.event.schedule == '0 16 * * *'
+    if: github.event.schedule == '0 16 * * *' || inputs.trends_only == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
