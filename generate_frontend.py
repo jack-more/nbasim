@@ -686,8 +686,8 @@ def compute_spread_and_total(home_data, away_data):
     h_pace = (home_data.get("pace", 100) or 100)
     a_pace = (away_data.get("pace", 100) or 100)
 
-    # Home court advantage = ~3.0 points
-    HCA = 3.0
+    # Home court advantage = ~2.0 points (modern NBA trend)
+    HCA = 2.0
     net_diff = h_net - a_net
     raw_spread = -(net_diff + HCA)  # Negative = home favored
     # Round to nearest 0.5
@@ -720,7 +720,7 @@ _DSI_CONSTANTS = {
     "NRTG_WEIGHT":  0.45,   # adjusted net rating share in final blend (was 0.50)
     "SYN_WEIGHT":   0.10,   # lineup synergy share in final blend
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
-    "HCA":          3.0,    # home court advantage added to home net rating
+    "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
     "B2B_PENALTY":  3.0,    # back-to-back penalty subtracted from net rating
     "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
     "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
@@ -4168,7 +4168,7 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 45% NRtg ({nrtg_weighted:+.1f}) + 10% SYN ({syn_weighted:+.1f}) = <strong>PROJ {proj_spread_val:+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
-                <span class="hca-badge">HCA +3 {ha}</span>
+                <span class="hca-badge">HCA +2 {ha}</span>
                 {b2b_badges}
                 {out_badges}
             </div>
@@ -4615,14 +4615,14 @@ def render_info_page():
                 <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
                 <div class="formula-row"><span>Step 4</span><span>Compute adjusted DSI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
-                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 3.0 HCA, with B2B −3.0)</span></div>
+                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −3.0)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
                 <div class="formula-row"><span>Step 8</span><span>Blend: 45% DSI + 45% Adjusted NRtg + 10% SYN = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">
                 <div class="formula-row"><span>Stocks Penalty</span><span>0.8 DSI pts per lost stock (STL+BLK × min share)</span></div>
-                <div class="formula-row"><span>Home Court Adv.</span><span>+3.0 added to home net rating</span></div>
+                <div class="formula-row"><span>Home Court Adv.</span><span>+2.0 added to home net rating</span></div>
                 <div class="formula-row"><span>B2B Penalty</span><span>−3.0 subtracted for back-to-back teams</span></div>
                 <div class="formula-row"><span>Proj. Total</span><span>((ORtg+DRtg)/2 × Matchup Pace/100) × 2</span></div>
             </div>
