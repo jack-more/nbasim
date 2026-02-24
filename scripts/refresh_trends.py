@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-refresh_trends.py — Incremental boxscore collector for daily trend updates.
+refresh_trends.py — Incremental boxscore collector + synergy refresh for daily trend updates.
 
-Collects only the last 14 days of game boxscores that are missing from the DB,
-then regenerates the frontend HTML so trends/hot-cold data is fresh.
+Collects only the last 10 days of game boxscores that are missing from the DB,
+refreshes lineup stats and synergy/value scores, then regenerates the frontend
+HTML so WOWY trends, pair synergies, and projection model data are fresh.
 
 Designed to run daily at 8 AM PST via GitHub Actions.
 Much faster than a full `main.py collect` because it only hits recent games.
@@ -23,6 +24,8 @@ from db.connection import read_query, execute
 from collectors.boxscores import BoxScoreCollector
 from collectors.games import GameCollector
 from collectors.lineups import LineupCollector
+from analysis.synergy import PairSynergyCalculator
+from analysis.value_scores import ValueScoreCalculator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,12 +34,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("refresh_trends")
 
-LOOKBACK_DAYS = 14
+LOOKBACK_DAYS = 10
 SEASON_ID = "2025-26"
 
 
 def refresh_recent_games():
-    """Collect game schedule for the last 14 days (fills any gaps).
+    """Collect game schedule for the last 10 days (fills any gaps).
     Non-fatal — if NBA.com times out, we still have existing game records."""
     logger.info(f"=== Refreshing game schedule (last {LOOKBACK_DAYS} days) ===")
     try:
@@ -110,6 +113,24 @@ def refresh_lineup_stats():
         logger.warning(f"Lineup refresh failed (non-fatal): {e}")
 
 
+def refresh_synergy_data():
+    """Recompute pair synergies and value scores from latest lineup data."""
+    logger.info("=== Refreshing synergy + value scores ===")
+    try:
+        synergy_calc = PairSynergyCalculator(DB_PATH)
+        synergy_calc.compute_pair_synergies(SEASON_ID)
+        logger.info("Pair synergies refreshed.")
+    except Exception as e:
+        logger.warning(f"Synergy refresh failed (non-fatal): {e}")
+
+    try:
+        value_calc = ValueScoreCalculator(DB_PATH)
+        value_calc.compute_all(SEASON_ID)
+        logger.info("Value scores refreshed.")
+    except Exception as e:
+        logger.warning(f"Value scores refresh failed (non-fatal): {e}")
+
+
 def main():
     logger.info("=" * 60)
     logger.info("NBA SIM — DAILY TRENDS REFRESH")
@@ -124,6 +145,9 @@ def main():
 
     # Step 3: Refresh lineup combo stats (for hot/cold combos)
     refresh_lineup_stats()
+
+    # Step 4: Recompute synergy + value scores (for WOWY trends + projection model)
+    refresh_synergy_data()
 
     logger.info("=" * 60)
     logger.info(f"TRENDS REFRESH COMPLETE — {new_boxscores} new boxscores added")

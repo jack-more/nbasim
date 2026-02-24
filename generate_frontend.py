@@ -21,6 +21,228 @@ from config import DB_PATH
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
+# ─── Precomputed Value Scores Cache ──────────────────────────────
+# Loaded once at module load — maps player_id → contextual scores
+_VALUE_SCORES = {}
+
+
+def _load_value_scores():
+    """Load player_value_scores into memory for contextual DS blending."""
+    global _VALUE_SCORES
+    df = read_query("""
+        SELECT player_id, base_value, solo_impact, two_man_synergy,
+               three_man_synergy, four_man_synergy, five_man_synergy,
+               composite_value, archetype_fit_score
+        FROM player_value_scores WHERE season_id = '2025-26'
+    """, DB_PATH)
+    if df.empty:
+        return
+    for _, row in df.iterrows():
+        _VALUE_SCORES[int(row["player_id"])] = {
+            "base": float(row["base_value"] or 50),
+            "solo": float(row["solo_impact"] or 50),
+            "two": float(row["two_man_synergy"] or 50),
+            "three": float(row["three_man_synergy"] or 50),
+            "four": float(row["four_man_synergy"] or 50),
+            "five": float(row["five_man_synergy"] or 50),
+            "fit": float(row["archetype_fit_score"] or 50),
+            "composite": float(row["composite_value"] or 50),
+        }
+
+
+_load_value_scores()
+
+# ─── Injury-Adjusted Value Scores Cache ──────────────────────────
+# Populated per-generation for tonight's playing teams only.
+# Maps player_id → adjusted composite (0-100) reflecting who's actually OUT.
+_INJURY_ADJUSTED_VS = {}
+
+
+def _build_injury_adjusted_cache(matchups):
+    """Recompute synergy-based composite values excluding OUT players.
+
+    For each team playing tonight, removes pair/lineup data involving
+    OUT players and recomposes the composite. Result stored in
+    _INJURY_ADJUSTED_VS so matchup-card DS reflects tonight's rotation.
+    """
+    global _INJURY_ADJUSTED_VS
+    _INJURY_ADJUSTED_VS = {}
+
+    from config import (
+        SYNERGY_WEIGHTS, BASE_VALUE_WEIGHT, ARCHETYPE_FIT_WEIGHT,
+    )
+    from collections import defaultdict
+
+    # ── Collect team info from matchups ──
+    team_out_map = {}  # team_id → set(out_player_ids)
+    team_ids = set()
+
+    for m in matchups:
+        rw = m.get("rw_lineups", {})
+        for abbr in [m.get("home_abbr", ""), m.get("away_abbr", "")]:
+            if not abbr:
+                continue
+
+            roster = _get_full_roster(abbr)
+            if roster.empty:
+                continue
+
+            tid_df = read_query(
+                "SELECT team_id FROM teams WHERE abbreviation = ?",
+                DB_PATH, [abbr]
+            )
+            tid = int(tid_df.iloc[0]["team_id"]) if not tid_df.empty else 0
+            if tid == 0:
+                continue
+
+            team_ids.add(tid)
+
+            # Resolve OUT player names → IDs
+            out_ids = set()
+            team_rw = rw.get(abbr, {})
+            for name in team_rw.get("out", []):
+                pid = _match_player_name(name, roster)
+                if pid is not None:
+                    out_ids.add(int(pid))
+            for name, pos, status in team_rw.get("starters", []):
+                if status == "OUT":
+                    pid = _match_player_name(name, roster)
+                    if pid is not None:
+                        out_ids.add(int(pid))
+
+            if out_ids:
+                # Merge with existing (in case same team appears in multiple matchups — shouldn't happen)
+                existing = team_out_map.get(tid, set())
+                team_out_map[tid] = existing | out_ids
+
+    if not team_out_map:
+        return  # No injuries on tonight's slate
+
+    # ── Batch SQL: load pair_synergy for playing teams ──
+    tid_list = list(team_ids)
+    placeholders = ",".join("?" * len(tid_list))
+
+    pairs_df = read_query(f"""
+        SELECT player_a_id, player_b_id, synergy_score, possessions, team_id
+        FROM pair_synergy
+        WHERE season_id = '2025-26' AND team_id IN ({placeholders})
+    """, DB_PATH, tid_list)
+
+    # ── Batch SQL: load lineup_stats for playing teams ──
+    lineups_df = read_query(f"""
+        SELECT player_ids, possessions, group_quantity, team_id
+        FROM lineup_stats
+        WHERE season_id = '2025-26' AND group_quantity IN (2,3,4,5)
+              AND team_id IN ({placeholders})
+              AND possessions > 0
+    """, DB_PATH, tid_list)
+
+    # ── Index pair data by (player, team) ──
+    # team_player_pairs[(tid, pid)] = [(partner_id, syn_score, poss), ...]
+    team_player_pairs = defaultdict(list)
+    if not pairs_df.empty:
+        for _, row in pairs_df.iterrows():
+            a = int(row["player_a_id"])
+            b = int(row["player_b_id"])
+            t = int(row["team_id"])
+            syn = float(row["synergy_score"] or 50)
+            poss = float(row["possessions"] or 0)
+            team_player_pairs[(t, a)].append((b, syn, poss))
+            team_player_pairs[(t, b)].append((a, syn, poss))
+
+    # ── Index lineup data by (player, team, n) ──
+    # team_player_lineups[(tid, pid, n)] = [(set_of_pids, poss), ...]
+    team_player_lineups = defaultdict(list)
+    if not lineups_df.empty:
+        for _, row in lineups_df.iterrows():
+            try:
+                pids = [int(p) for p in json.loads(row["player_ids"])]
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            t = int(row["team_id"])
+            n = int(row["group_quantity"])
+            poss = float(row["possessions"] or 0)
+            pid_set = set(pids)
+            for pid in pids:
+                team_player_lineups[(t, pid, n)].append((pid_set, poss))
+
+    from utils.stats_math import possession_weighted_average
+    W = SYNERGY_WEIGHTS
+
+    # ── For each team with OUT players, recompute teammate composites ──
+    for tid, out_ids in team_out_map.items():
+        # Find all players on this team via pair index keys
+        team_pids = set()
+        for (t, pid) in team_player_pairs.keys():
+            if t == tid:
+                team_pids.add(pid)
+        # Also include players from lineup index
+        for (t, pid, n) in team_player_lineups.keys():
+            if t == tid:
+                team_pids.add(pid)
+
+        for pid in team_pids:
+            if pid in out_ids:
+                continue  # Skip OUT players
+            vs = _VALUE_SCORES.get(pid)
+            if not vs:
+                continue  # No value scores for this player
+
+            # ── Adjust two_man + archetype_fit from pair data ──
+            pairs = team_player_pairs.get((tid, pid), [])
+            if pairs:
+                alive_pairs = [(syn, poss) for (partner, syn, poss) in pairs
+                               if partner not in out_ids]
+                total_poss = sum(poss for (_, _, poss) in pairs)
+                alive_poss = sum(poss for (_, poss) in alive_pairs)
+
+                if alive_poss > 0 and total_poss > 0:
+                    alive_scores = [syn for (syn, _) in alive_pairs]
+                    alive_weights = [poss for (_, poss) in alive_pairs]
+                    alive_avg = possession_weighted_average(alive_scores, alive_weights)
+                    confidence = alive_poss / total_poss
+                    adj_two = confidence * alive_avg + (1 - confidence) * 50.0
+                    adj_fit = adj_two
+                else:
+                    adj_two = 50.0
+                    adj_fit = 50.0
+            else:
+                adj_two = vs["two"]
+                adj_fit = vs["fit"]
+
+            # ── Adjust n-man synergy from lineup data ──
+            adj_n = {}
+            for n, key in [(3, "three"), (4, "four"), (5, "five")]:
+                n_lineups = team_player_lineups.get((tid, pid, n), [])
+                if not n_lineups:
+                    adj_n[key] = vs[key]
+                    continue
+                total_n_poss = sum(poss for (_, poss) in n_lineups)
+                dead_poss = sum(poss for (pid_set, poss) in n_lineups
+                                if pid_set & out_ids)
+                if total_n_poss > 0:
+                    dead_frac = dead_poss / total_n_poss
+                    adj_n[key] = vs[key] * (1 - dead_frac) + 50.0 * dead_frac
+                else:
+                    adj_n[key] = vs[key]
+
+            # ── Recompose adjusted composite ──
+            adj_composite = (
+                BASE_VALUE_WEIGHT * vs["base"] +
+                W["solo"] * vs["solo"] +
+                W["two_man"] * adj_two +
+                W["three_man"] * adj_n["three"] +
+                W["four_man"] * adj_n["four"] +
+                W["five_man"] * adj_n["five"] +
+                ARCHETYPE_FIT_WEIGHT * adj_fit
+            )
+
+            # Clamp: no more than ±15 from season composite
+            adj_composite = max(vs["composite"] - 15, min(vs["composite"] + 15, adj_composite))
+
+            _INJURY_ADJUSTED_VS[pid] = adj_composite
+
+
 # ─── NBA Team Colors ───────────────────────────────────────────────
 TEAM_COLORS = {
     "ATL": "#E03A3E", "BOS": "#007A33", "BKN": "#000000", "CHA": "#1D1160",
@@ -324,12 +546,19 @@ def fetch_odds_api_player_props(event_ids):
     return result
 
 
-def compute_dynamic_score(row):
-    """Compute a dynamic score with 75% offense / 25% defense split.
+def compute_dynamic_score(row, injury_adjusted_composite=None):
+    """Compute a context-aware Dynamic Score (33-99).
 
-    Offensive sub-score: scoring, playmaking, efficiency, usage
-    Defensive sub-score: stocks (STL+BLK amplified) + defensive rating
-    Shared: rebounds, net rating impact, minutes
+    Base layer: 75% offense / 25% defense + shared components from box score stats.
+    Context layer: blended with composite_value from player_value_scores (WOWY,
+    pair synergy, n-man lineups, archetype fit) to reflect team-based contribution.
+
+    When injury_adjusted_composite is provided (from _INJURY_ADJUSTED_VS), it
+    replaces the season-long composite — reflecting tonight's actual rotation
+    with OUT players removed from synergy calculations.
+
+    Final: 55% raw box score + 45% contextual value = DS that rewards players
+    who elevate their team, not just fill the stat sheet.
 
     Returns (score, breakdown_dict) for tooltip display.
     """
@@ -366,9 +595,26 @@ def compute_dynamic_score(row):
     minutes_c = mpg * 0.3
     shared_raw = rebounding_c + impact_c + minutes_c
 
-    # ── Blend: 75% offense + 25% defense + shared ──
+    # ── Raw DS from box score alone (33-99 scale) ──
     blended = 0.75 * off_score + 0.25 * def_score + shared_raw
-    score = min(99, max(40, int(blended / 1.1)))
+    raw_ds = min(99, max(33, int(blended / 1.1)))
+
+    # ── Context Adjustment: blend with value_scores composite ──
+    pid = int(row.get("player_id", 0) or 0)
+    vs = _VALUE_SCORES.get(pid)
+
+    if vs:
+        # Use injury-adjusted composite if provided, otherwise season-long
+        composite = injury_adjusted_composite if injury_adjusted_composite is not None else vs["composite"]
+        # Scale composite_value (0-100) to 33-99 range
+        contextual_ds = int(33 + (composite / 100) * 66)
+        contextual_ds = min(99, max(33, contextual_ds))
+        # 55% raw box score + 45% contextual (team-based contribution)
+        score = int(0.55 * raw_ds + 0.45 * contextual_ds)
+        score = min(99, max(33, score))
+    else:
+        contextual_ds = raw_ds
+        score = raw_ds
 
     # Breakdown for tooltip — preserve existing keys for compatibility
     total_raw = off_raw + def_raw + shared_raw
@@ -387,14 +633,41 @@ def compute_dynamic_score(row):
         "defense_c": round(def_score, 0),
         "efficiency_c": round(efficiency_c / max(1, off_raw) * 100, 0) if off_raw else 0,
         "impact_c": round(impact_c / max(1, shared_raw) * 100, 0) if shared_raw else 0,
+        # Context factors for bottom sheet
+        "raw_ds": raw_ds,
+        "contextual_ds": contextual_ds,
+        "solo_impact": round(vs["solo"], 1) if vs else 50.0,
+        "synergy_score": round(vs["two"], 1) if vs else 50.0,
+        "fit_score": round(vs["fit"], 1) if vs else 50.0,
+        "injury_adjusted": injury_adjusted_composite is not None,
     }
     return score, breakdown
 
 
-def compute_ds_range(score):
-    """Generate a Dynamic Score range."""
-    low = max(40, score - int(abs(score - 75) * 0.2) - 4)
-    high = min(99, score + int(abs(score - 75) * 0.15) + 3)
+def compute_ds_range(score, player_id=None):
+    """Generate a data-driven Dynamic Score range.
+
+    Floor = raw box score DS (what they'd be without team context).
+    Ceiling = best-case composite from solo impact + best synergy + archetype fit.
+    Falls back to math formula when no value_scores data exists.
+    """
+    vs = _VALUE_SCORES.get(player_id) if player_id else None
+
+    if vs:
+        # Floor = raw box score DS (base_value scaled to 33-99)
+        raw_ds = int(33 + (vs["base"] / 100) * 66)
+        # Ceiling = best-case: solo + best synergy component + fit
+        best_synergy = max(vs["two"], vs["three"], vs["four"], vs["five"])
+        ceiling_composite = 0.25 * vs["base"] + 0.30 * vs["solo"] + 0.30 * best_synergy + 0.15 * vs["fit"]
+        ceiling_ds = int(33 + (ceiling_composite / 100) * 66)
+
+        low = max(33, min(raw_ds, score - 3))
+        high = min(99, max(ceiling_ds, score + 2))
+    else:
+        # Fallback to math formula (shifted to 33-99 scale)
+        low = max(33, score - int(abs(score - 72) * 0.2) - 4)
+        high = min(99, score + int(abs(score - 72) * 0.15) + 3)
+
     return low, high
 
 
@@ -443,8 +716,10 @@ def compute_spread_and_total(home_data, away_data):
 # Model constants
 _DSI_CONSTANTS = {
     "DS_SCALE":     1.0,    # 1pt DS gap → 1.0 points on spread scale
-    "DSI_WEIGHT":   0.50,   # DSI share in final blend
-    "NRTG_WEIGHT":  0.50,   # adjusted net rating share in final blend
+    "DSI_WEIGHT":   0.45,   # DSI share in final blend (was 0.50)
+    "NRTG_WEIGHT":  0.45,   # adjusted net rating share in final blend (was 0.50)
+    "SYN_WEIGHT":   0.10,   # lineup synergy share in final blend
+    "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
     "HCA":          3.0,    # home court advantage added to home net rating
     "B2B_PENALTY":  3.0,    # back-to-back penalty subtracted from net rating
     "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
@@ -1240,7 +1515,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
                 decay_rate = K["USAGE_DECAY"]        # 0.995 — standard
             efficiency_penalty = decay_rate ** usage_increase_pct
             ds = int(ds * efficiency_penalty)
-            ds = max(40, ds)
+            ds = max(33, ds)
 
         player_ds[pid] = ds
         total_weighted_ds += ds * proj_min
@@ -1250,7 +1525,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
 
     # Stocks loss penalty: team loses DSI for missing STL+BLK production
     stocks_penalty = missing_stocks * K["STOCKS_PENALTY"]
-    team_dsi = max(40.0, raw_team_dsi - stocks_penalty)
+    team_dsi = max(33.0, raw_team_dsi - stocks_penalty)
 
     return team_dsi, player_ds, notes
 
@@ -1320,6 +1595,99 @@ def compute_lineup_rating(team_abbr, available_player_ids, team_net_rating):
     return 0.65 * fiveman_quality + 0.35 * small_quality
 
 
+def _classify_pair_category(arch_a, arch_b):
+    """Classify a pair of archetypes into guard_guard, guard_big, wing_wing, wing_big, or big_big."""
+    guard_archs = {"Scoring Guard", "Defensive Specialist", "Floor General",
+                   "Combo Guard", "Playmaking Guard"}
+    big_archs = {"Rim Protector", "Stretch 5", "Traditional Center", "Versatile Big",
+                 "Stretch Big", "Traditional PF"}
+    # Everything else is wing
+
+    def _cat(arch):
+        if arch in guard_archs:
+            return "guard"
+        elif arch in big_archs:
+            return "big"
+        else:
+            return "wing"
+
+    cat_a = _cat(arch_a or "")
+    cat_b = _cat(arch_b or "")
+    cats = sorted([cat_a, cat_b])
+    return f"{cats[0]}_{cats[1]}"
+
+
+def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme, season="2025-26"):
+    """Compute team's synergy adjusted by opponent defensive scheme.
+
+    Returns a 0-100 score reflecting how well the available players' pair combos
+    perform, adjusted for scheme interaction and opponent defensive quality.
+    """
+    from config import SCHEME_INTERACTION, SCHEME_QUALITY_FACTORS
+
+    if not avail_ids or len(avail_ids) < 2:
+        return 50.0  # neutral
+
+    # Get pair synergies for available players
+    pairs = read_query("""
+        SELECT player_a_id, player_b_id, synergy_score, net_rating,
+               possessions, archetype_a, archetype_b
+        FROM pair_synergy
+        WHERE season_id = ? AND team_id = ?
+    """, DB_PATH, [season, team_id])
+
+    if pairs.empty:
+        return 50.0
+
+    avail_set = set(int(x) for x in avail_ids)
+
+    # Parse opponent scheme: "Switch-Everything (Elite)" → type="Switch-Everything", quality="Elite"
+    scheme_type = "Drop-Coverage"  # default
+    scheme_quality = "Avg"
+    if opp_def_scheme:
+        parts = opp_def_scheme.split(" (")
+        scheme_type = parts[0]
+        if len(parts) > 1:
+            scheme_quality = parts[1].rstrip(")")
+
+    quality_factors = SCHEME_QUALITY_FACTORS.get(scheme_quality, {"advantage_scale": 1.0, "disadvantage_scale": 1.0})
+
+    weighted_syn = 0.0
+    total_poss = 0.0
+
+    for _, row in pairs.iterrows():
+        a = int(row["player_a_id"])
+        b = int(row["player_b_id"])
+        if a not in avail_set or b not in avail_set:
+            continue
+
+        syn = float(row["synergy_score"] or 50)
+        poss = float(row["possessions"] or 1)
+        arch_a = row.get("archetype_a") or ""
+        arch_b = row.get("archetype_b") or ""
+
+        # Get scheme interaction multiplier
+        pair_cat = _classify_pair_category(arch_a, arch_b)
+        base_mult = SCHEME_INTERACTION.get((pair_cat, scheme_type), 1.0)
+
+        # Apply quality factor
+        if base_mult > 1.0:
+            mult = 1.0 + (base_mult - 1.0) * quality_factors["advantage_scale"]
+        elif base_mult < 1.0:
+            mult = 1.0 - (1.0 - base_mult) * quality_factors["disadvantage_scale"]
+        else:
+            mult = 1.0
+
+        adjusted_syn = syn * mult
+        weighted_syn += adjusted_syn * poss
+        total_poss += poss
+
+    if total_poss == 0:
+        return 50.0
+
+    return weighted_syn / total_poss
+
+
 def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     """Full DSI spread model.
 
@@ -1329,7 +1697,8 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     3. Compute lineup quality rating
     4. Compute adjusted Dynamic Scores (DSI) with archetype-aware usage redistribution
     5. Compare home net rating + 3 vs away net rating (with B2B penalties)
-    6. Blend 50% DSI + 50% adjusted NRtg
+    6. Compute lineup synergy adjusted by opponent coaching scheme
+    7. Blend 45% DSI + 45% adjusted NRtg + 10% SYN
 
     Returns (spread, total, breakdown).
     """
@@ -1409,11 +1778,33 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
 
     nrtg_diff = home_adj_nrtg - away_adj_nrtg
 
-    # ── Final blend: 50% DSI + 50% adjusted NRtg ──
+    # ── Compute lineup synergy vs opponent scheme ──
+    # Get opponent defensive schemes from coaching_profiles
+    away_scheme_df = read_query("""
+        SELECT def_scheme_label FROM coaching_profiles
+        WHERE team_id = ? AND season_id = '2025-26'
+    """, DB_PATH, [away_tid])
+    home_scheme_df = read_query("""
+        SELECT def_scheme_label FROM coaching_profiles
+        WHERE team_id = ? AND season_id = '2025-26'
+    """, DB_PATH, [home_tid])
+
+    away_def_scheme = away_scheme_df.iloc[0]["def_scheme_label"] if not away_scheme_df.empty else None
+    home_def_scheme = home_scheme_df.iloc[0]["def_scheme_label"] if not home_scheme_df.empty else None
+
+    home_syn = compute_team_synergy_vs_opponent(home_avail_ids, home_tid, away_def_scheme)
+    away_syn = compute_team_synergy_vs_opponent(away_avail_ids, away_tid, home_def_scheme)
+
+    syn_diff = home_syn - away_syn
+    synergy_as_points = syn_diff * K["SYN_SCALE"]
+
+    # ── Final blend: 45% DSI + 45% adjusted NRtg + 10% SYN ──
     dsi_diff = home_dsi - away_dsi
     dsi_as_points = dsi_diff * K["DS_SCALE"]
 
-    raw_power = K["DSI_WEIGHT"] * dsi_as_points + K["NRTG_WEIGHT"] * nrtg_diff
+    raw_power = (K["DSI_WEIGHT"] * dsi_as_points +
+                 K["NRTG_WEIGHT"] * nrtg_diff +
+                 K["SYN_WEIGHT"] * synergy_as_points)
 
     proj_spread = -raw_power
     proj_spread = round(proj_spread * 2) / 2  # round to nearest 0.5
@@ -1440,6 +1831,10 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
         "home_nrtg": round(home_adj_nrtg, 1),
         "away_nrtg": round(away_adj_nrtg, 1),
         "nrtg_diff": round(nrtg_diff, 1),
+        "home_syn": round(home_syn, 1),
+        "away_syn": round(away_syn, 1),
+        "syn_diff": round(syn_diff, 1),
+        "syn_pts": round(synergy_as_points, 1),
         "home_b2b": home_b2b,
         "away_b2b": away_b2b,
         "home_out": len(home_out_ids),
@@ -1451,6 +1846,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
 
     print(f"  [DSI] {away_abbr}@{home_abbr}: DSI {home_dsi:.1f}v{away_dsi:.1f} | "
           f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
+          f"SYN {home_syn:.1f}v{away_syn:.1f} | "
           f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
           f"OUT: {len(home_out_ids)}h/{len(away_out_ids)}a"
           f"{' B2B:'+home_abbr if home_b2b else ''}{' B2B:'+away_abbr if away_b2b else ''}")
@@ -1531,10 +1927,10 @@ def get_player_trend(player_id, team_abbreviation):
     return trend
 
 
-def get_top_trending_players():
-    """Get top 4 risers and top 4 fallers by PRA delta (last 14 days vs prior 14 days).
+def get_wowy_trending_players():
+    """Get top 4 risers and top 4 fallers by NRtg WOWY delta (last 10 days vs prior 10 days).
     Uses most recent data date as anchor (not today) in case boxscores are delayed.
-    14-day trailing window updated daily at 8 AM PST."""
+    10-day trailing window updated daily at 8 AM PST."""
     # Find the most recent game date with player stats
     latest_df = read_query("""
         SELECT MAX(g.game_date) as latest
@@ -1546,20 +1942,21 @@ def get_top_trending_players():
     latest_date = latest_df.iloc[0]["latest"]
     latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
     today = latest_date
-    seven_ago = (latest_dt - timedelta(days=14)).strftime("%Y-%m-%d")
-    fourteen_ago = (latest_dt - timedelta(days=28)).strftime("%Y-%m-%d")
+    ten_ago = (latest_dt - timedelta(days=10)).strftime("%Y-%m-%d")
+    twenty_ago = (latest_dt - timedelta(days=20)).strftime("%Y-%m-%d")
 
-    # Recent 7 days averages
+    # Recent 10 days: avg plus_minus and net_rating
     recent = read_query("""
         SELECT pgs.player_id,
                p.full_name,
                t.abbreviation AS team,
                pa.archetype_label,
                COUNT(*) as gp,
+               AVG(pgs.plus_minus) as avg_pm,
+               AVG(pgs.net_rating) as avg_nrtg,
                AVG(pgs.pts) as avg_pts,
                AVG(pgs.ast) as avg_ast,
-               AVG(pgs.reb) as avg_reb,
-               AVG(pgs.pts + pgs.ast + pgs.reb) as avg_pra
+               AVG(pgs.reb) as avg_reb
         FROM player_game_stats pgs
         JOIN games g ON pgs.game_id = g.game_id
         JOIN players p ON pgs.player_id = p.player_id
@@ -1570,53 +1967,174 @@ def get_top_trending_players():
           AND pgs.minutes >= 15
         GROUP BY pgs.player_id
         HAVING COUNT(*) >= 2
-    """, DB_PATH, [seven_ago, today])
+    """, DB_PATH, [ten_ago, today])
 
-    # Prior 7 days averages
+    # Prior 10 days: avg net_rating
     prior = read_query("""
         SELECT pgs.player_id,
-               AVG(pgs.pts + pgs.ast + pgs.reb) as avg_pra
+               AVG(pgs.net_rating) as avg_nrtg
         FROM player_game_stats pgs
         JOIN games g ON pgs.game_id = g.game_id
         WHERE g.game_date >= ? AND g.game_date < ?
           AND pgs.minutes >= 15
         GROUP BY pgs.player_id
         HAVING COUNT(*) >= 2
-    """, DB_PATH, [fourteen_ago, seven_ago])
+    """, DB_PATH, [twenty_ago, ten_ago])
 
     if recent.empty or prior.empty:
         return [], []
 
-    prior_map = {int(row["player_id"]): row["avg_pra"] for _, row in prior.iterrows()}
+    prior_map = {int(row["player_id"]): float(row["avg_nrtg"] or 0)
+                 for _, row in prior.iterrows()}
 
     trending = []
     for _, row in recent.iterrows():
         pid = int(row["player_id"])
         if pid not in prior_map:
             continue
-        recent_pra = row["avg_pra"]
-        prior_pra = prior_map[pid]
-        delta = recent_pra - prior_pra
+        recent_nrtg = float(row["avg_nrtg"] or 0)
+        prior_nrtg = prior_map[pid]
+        delta = recent_nrtg - prior_nrtg
         trending.append({
             "player_id": pid,
             "name": row["full_name"],
             "team": row["team"],
             "archetype": row.get("archetype_label") or "Unclassified",
-            "recent_pra": round(recent_pra, 1),
-            "prior_pra": round(prior_pra, 1),
+            "recent_nrtg": round(recent_nrtg, 1),
+            "prior_nrtg": round(prior_nrtg, 1),
             "delta": round(delta, 1),
             "gp": int(row["gp"]),
-            "avg_pts": round(row["avg_pts"], 1),
-            "avg_ast": round(row["avg_ast"], 1),
-            "avg_reb": round(row["avg_reb"], 1),
+            "avg_pts": round(float(row["avg_pts"] or 0), 1),
+            "avg_ast": round(float(row["avg_ast"] or 0), 1),
+            "avg_reb": round(float(row["avg_reb"] or 0), 1),
+            "avg_pm": round(float(row["avg_pm"] or 0), 1),
         })
 
-    # Top 4 risers (biggest positive delta), top 4 fallers (biggest negative delta)
+    # Top 4 risers (biggest positive NRtg delta), top 4 fallers (biggest negative)
     trending.sort(key=lambda x: x["delta"], reverse=True)
     risers = trending[:4]
     fallers = sorted(trending, key=lambda x: x["delta"])[:4]
 
     return risers, fallers
+
+
+def get_trending_combos():
+    """Get top 4 surging and top 4 fading pair combos (10-day trailing WOWY).
+    Compares joint plus_minus in 10-day window vs season baseline from pair_synergy."""
+    latest_df = read_query("""
+        SELECT MAX(g.game_date) as latest
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+    """, DB_PATH)
+    if latest_df.empty or latest_df.iloc[0]["latest"] is None:
+        return [], []
+    latest_date = latest_df.iloc[0]["latest"]
+    latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
+    ten_ago = (latest_dt - timedelta(days=10)).strftime("%Y-%m-%d")
+
+    # Get season baselines from pair_synergy
+    baselines = read_query("""
+        SELECT player_a_id, player_b_id, net_rating, synergy_score, ps2.team_id,
+               t.abbreviation as team
+        FROM pair_synergy ps2
+        JOIN teams t ON ps2.team_id = t.team_id
+        WHERE ps2.season_id = '2025-26'
+    """, DB_PATH)
+
+    if baselines.empty:
+        return [], []
+
+    baseline_map = {}
+    for _, row in baselines.iterrows():
+        key = (int(row["player_a_id"]), int(row["player_b_id"]))
+        baseline_map[key] = {
+            "nrtg": float(row["net_rating"] or 0),
+            "syn": float(row["synergy_score"] or 50),
+            "team": row["team"],
+            "team_id": int(row["team_id"]),
+        }
+
+    # Find pairs who shared games in the 10-day window
+    # Get all player-game combos in window
+    window_games = read_query("""
+        SELECT pgs.player_id, pgs.game_id, pgs.plus_minus, pgs.team_id
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE g.game_date >= ? AND g.game_date <= ?
+          AND pgs.minutes >= 15
+    """, DB_PATH, [ten_ago, latest_date])
+
+    if window_games.empty:
+        return [], []
+
+    # Group by game + team to find co-occurring pairs
+    from collections import defaultdict
+    game_team_players = defaultdict(list)
+    player_pm = {}  # (pid, game_id) -> plus_minus
+    for _, row in window_games.iterrows():
+        key = (row["game_id"], int(row["team_id"]))
+        pid = int(row["player_id"])
+        game_team_players[key].append(pid)
+        player_pm[(pid, row["game_id"])] = float(row["plus_minus"] or 0)
+
+    # Compute pair window stats
+    pair_window = defaultdict(list)  # (a, b) -> [avg_pm values]
+    for (game_id, team_id), pids in game_team_players.items():
+        pids_sorted = sorted(pids)
+        for i in range(len(pids_sorted)):
+            for j in range(i + 1, len(pids_sorted)):
+                a, b = pids_sorted[i], pids_sorted[j]
+                avg_pm = (player_pm[(a, game_id)] + player_pm[(b, game_id)]) / 2
+                pair_window[(a, b)].append(avg_pm)
+
+    # Compare window performance vs baseline
+    trending_pairs = []
+    # Get player names
+    all_pids = set()
+    for (a, b) in pair_window.keys():
+        all_pids.add(a)
+        all_pids.add(b)
+
+    if not all_pids:
+        return [], []
+
+    placeholders = ",".join(["?"] * len(all_pids))
+    names_df = read_query(
+        f"SELECT player_id, full_name FROM players WHERE player_id IN ({placeholders})",
+        DB_PATH, list(all_pids)
+    )
+    name_map = {int(r["player_id"]): r["full_name"] for _, r in names_df.iterrows()}
+
+    for (a, b), pm_list in pair_window.items():
+        if len(pm_list) < 2:
+            continue
+        key = (a, b)
+        if key not in baseline_map:
+            continue
+
+        window_avg = sum(pm_list) / len(pm_list)
+        baseline = baseline_map[key]
+        delta = window_avg - baseline["nrtg"]
+
+        trending_pairs.append({
+            "player_a": name_map.get(a, f"PID {a}"),
+            "player_b": name_map.get(b, f"PID {b}"),
+            "player_a_id": a,
+            "player_b_id": b,
+            "team": baseline["team"],
+            "window_nrtg": round(window_avg, 1),
+            "season_nrtg": round(baseline["nrtg"], 1),
+            "synergy_score": round(baseline["syn"], 0),
+            "delta": round(delta, 1),
+            "gp": len(pm_list),
+        })
+
+    # Top 4 surging, top 4 fading
+    trending_pairs.sort(key=lambda x: x["delta"], reverse=True)
+    surging = trending_pairs[:4]
+    fading = sorted(trending_pairs, key=lambda x: x["delta"])[:4]
+
+    return surging, fading
 
 
 def get_player_context(player, opponent_abbr, team_map):
@@ -2139,6 +2657,377 @@ def get_fade_combos():
     return all_fades
 
 
+def get_lab_data():
+    """Build LAB_DATA JSON for the Lineup Lab tab — rosters, pair synergies, combo data.
+    All data baked at build time for client-side interactivity."""
+
+    # Rosters grouped by team abbreviation
+    rosters_df = read_query("""
+        SELECT p.player_id, p.full_name, t.abbreviation as team,
+               ps.pts_pg, ps.ast_pg, ps.reb_pg, ps.stl_pg, ps.blk_pg,
+               ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game, ps.def_rating,
+               pa.archetype_label
+        FROM player_season_stats ps
+        JOIN players p ON ps.player_id = p.player_id
+        JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
+        JOIN teams t ON ra.team_id = t.team_id
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '2025-26'
+        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 5
+        ORDER BY t.abbreviation, ps.minutes_per_game DESC
+    """, DB_PATH)
+
+    rosters = {}
+    for _, row in rosters_df.iterrows():
+        team = row["team"]
+        ds, _ = compute_dynamic_score(row)
+        if team not in rosters:
+            rosters[team] = []
+        rosters[team].append({
+            "id": int(row["player_id"]),
+            "name": row["full_name"],
+            "ds": ds,
+            "archetype": row.get("archetype_label") or "Unclassified",
+        })
+
+    # Pair synergy data
+    pairs_df = read_query("""
+        SELECT player_a_id, player_b_id, synergy_score, net_rating,
+               minutes_together, possessions
+        FROM pair_synergy
+        WHERE season_id = '2025-26'
+    """, DB_PATH)
+
+    pairs = {}
+    for _, row in pairs_df.iterrows():
+        a = int(row["player_a_id"])
+        b = int(row["player_b_id"])
+        key = f"{a}-{b}"
+        pairs[key] = {
+            "syn": round(float(row["synergy_score"] or 50), 1),
+            "nrtg": round(float(row["net_rating"] or 0), 1),
+            "min": round(float(row["minutes_together"] or 0), 1),
+            "poss": round(float(row["possessions"] or 0), 0),
+        }
+
+    # 3-man combo data
+    combos_3 = {}
+    threes = read_query("""
+        SELECT player_ids, net_rating, minutes, gp
+        FROM lineup_stats
+        WHERE season_id = '2025-26' AND group_quantity = 3
+              AND net_rating IS NOT NULL AND minutes > 5
+    """, DB_PATH)
+    for _, row in threes.iterrows():
+        pids = sorted(json.loads(row["player_ids"]))
+        key = "-".join(str(p) for p in pids)
+        combos_3[key] = {
+            "nrtg": round(float(row["net_rating"]), 1),
+            "min": round(float(row["minutes"]), 1),
+            "gp": int(row["gp"] or 0),
+        }
+
+    # 5-man combo data
+    combos_5 = {}
+    fives = read_query("""
+        SELECT player_ids, net_rating, minutes, gp
+        FROM lineup_stats
+        WHERE season_id = '2025-26' AND group_quantity = 5
+              AND net_rating IS NOT NULL AND minutes > 5
+    """, DB_PATH)
+    for _, row in fives.iterrows():
+        pids = sorted(json.loads(row["player_ids"]))
+        key = "-".join(str(p) for p in pids)
+        combos_5[key] = {
+            "nrtg": round(float(row["net_rating"]), 1),
+            "min": round(float(row["minutes"]), 1),
+            "gp": int(row["gp"] or 0),
+        }
+
+    return {
+        "rosters": rosters,
+        "pairs": pairs,
+        "combos_3": combos_3,
+        "combos_5": combos_5,
+    }
+
+
+def build_lab_html(lab_data):
+    """Build the Lineup Lab HTML + inline JS for interactive team/player selection."""
+    lab_json = json.dumps(lab_data, separators=(",", ":"))
+
+    # Build team options
+    team_options = ""
+    for abbr in sorted(lab_data["rosters"].keys()):
+        name = TEAM_FULL_NAMES.get(abbr, abbr)
+        team_options += f'<option value="{abbr}">{abbr} — {name}</option>\n'
+
+    return f"""
+    <div class="lab-container">
+        <div class="lab-team-chooser">
+            <label class="lab-label">TEAM</label>
+            <select id="labTeamSelect" class="lab-select" onchange="labTeamChange()">
+                <option value="">Select a team...</option>
+                {team_options}
+            </select>
+        </div>
+
+        <div class="lab-slots" id="labSlots" style="display:none">
+            <div class="lab-slot-row">
+                <div class="lab-slot">
+                    <label class="lab-label">SLOT 1</label>
+                    <select id="labPlayer1" class="lab-select lab-player-select" onchange="labUpdate()">
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="lab-slot">
+                    <label class="lab-label">SLOT 2</label>
+                    <select id="labPlayer2" class="lab-select lab-player-select" onchange="labUpdate()">
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="lab-slot">
+                    <label class="lab-label">SLOT 3</label>
+                    <select id="labPlayer3" class="lab-select lab-player-select" onchange="labUpdate()">
+                        <option value="">—</option>
+                    </select>
+                </div>
+            </div>
+            <div class="lab-slot-row">
+                <div class="lab-slot">
+                    <label class="lab-label">SLOT 4</label>
+                    <select id="labPlayer4" class="lab-select lab-player-select" onchange="labUpdate()">
+                        <option value="">—</option>
+                    </select>
+                </div>
+                <div class="lab-slot">
+                    <label class="lab-label">SLOT 5</label>
+                    <select id="labPlayer5" class="lab-select lab-player-select" onchange="labUpdate()">
+                        <option value="">—</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="lab-results" id="labResults" style="display:none">
+            <div class="lab-results-inner" id="labResultsInner"></div>
+        </div>
+    </div>
+
+    <script>
+    const LAB_DATA = {lab_json};
+
+    function labTeamChange() {{
+        const team = document.getElementById('labTeamSelect').value;
+        const slotsDiv = document.getElementById('labSlots');
+        const resultsDiv = document.getElementById('labResults');
+
+        if (!team) {{
+            slotsDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+            return;
+        }}
+
+        slotsDiv.style.display = 'block';
+        const roster = LAB_DATA.rosters[team] || [];
+
+        // Populate all 5 player selects
+        for (let i = 1; i <= 5; i++) {{
+            const sel = document.getElementById('labPlayer' + i);
+            sel.innerHTML = '<option value="">—</option>';
+            roster.forEach(p => {{
+                sel.innerHTML += '<option value="' + p.id + '">' + p.name + ' (DS ' + p.ds + ')</option>';
+            }});
+        }}
+
+        resultsDiv.style.display = 'none';
+        document.getElementById('labResultsInner').innerHTML = '';
+    }}
+
+    function labUpdate() {{
+        const ids = [];
+        for (let i = 1; i <= 5; i++) {{
+            const v = document.getElementById('labPlayer' + i).value;
+            if (v) ids.push(parseInt(v));
+        }}
+
+        const resultsDiv = document.getElementById('labResults');
+        const inner = document.getElementById('labResultsInner');
+
+        if (ids.length < 2) {{
+            resultsDiv.style.display = 'none';
+            inner.innerHTML = '';
+            return;
+        }}
+
+        resultsDiv.style.display = 'block';
+        let html = '';
+
+        // Player DS cards
+        const team = document.getElementById('labTeamSelect').value;
+        const roster = LAB_DATA.rosters[team] || [];
+        const selected = roster.filter(p => ids.includes(p.id));
+        const avgDS = selected.length ? Math.round(selected.reduce((s, p) => s + p.ds, 0) / selected.length) : 0;
+
+        html += '<div class="lab-section-title">INDIVIDUAL SCORES</div>';
+        html += '<div class="lab-player-cards">';
+        selected.forEach(p => {{
+            const dsClass = p.ds >= 83 ? 'ds-elite' : p.ds >= 67 ? 'ds-good' : p.ds >= 52 ? 'ds-avg' : 'ds-low';
+            const headshot = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + p.id + '.png';
+            html += '<div class="lab-player-card">' +
+                '<img src="' + headshot + '" class="lab-player-face" onerror="this.style.display=\\'none\\'">' +
+                '<span class="lab-player-name">' + p.name + '</span>' +
+                '<span class="lab-player-arch">' + p.archetype + '</span>' +
+                '<span class="lab-player-ds ' + dsClass + '">' + p.ds + '</span>' +
+                '</div>';
+        }});
+        html += '</div>';
+        html += '<div class="lab-avg-ds">AVG DS: <strong>' + avgDS + '</strong></div>';
+
+        // Pair synergy matrix
+        html += '<div class="lab-section-title">PAIR SYNERGY</div>';
+        html += '<div class="lab-pair-grid">';
+        for (let i = 0; i < ids.length; i++) {{
+            for (let j = i + 1; j < ids.length; j++) {{
+                const a = Math.min(ids[i], ids[j]);
+                const b = Math.max(ids[i], ids[j]);
+                const key = a + '-' + b;
+                const pair = LAB_DATA.pairs[key];
+                const pA = roster.find(p => p.id === ids[i]);
+                const pB = roster.find(p => p.id === ids[j]);
+                const nameA = pA ? pA.name.split(' ').pop() : ids[i];
+                const nameB = pB ? pB.name.split(' ').pop() : ids[j];
+
+                if (pair) {{
+                    const synClass = pair.syn >= 70 ? 'syn-high' : pair.syn >= 45 ? 'syn-mid' : 'syn-low';
+                    const nrtgColor = pair.nrtg >= 0 ? '#00FF55' : '#FF3333';
+                    const nrtgSign = pair.nrtg >= 0 ? '+' : '';
+                    html += '<div class="lab-pair-card">' +
+                        '<div class="lab-pair-names">' + nameA + ' + ' + nameB + '</div>' +
+                        '<div class="lab-pair-syn ' + synClass + '">SYN ' + pair.syn + '</div>' +
+                        '<div class="lab-pair-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + pair.nrtg + ' NRtg</div>' +
+                        '<div class="lab-pair-min">' + pair.min + ' min</div>' +
+                        '</div>';
+                }} else {{
+                    html += '<div class="lab-pair-card lab-pair-nodata">' +
+                        '<div class="lab-pair-names">' + nameA + ' + ' + nameB + '</div>' +
+                        '<div class="lab-pair-syn">NO DATA</div>' +
+                        '</div>';
+                }}
+            }}
+        }}
+        html += '</div>';
+
+        // 3-man combo (if 3+ selected)
+        if (ids.length >= 3) {{
+            html += '<div class="lab-section-title">3-MAN COMBOS</div>';
+            html += '<div class="lab-combo-list">';
+            const sorted3 = ids.slice().sort((a, b) => a - b);
+            // Check all 3-combinations
+            let found3 = false;
+            for (let i = 0; i < sorted3.length; i++) {{
+                for (let j = i + 1; j < sorted3.length; j++) {{
+                    for (let k = j + 1; k < sorted3.length; k++) {{
+                        const key3 = sorted3[i] + '-' + sorted3[j] + '-' + sorted3[k];
+                        const combo = LAB_DATA.combos_3[key3];
+                        if (combo) {{
+                            found3 = true;
+                            const p1 = roster.find(p => p.id === sorted3[i]);
+                            const p2 = roster.find(p => p.id === sorted3[j]);
+                            const p3 = roster.find(p => p.id === sorted3[k]);
+                            const names = [p1, p2, p3].map(p => p ? p.name.split(' ').pop() : '?').join(' / ');
+                            const nrtgColor = combo.nrtg >= 0 ? '#00FF55' : '#FF3333';
+                            const nrtgSign = combo.nrtg >= 0 ? '+' : '';
+                            html += '<div class="lab-combo-row">' +
+                                '<span class="lab-combo-names">' + names + '</span>' +
+                                '<span class="lab-combo-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + combo.nrtg + '</span>' +
+                                '<span class="lab-combo-meta">' + combo.gp + 'G / ' + combo.min + ' min</span>' +
+                                '</div>';
+                        }}
+                    }}
+                }}
+            }}
+            if (!found3) {{
+                html += '<div class="lab-combo-row lab-nodata">No 3-man data available for this combination</div>';
+            }}
+            html += '</div>';
+        }}
+
+        // 5-man unit (if all 5 selected)
+        if (ids.length === 5) {{
+            html += '<div class="lab-section-title">5-MAN UNIT</div>';
+            const sorted5 = ids.slice().sort((a, b) => a - b);
+            const key5 = sorted5.join('-');
+            const unit = LAB_DATA.combos_5[key5];
+            if (unit) {{
+                const nrtgColor = unit.nrtg >= 0 ? '#00FF55' : '#FF3333';
+                const nrtgSign = unit.nrtg >= 0 ? '+' : '';
+                html += '<div class="lab-unit-card">' +
+                    '<div class="lab-unit-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + unit.nrtg + ' NRtg</div>' +
+                    '<div class="lab-unit-meta">' + unit.gp + ' games // ' + unit.min + ' minutes</div>' +
+                    '</div>';
+            }} else {{
+                html += '<div class="lab-unit-card lab-nodata">No 5-man data for this exact lineup</div>';
+            }}
+        }}
+
+        inner.innerHTML = html;
+    }}
+    </script>
+    """
+
+
+def get_ceiling_floor_players():
+    """Get players most elevated or suppressed by team context.
+
+    Ceiling: composite_value >> base_value (team makes them better)
+    Floor: composite_value << base_value (team drags them down)
+    """
+    if not _VALUE_SCORES:
+        return [], []
+
+    players_df = read_query("""
+        SELECT p.player_id, p.full_name, t.abbreviation as team,
+               pa.archetype_label, ps.minutes_per_game
+        FROM player_season_stats ps
+        JOIN players p ON ps.player_id = p.player_id
+        JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
+        JOIN teams t ON ra.team_id = t.team_id
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '2025-26'
+        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 12
+    """, DB_PATH)
+
+    movers = []
+    for _, row in players_df.iterrows():
+        pid = int(row["player_id"])
+        vs = _VALUE_SCORES.get(pid)
+        if not vs:
+            continue
+
+        # Scale both to 33-99
+        raw_ds = int(33 + (vs["base"] / 100) * 66)
+        contextual_ds = int(33 + (vs["composite"] / 100) * 66)
+        delta = contextual_ds - raw_ds
+
+        movers.append({
+            "player_id": pid,
+            "name": row["full_name"],
+            "team": row["team"],
+            "archetype": row.get("archetype_label") or "Unclassified",
+            "raw_ds": raw_ds,
+            "contextual_ds": contextual_ds,
+            "delta": delta,
+            "solo": round(vs["solo"], 1),
+            "synergy": round(vs["two"], 1),
+            "fit": round(vs["fit"], 1),
+        })
+
+    movers.sort(key=lambda x: x["delta"], reverse=True)
+    ceiling = movers[:4]
+    floor = sorted(movers, key=lambda x: x["delta"])[:4]
+
+    return ceiling, floor
+
+
 def get_lock_picks(matchups):
     """Generate top highest-confidence picks on actual spreads/totals."""
     picks = []
@@ -2237,8 +3126,10 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
             roster = get_team_roster(abbr, 8)
 
             for _, p in roster.iterrows():
-                ds, breakdown = compute_dynamic_score(p)
-                if ds < 45:
+                _pid = int(p.get("player_id", 0) or 0)
+                _adj = _INJURY_ADJUSTED_VS.get(_pid)
+                ds, breakdown = compute_dynamic_score(p, injury_adjusted_composite=_adj)
+                if ds < 40:
                     continue
 
                 pts = p.get("pts_pg", 0) or 0
@@ -2293,7 +3184,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
                 if primary_line is not None:
                     edge = primary_avg - float(primary_line)
 
-                low, high = compute_ds_range(ds)
+                low, high = compute_ds_range(ds, player_id)
 
                 # Get last 5 games for PTS (primary stat)
                 last5 = get_last5_prop_stats(player_id, "PTS") if pts >= 15 else []
@@ -2376,7 +3267,8 @@ def get_top_50_ds():
 
     ranked = []
     for p, ds, breakdown in all_scored:
-        low, high = compute_ds_range(ds)
+        pid = int(p.get("player_id", 0) or 0)
+        low, high = compute_ds_range(ds, pid)
         ranked.append({
             "rank": len(ranked) + 1,
             "name": p["full_name"],
@@ -2468,8 +3360,13 @@ def generate_html():
     """Generate the complete NBA SIM HTML — mobile-first with all features."""
     matchups, team_map, slate_date, event_ids = get_matchups()
     slate_date = slate_date or "TODAY"
+
+    # Build injury-adjusted DS cache for tonight's matchup cards
+    _build_injury_adjusted_cache(matchups)
     combos = get_top_combos()
     fades = get_fade_combos()
+    surging_pairs, fading_pairs = get_trending_combos()
+    ceiling_players, floor_players = get_ceiling_floor_players()
     locks = get_lock_picks(matchups)
 
     # Fetch real player props from Odds API (costs ~20 credits for 5 games × 4 markets)
@@ -2515,6 +3412,80 @@ def generate_html():
     for f in fades:
         fade_cards += render_combo_card(f, is_fade=True)
 
+    # ── Build trending pairs HTML (WOWY duo trends) ──
+    surging_pair_cards = ""
+    for p in surging_pairs:
+        if p["delta"] > 8:
+            badge = "🔥 SURGING"
+            badge_class = "badge-hot"
+        elif p["delta"] > 4:
+            badge = "📈 RISING"
+            badge_class = "badge-minutes"
+        else:
+            badge = "⚡ WARMING"
+            badge_class = "badge-elite"
+        surging_pair_cards += f"""
+        <div class="trend-card trend-up">
+            <div class="trend-info" style="flex:1">
+                <span class="trend-name">{p['player_a']} + {p['player_b']}</span>
+                <span class="trend-meta">{p['team']} // SYN {p['synergy_score']:.0f} // {p['gp']}G window</span>
+                <span class="trend-stats">Window: {p['window_nrtg']:+.1f} NRtg | Season: {p['season_nrtg']:+.1f}</span>
+            </div>
+            <div class="trend-delta trend-pos">+{p['delta']:.1f} NRtg</div>
+        </div>"""
+
+    fading_pair_cards = ""
+    for p in fading_pairs:
+        if p["delta"] < -8:
+            badge = "💀 CRATERING"
+            badge_class = "badge-disaster"
+        elif p["delta"] < -4:
+            badge = "🍳 COOKED"
+            badge_class = "badge-cooked"
+        else:
+            badge = "⚠️ COOLING"
+            badge_class = "badge-fade"
+        fading_pair_cards += f"""
+        <div class="trend-card trend-down">
+            <div class="trend-info" style="flex:1">
+                <span class="trend-name">{p['player_a']} + {p['player_b']}</span>
+                <span class="trend-meta">{p['team']} // SYN {p['synergy_score']:.0f} // {p['gp']}G window</span>
+                <span class="trend-stats">Window: {p['window_nrtg']:+.1f} NRtg | Season: {p['season_nrtg']:+.1f}</span>
+            </div>
+            <div class="trend-delta trend-neg">{p['delta']:.1f} NRtg</div>
+        </div>"""
+
+    # ── Build Ceiling/Floor Player Cards ──
+    ceiling_cards = ""
+    for p in ceiling_players:
+        headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+        icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
+        ceiling_cards += f"""
+        <div class="trend-card trend-up">
+            <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
+            <div class="trend-info">
+                <span class="trend-name">{p['name']}</span>
+                <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
+                <span class="trend-stats">Raw: {p['raw_ds']} → Context: {p['contextual_ds']}</span>
+            </div>
+            <div class="trend-delta trend-pos">+{p['delta']} DS</div>
+        </div>"""
+
+    floor_cards = ""
+    for p in floor_players:
+        headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+        icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
+        floor_cards += f"""
+        <div class="trend-card trend-down">
+            <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
+            <div class="trend-info">
+                <span class="trend-name">{p['name']}</span>
+                <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
+                <span class="trend-stats">Raw: {p['raw_ds']} → Context: {p['contextual_ds']}</span>
+            </div>
+            <div class="trend-delta trend-neg">{p['delta']} DS</div>
+        </div>"""
+
     # ── Lock picks removed (user request) ──
     lock_cards = ""
 
@@ -2522,11 +3493,11 @@ def generate_html():
     top50_rows = ""
     for p in top50:
         ds = p["ds"]
-        if ds >= 85:
+        if ds >= 83:
             ds_cls = "ds-elite"
-        elif ds >= 70:
+        elif ds >= 67:
             ds_cls = "ds-good"
-        elif ds >= 55:
+        elif ds >= 52:
             ds_cls = "ds-avg"
         else:
             ds_cls = "ds-low"
@@ -2546,7 +3517,9 @@ def generate_html():
              data-team="{p['team']}" data-pid="{p['player_id']}"
              data-scoring-pct="{bd.get('scoring_c', 0)}" data-playmaking-pct="{bd.get('playmaking_c', 0)}"
              data-defense-pct="{bd.get('defense_c', 0)}" data-efficiency-pct="{bd.get('efficiency_c', 0)}"
-             data-impact-pct="{bd.get('impact_c', 0)}">
+             data-impact-pct="{bd.get('impact_c', 0)}"
+             data-raw-ds="{bd.get('raw_ds', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
+             data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}">
             <span class="rank-num">#{p['rank']}</span>
             <img src="{headshot}" class="rank-face" onerror="this.style.display='none'">
             <img src="{team_logo}" class="rank-team-logo" onerror="this.style.display='none'">
@@ -2614,8 +3587,8 @@ def generate_html():
             </div>
         </div>"""
 
-    # ── Build Top 8 Trending Players HTML ──
-    risers, fallers = get_top_trending_players()
+    # ── Build WOWY Trending Players HTML ──
+    risers, fallers = get_wowy_trending_players()
     trending_html = ""
     if risers or fallers:
         riser_cards = ""
@@ -2630,7 +3603,7 @@ def generate_html():
                     <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
                     <span class="trend-stats">{p['avg_pts']}p {p['avg_ast']}a {p['avg_reb']}r ({p['gp']}G)</span>
                 </div>
-                <div class="trend-delta trend-pos">+{p['delta']:.1f} PRA</div>
+                <div class="trend-delta trend-pos">+{p['delta']:.1f} NRtg</div>
             </div>"""
 
         faller_cards = ""
@@ -2645,13 +3618,13 @@ def generate_html():
                     <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
                     <span class="trend-stats">{p['avg_pts']}p {p['avg_ast']}a {p['avg_reb']}r ({p['gp']}G)</span>
                 </div>
-                <div class="trend-delta trend-neg">{p['delta']:.1f} PRA</div>
+                <div class="trend-delta trend-neg">{p['delta']:.1f} NRtg</div>
             </div>"""
 
         trending_html = f"""
             <div class="section-header">
-                <h2>TOP 8 TRENDING PLAYERS</h2>
-                <span class="section-sub">Biggest PRA movers — 14-day trailing window (updated daily 8 AM)</span>
+                <h2>WOWY TRENDS</h2>
+                <span class="section-sub">10-day trailing NRtg movers — WOWY impact (updated daily 8 AM)</span>
             </div>
             <div class="trends-grid">
                 <div class="trends-column">
@@ -2664,6 +3637,10 @@ def generate_html():
                 </div>
             </div>
         """
+
+    # ── Build Lineup Lab HTML ──
+    lab_data = get_lab_data()
+    lab_html = build_lab_html(lab_data)
 
     # ── Build INFO page content ──
     info_content = render_info_page()
@@ -2703,6 +3680,7 @@ def generate_html():
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Stats</button>
             <button class="filter-btn" data-tab="trends">Trends</button>
+            <button class="filter-btn" data-tab="lab">Lab</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
     </div>
@@ -2776,6 +3754,36 @@ def generate_html():
             {trending_html}
 
             <div class="section-header" style="margin-top:24px">
+                <h2>DS RANGE MOVERS</h2>
+                <span class="section-sub">Players most elevated or suppressed by team context</span>
+            </div>
+            <div class="trends-grid">
+                <div class="trends-column">
+                    <div class="trends-col-header hot">🚀 CEILING PLAYERS</div>
+                    {ceiling_cards}
+                </div>
+                <div class="trends-column">
+                    <div class="trends-col-header fade">🪫 FLOOR PLAYERS</div>
+                    {floor_cards}
+                </div>
+            </div>
+
+            <div class="section-header" style="margin-top:24px">
+                <h2>DUO TRENDS</h2>
+                <span class="section-sub">Pair WOWY — 10-day window vs season baseline</span>
+            </div>
+            <div class="trends-grid">
+                <div class="trends-column">
+                    <div class="trends-col-header hot">🔥 SURGING DUOS</div>
+                    {surging_pair_cards}
+                </div>
+                <div class="trends-column">
+                    <div class="trends-col-header fade">💀 FADING DUOS</div>
+                    {fading_pair_cards}
+                </div>
+            </div>
+
+            <div class="section-header" style="margin-top:24px">
                 <h2>LINEUP TRENDS</h2>
                 <span class="section-sub">Hot combos + fades with full player details</span>
             </div>
@@ -2789,6 +3797,15 @@ def generate_html():
                     {fade_cards}
                 </div>
             </div>
+        </div>
+
+        <!-- LAB TAB -->
+        <div class="tab-content" id="tab-lab">
+            <div class="section-header">
+                <h2>LINEUP LAB</h2>
+                <span class="section-sub">Build a custom lineup — see pair synergy data</span>
+            </div>
+            {lab_html}
         </div>
 
         <!-- INFO TAB -->
@@ -2811,6 +3828,10 @@ def generate_html():
         <button class="nav-btn" data-tab="trends">
             <span class="nav-icon">📈</span>
             <span>TRENDS</span>
+        </button>
+        <button class="nav-btn" data-tab="lab">
+            <span class="nav-icon">🧪</span>
+            <span>LAB</span>
         </button>
         <button class="nav-btn" data-tab="info">
             <span class="nav-icon">ℹ️</span>
@@ -2895,16 +3916,20 @@ def render_matchup_card(m, idx, team_map):
     else:
         sim_proj_html = ""
 
-    # Tug of war bar — use full rotation for DSI tug-of-war
+    # Tug of war bar — use full rotation for DSI tug-of-war (injury-adjusted)
     home_ds_sum = 0
     away_ds_sum = 0
     home_roster = get_team_roster(ha, 15)
     away_roster = get_team_roster(aa, 15)
     for _, r in home_roster.head(5).iterrows():
-        ds, _ = compute_dynamic_score(r)
+        _pid = int(r.get("player_id", 0) or 0)
+        _adj = _INJURY_ADJUSTED_VS.get(_pid)
+        ds, _ = compute_dynamic_score(r, injury_adjusted_composite=_adj)
         home_ds_sum += ds
     for _, r in away_roster.head(5).iterrows():
-        ds, _ = compute_dynamic_score(r)
+        _pid = int(r.get("player_id", 0) or 0)
+        _adj = _INJURY_ADJUSTED_VS.get(_pid)
+        ds, _ = compute_dynamic_score(r, injury_adjusted_composite=_adj)
         away_ds_sum += ds
 
     total_ds = home_ds_sum + away_ds_sum
@@ -3043,6 +4068,10 @@ def render_matchup_card(m, idx, team_map):
     home_nrtg = bd.get("home_nrtg", 0)
     away_nrtg = bd.get("away_nrtg", 0)
     nrtg_diff = bd.get("nrtg_diff", 0)
+    home_syn = bd.get("home_syn", 50)
+    away_syn = bd.get("away_syn", 50)
+    syn_diff = bd.get("syn_diff", 0)
+    syn_pts = bd.get("syn_pts", 0)
     home_b2b = bd.get("home_b2b", False)
     away_b2b = bd.get("away_b2b", False)
     home_out_n = bd.get("home_out", 0)
@@ -3092,9 +4121,21 @@ def render_matchup_card(m, idx, team_map):
         nrtg_fav_val = ""
 
     # Model weighting computations
-    dsi_weighted = 0.50 * dsi_pts
-    nrtg_weighted = 0.50 * nrtg_diff
+    dsi_weighted = 0.45 * dsi_pts
+    nrtg_weighted = 0.45 * nrtg_diff
+    syn_weighted = 0.10 * syn_pts
     proj_spread_val = m.get("proj_spread", 0)
+
+    # Which team SYN favors
+    if syn_diff > 0:
+        syn_fav = ha
+        syn_fav_val = f"+{abs(syn_diff):.1f}"
+    elif syn_diff < 0:
+        syn_fav = aa
+        syn_fav_val = f"+{abs(syn_diff):.1f}"
+    else:
+        syn_fav = "EVEN"
+        syn_fav_val = ""
 
     breakdown_html = f"""
         <div class="dsi-breakdown">
@@ -3115,9 +4156,16 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-val">{ha} {home_nrtg:+.1f}</span>
                 <span class="dsi-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
             </div>
+            <div class="dsi-row">
+                <span class="dsi-label">SYN</span>
+                <span class="dsi-val">{aa} {away_syn:.1f}</span>
+                <div class="dsi-mid-spacer"></div>
+                <span class="dsi-val">{ha} {home_syn:.1f}</span>
+                <span class="dsi-edge-sm">{syn_fav} {syn_fav_val}</span>
+            </div>
             <div class="dsi-row dsi-model-row">
                 <span class="dsi-label">MODEL</span>
-                <span class="dsi-model-formula">50% DSI ({dsi_weighted:+.1f}) + 50% NRtg ({nrtg_weighted:+.1f}) = <strong>PROJ {proj_spread_val:+.1f}</strong></span>
+                <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 45% NRtg ({nrtg_weighted:+.1f}) + 10% SYN ({syn_weighted:+.1f}) = <strong>PROJ {proj_spread_val:+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
                 <span class="hca-badge">HCA +3 {ha}</span>
@@ -3198,8 +4246,17 @@ def render_matchup_card(m, idx, team_map):
 
 def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="IN"):
     """Render a player row inside a matchup card with DS, archetype, context."""
-    ds, breakdown = compute_dynamic_score(player)
-    low, high = compute_ds_range(ds)
+    pid = int(player.get("player_id", 0) or 0)
+    adj = _INJURY_ADJUSTED_VS.get(pid)
+    ds, breakdown = compute_dynamic_score(player, injury_adjusted_composite=adj)
+
+    # Compute injury delta for badge display
+    inj_delta = 0
+    if adj is not None:
+        season_ds, _ = compute_dynamic_score(player)  # un-adjusted
+        inj_delta = ds - season_ds
+
+    low, high = compute_ds_range(ds, pid)
     arch = player.get("archetype_label", "") or "Unclassified"
     icon = ARCHETYPE_ICONS.get(arch, "◆")
     name = player["full_name"]
@@ -3214,11 +4271,11 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
 
     headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{player_id}.png"
 
-    if ds >= 85:
+    if ds >= 83:
         ds_class = "ds-elite"
-    elif ds >= 70:
+    elif ds >= 67:
         ds_class = "ds-good"
-    elif ds >= 55:
+    elif ds >= 52:
         ds_class = "ds-avg"
     else:
         ds_class = "ds-low"
@@ -3245,7 +4302,10 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
          data-team="{team_abbr}" data-pid="{player_id}"
          data-scoring-pct="{bd['scoring_c']}" data-playmaking-pct="{bd['playmaking_c']}"
          data-defense-pct="{bd['defense_c']}" data-efficiency-pct="{bd['efficiency_c']}"
-         data-impact-pct="{bd['impact_c']}">
+         data-impact-pct="{bd['impact_c']}"
+         data-raw-ds="{bd.get('raw_ds', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
+         data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
+         data-inj-delta="{inj_delta}">
         <img src="{headshot}" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
             <span class="pr-name">{short} {status_badge}</span>
@@ -3256,7 +4316,7 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
             <span>{mpg:.0f} mpg</span>
         </div>
         <div class="pr-ds {ds_class}">
-            <span class="pr-ds-num">{ds}</span>
+            <span class="pr-ds-num">{ds}</span>{'<span class="pr-inj-delta ' + ('inj-up' if inj_delta > 0 else 'inj-down') + '">' + ('+' if inj_delta > 0 else '') + str(inj_delta) + '</span>' if inj_delta != 0 else ''}
             <span class="pr-ds-range">{low}-{high}</span>
         </div>
     </div>"""
@@ -3270,10 +4330,10 @@ def render_stat_card(prop, rank):
 
     # DS badge color
     ds = prop["ds"]
-    if ds >= 85:
+    if ds >= 83:
         ds_color = "var(--green)"
         ds_bg = "rgba(0,255,85,0.12)"
-    elif ds >= 70:
+    elif ds >= 67:
         ds_color = "var(--amber)"
         ds_bg = "rgba(255,214,0,0.1)"
     else:
@@ -3372,13 +4432,13 @@ def render_combo_card(combo, is_fade=False):
         icon = ARCHETYPE_ICONS.get(arch, "◆")
         pid = pl["player_id"]
         headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{pid}.png"
-        low, high = compute_ds_range(ds)
+        low, high = compute_ds_range(ds, int(pid))
 
-        if ds >= 85:
+        if ds >= 83:
             ds_cls = "ds-elite"
-        elif ds >= 70:
+        elif ds >= 67:
             ds_cls = "ds-good"
-        elif ds >= 55:
+        elif ds >= 52:
             ds_cls = "ds-avg"
         else:
             ds_cls = "ds-low"
@@ -3481,14 +4541,15 @@ def render_info_page():
                 while 112 DRtg earns only ~7.5. Elite defenders and rim protectors get a meaningful DS boost.
             </p>
             <div class="ds-tiers">
-                <div class="ds-tier"><span class="ds-elite">85-99</span><span>Elite / All-Star caliber</span></div>
-                <div class="ds-tier"><span class="ds-good">70-84</span><span>Above Average / Strong Starter</span></div>
-                <div class="ds-tier"><span class="ds-avg">55-69</span><span>Rotation Player</span></div>
-                <div class="ds-tier"><span class="ds-low">40-54</span><span>Below Average / Limited Role</span></div>
+                <div class="ds-tier"><span class="ds-elite">83-99</span><span>Elite / All-Star caliber</span></div>
+                <div class="ds-tier"><span class="ds-good">67-82</span><span>Strong Starter</span></div>
+                <div class="ds-tier"><span class="ds-avg">52-66</span><span>Rotation Player</span></div>
+                <div class="ds-tier"><span class="ds-low">40-51</span><span>Limited Role</span></div>
+                <div class="ds-tier"><span class="ds-low">33-39</span><span>Fringe / Minimal Impact</span></div>
             </div>
             <p class="info-text">
                 <strong>Dynamic Range</strong> shows the expected floor-to-ceiling for each player based on
-                their score volatility. Elite players (DS 85+) have tighter ranges, while mid-tier players
+                their score volatility. Elite players (DS 83+) have tighter ranges, while mid-tier players
                 have wider variance.
             </p>
             <p class="info-text">
@@ -3542,9 +4603,9 @@ def render_info_page():
         </div>
 
         <div class="info-section">
-            <h2 class="info-title">DSI SPREAD MODEL — 9-STEP PIPELINE</h2>
+            <h2 class="info-title">DSI SPREAD MODEL — 10-STEP PIPELINE</h2>
             <p class="info-text">
-                The SIM runs a 9-step pipeline to produce projected spreads and totals for every game.
+                The SIM runs a 10-step pipeline to produce projected spreads and totals for every game.
                 <strong>Real lines</strong> from sportsbooks replace projections when available via The Odds API.
             </p>
             <div class="info-formula">
@@ -3555,8 +4616,9 @@ def render_info_page():
                 <div class="formula-row"><span>Step 4</span><span>Compute adjusted DSI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
                 <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 3.0 HCA, with B2B −3.0)</span></div>
-                <div class="formula-row"><span>Step 7</span><span>Blend: 50% DSI + 50% Adjusted NRtg = raw power</span></div>
-                <div class="formula-row"><span>Step 8</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
+                <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Blend: 45% DSI + 45% Adjusted NRtg + 10% SYN = raw power</span></div>
+                <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">
                 <div class="formula-row"><span>Stocks Penalty</span><span>0.8 DSI pts per lost stock (STL+BLK × min share)</span></div>
@@ -4274,6 +5336,19 @@ def generate_css():
         .ds-avg .pr-ds-num { color: #888; }
         .ds-low .pr-ds-num { color: #FF3333; }
 
+        /* Injury delta badge */
+        .pr-inj-delta {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 3px;
+            margin-left: 2px;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        .pr-inj-delta.inj-down { color: #FF3333; background: rgba(255,51,51,0.1); }
+        .pr-inj-delta.inj-up { color: #00CC44; background: rgba(0,204,68,0.1); }
+
         /* ─── PROPS ─── */
         .props-list { display: flex; flex-direction: column; gap: 10px; }
         /* ─── PROP CARDS — Compact Row Layout ─── */
@@ -4672,6 +5747,216 @@ def generate_css():
             color: rgba(0,0,0,0.3);
             text-align: center;
             padding: 4px 8px 8px;
+        }
+
+        /* ─── LINEUP LAB ─── */
+        .lab-container {
+            padding: 0 4px;
+        }
+        .lab-team-chooser {
+            margin-bottom: 16px;
+        }
+        .lab-label {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(0,0,0,0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .lab-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid rgba(0,0,0,0.1);
+            border-radius: 8px;
+            background: #f8f8f8;
+            font-family: var(--font-body);
+            font-size: 14px;
+            font-weight: 600;
+            color: #111;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+        .lab-select:focus {
+            outline: none;
+            border-color: var(--accent-nba, #00FF55);
+        }
+        .lab-slots {
+            margin-bottom: 16px;
+        }
+        .lab-slot-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .lab-slot {
+            flex: 1;
+        }
+        .lab-player-select {
+            font-size: 12px;
+            padding: 8px 6px;
+        }
+        .lab-results {
+            margin-top: 16px;
+        }
+        .lab-section-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            color: rgba(0,0,0,0.7);
+            letter-spacing: 1px;
+            margin: 20px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid rgba(0,0,0,0.06);
+        }
+        .lab-player-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .lab-player-card {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 140px;
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border: 2px solid rgba(0,0,0,0.06);
+        }
+        .lab-player-face {
+            width: 48px;
+            height: 36px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .lab-player-name {
+            font-family: var(--font-body);
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+        }
+        .lab-player-arch {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(0,0,0,0.4);
+        }
+        .lab-player-ds {
+            font-family: var(--font-display);
+            font-size: 20px;
+        }
+        .lab-player-ds.ds-elite { color: #00CC44; }
+        .lab-player-ds.ds-good { color: #0a0a0a; }
+        .lab-player-ds.ds-avg { color: #888; }
+        .lab-player-ds.ds-low { color: #FF3333; }
+        .lab-avg-ds {
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            margin: 8px 0;
+            color: rgba(0,0,0,0.6);
+        }
+        .lab-pair-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .lab-pair-card {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 140px;
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            border: 2px solid rgba(0,0,0,0.06);
+        }
+        .lab-pair-card.lab-pair-nodata {
+            opacity: 0.4;
+        }
+        .lab-pair-names {
+            font-family: var(--font-body);
+            font-weight: 700;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+        .lab-pair-syn {
+            font-family: var(--font-display);
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        .lab-pair-syn.syn-high { color: #00CC44; }
+        .lab-pair-syn.syn-mid { color: #F59E0B; }
+        .lab-pair-syn.syn-low { color: #FF3333; }
+        .lab-pair-nrtg {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .lab-pair-min {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(0,0,0,0.4);
+        }
+        .lab-combo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .lab-combo-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            border: 2px solid rgba(0,0,0,0.06);
+        }
+        .lab-combo-row.lab-nodata {
+            color: rgba(0,0,0,0.4);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            justify-content: center;
+        }
+        .lab-combo-names {
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 12px;
+            flex: 1;
+        }
+        .lab-combo-nrtg {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .lab-combo-meta {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(0,0,0,0.4);
+        }
+        .lab-unit-card {
+            text-align: center;
+            padding: 16px;
+            background: #f8f8f8;
+            border-radius: 10px;
+            border: 2px solid rgba(0,0,0,0.06);
+        }
+        .lab-unit-card.lab-nodata {
+            color: rgba(0,0,0,0.4);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        .lab-unit-nrtg {
+            font-family: var(--font-display);
+            font-size: 28px;
+        }
+        .lab-unit-meta {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: rgba(0,0,0,0.4);
+            margin-top: 4px;
         }
 
         /* ─── BOTTOM SHEET ─── */
@@ -5230,6 +6515,35 @@ def generate_js():
                     <span class="sheet-bar-label">Impact</span>
                     <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.impactPct || 0, 100)}%"></div></div>
                     <span class="sheet-bar-pct">${Math.round(d.impactPct || 0)}%</span>
+                </div>
+
+                <div class="sheet-section">CONTEXT FACTORS</div>
+                <div class="sheet-stat">
+                    <span>Raw DS (box score)</span>
+                    <span class="sheet-stat-val">${d.rawDs || d.ds || '—'}</span>
+                </div>
+                <div class="sheet-stat">
+                    <span>Final DS (contextual)</span>
+                    <span class="sheet-stat-val" style="font-weight:900">${d.ds || '—'}</span>
+                </div>
+                ${parseInt(d.injDelta || 0) !== 0 ? `<div class="sheet-stat">
+                    <span>Tonight (injury-adjusted)</span>
+                    <span class="sheet-stat-val" style="color:${parseInt(d.injDelta) < 0 ? '#FF3333' : '#00CC44'}; font-weight:700">${parseInt(d.injDelta) > 0 ? '+' : ''}${d.injDelta} DS due to teammate injuries</span>
+                </div>` : ''}
+                <div class="sheet-bar-row">
+                    <span class="sheet-bar-label">WOWY Impact</span>
+                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.soloImpact || 50, 100)}%; background:#6366F1"></div></div>
+                    <span class="sheet-bar-pct">${Math.round(d.soloImpact || 50)}</span>
+                </div>
+                <div class="sheet-bar-row">
+                    <span class="sheet-bar-label">Pair Synergy</span>
+                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.synScore || 50, 100)}%; background:#F59E0B"></div></div>
+                    <span class="sheet-bar-pct">${Math.round(d.synScore || 50)}</span>
+                </div>
+                <div class="sheet-bar-row">
+                    <span class="sheet-bar-label">Archetype Fit</span>
+                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.fitScore || 50, 100)}%; background:#10B981"></div></div>
+                    <span class="sheet-bar-pct">${Math.round(d.fitScore || 50)}</span>
                 </div>
             `;
 
