@@ -2393,26 +2393,33 @@ def get_matchups():
                 #   → DAL +13 has value (SIM says they lose by 11, getting 13)
                 # Example: SIM = OKC -24, Book = OKC -16, edge = -8
                 #   → OKC -16 has value (SIM says blowout is bigger than book thinks)
+                # Helper: build pick text for a team
+                # spread is home-perspective (negative = home fav, positive = home dog)
+                # For home pick: their number is `spread` (e.g., -5.0 or +9.0)
+                # For away pick: their number is `-spread` (e.g., away gets +5.0 when home is -5.0)
+                # ML: only when book has team as underdog (+number) but model says they WIN
+                def _pick_text(team, team_spread, model_projects_win):
+                    if team_spread > 0 and model_projects_win:
+                        return f"{team} ML"
+                    return f"{team} {team_spread:+.1f}"
+
+                # Model projects home to win if proj_spread < 0
+                home_wins_model = proj_spread < 0
+                # Model projects away to win if proj_spread > 0
+                away_wins_model = proj_spread > 0
+
                 if spread_edge < -3:
-                    # SIM says home team much more dominant than book → home covers
                     lean_team = home_abbr
                     conf_label = f"TAKE {home_abbr}"
                     conf_class = "high"
                     pick_type = "spread"
-                    # ML only if model projects underdog to WIN outright (proj_spread < 0 when book has them as dog)
-                    if spread > 0 and proj_spread < 0:
-                        pick_text = f"{home_abbr} ML"
-                    else:
-                        pick_text = f"{home_abbr} {spread:+.1f}"
+                    pick_text = _pick_text(home_abbr, spread, home_wins_model)
                 elif spread_edge < -1:
                     lean_team = home_abbr
                     conf_label = f"LEAN {home_abbr}"
                     conf_class = "medium"
                     pick_type = "spread"
-                    if spread > 0 and proj_spread < 0:
-                        pick_text = f"{home_abbr} ML"
-                    else:
-                        pick_text = f"{home_abbr} {spread:+.1f}"
+                    pick_text = _pick_text(home_abbr, spread, home_wins_model)
                 elif spread_edge <= 1:
                     lean_team = ""
                     conf_label = "TOSS-UP"
@@ -2421,28 +2428,19 @@ def get_matchups():
                     if spread_edge <= 0:
                         pick_text = f"{home_abbr} {spread:+.1f}"
                     else:
-                        # Away team value — show their spread (positive = getting points)
                         pick_text = f"{away_abbr} {-spread:+.1f}"
                 elif spread_edge <= 3:
-                    # SIM says away team covers — book giving too many points
                     lean_team = away_abbr
                     conf_label = f"LEAN {away_abbr}"
                     conf_class = "medium"
                     pick_type = "spread"
-                    # ML if book has away as underdog but model projects away to WIN
-                    if spread < 0 and proj_spread > 0:
-                        pick_text = f"{away_abbr} ML"
-                    else:
-                        pick_text = f"{away_abbr} {-spread:+.1f}"
+                    pick_text = _pick_text(away_abbr, -spread, away_wins_model)
                 else:
                     lean_team = away_abbr
                     conf_label = f"TAKE {away_abbr}"
                     conf_class = "high"
                     pick_type = "spread"
-                    if spread < 0 and proj_spread > 0:
-                        pick_text = f"{away_abbr} ML"
-                    else:
-                        pick_text = f"{away_abbr} {-spread:+.1f}"
+                    pick_text = _pick_text(away_abbr, -spread, away_wins_model)
             else:
                 # Projected lines: fall back to raw_edge (power gap)
                 if raw_edge > 8:
