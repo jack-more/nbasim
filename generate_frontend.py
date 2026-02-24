@@ -2399,13 +2399,20 @@ def get_matchups():
                     conf_label = f"TAKE {home_abbr}"
                     conf_class = "high"
                     pick_type = "spread"
-                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                    # ML only if model projects underdog to WIN outright (proj_spread < 0 when book has them as dog)
+                    if spread > 0 and proj_spread < 0:
+                        pick_text = f"{home_abbr} ML"
+                    else:
+                        pick_text = f"{home_abbr} {spread:+.1f}"
                 elif spread_edge < -1:
                     lean_team = home_abbr
                     conf_label = f"LEAN {home_abbr}"
                     conf_class = "medium"
                     pick_type = "spread"
-                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                    if spread > 0 and proj_spread < 0:
+                        pick_text = f"{home_abbr} ML"
+                    else:
+                        pick_text = f"{home_abbr} {spread:+.1f}"
                 elif spread_edge <= 1:
                     lean_team = ""
                     conf_label = "TOSS-UP"
@@ -2422,13 +2429,20 @@ def get_matchups():
                     conf_label = f"LEAN {away_abbr}"
                     conf_class = "medium"
                     pick_type = "spread"
-                    pick_text = f"{away_abbr} {-spread:+.1f}"
+                    # ML if book has away as underdog but model projects away to WIN
+                    if spread < 0 and proj_spread > 0:
+                        pick_text = f"{away_abbr} ML"
+                    else:
+                        pick_text = f"{away_abbr} {-spread:+.1f}"
                 else:
                     lean_team = away_abbr
                     conf_label = f"TAKE {away_abbr}"
                     conf_class = "high"
                     pick_type = "spread"
-                    pick_text = f"{away_abbr} {-spread:+.1f}"
+                    if spread < 0 and proj_spread > 0:
+                        pick_text = f"{away_abbr} ML"
+                    else:
+                        pick_text = f"{away_abbr} {-spread:+.1f}"
             else:
                 # Projected lines: fall back to raw_edge (power gap)
                 if raw_edge > 8:
@@ -2436,7 +2450,7 @@ def get_matchups():
                     conf_label = f"TAKE {home_abbr}"
                     conf_class = "high"
                     pick_type = "spread"
-                    pick_text = f"{home_abbr} {spread:+.1f}" if spread <= 0 else f"{home_abbr} ML"
+                    pick_text = f"{home_abbr} {spread:+.1f}"
                 elif raw_edge > 3:
                     lean_team = home_abbr
                     conf_label = f"LEAN {home_abbr}"
