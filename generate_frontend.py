@@ -3253,9 +3253,9 @@ def get_top_50_ds():
         JOIN players p ON ps.player_id = p.player_id
         JOIN teams t ON ps.team_id = t.team_id
         LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
-        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 20
+        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 15
         ORDER BY ps.minutes_per_game DESC
-        LIMIT 100
+        LIMIT 300
     """, DB_PATH)
 
     # Compute DS for each player, then sort by DS and take top 50
