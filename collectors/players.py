@@ -243,6 +243,94 @@ class PlayerCollector(BaseCollector):
         self._save(df, "player_season_stats")
         logger.info(f"Saved {len(df)} player season stats for {season}")
 
+        # ── Backfill players + roster_assignments from league-wide stats ──
+        # CommonTeamRoster can miss rookies, mid-season additions, and
+        # two-way players. LeagueDashPlayerStats returns EVERY player who
+        # has logged minutes, so we use it as the authoritative source to
+        # patch any gaps.
+        self._backfill_from_league_stats(base, season)
+
+    def _backfill_from_league_stats(self, base_df: pd.DataFrame, season: str):
+        """Backfill players and roster_assignments from LeagueDashPlayerStats.
+
+        CommonTeamRoster misses rookies, mid-season trades, two-way players,
+        and late-season call-ups. This method patches any player who appears
+        in league-wide stats but is missing from the players or
+        roster_assignments tables — fixing the JOIN gap that made 71+ players
+        invisible to the model.
+        """
+        from db.connection import execute, save_dataframe
+
+        # Get existing player IDs and roster assignments
+        try:
+            existing_players = set(
+                read_query("SELECT player_id FROM players", self.db_path)
+                ["player_id"].tolist()
+            )
+        except Exception:
+            existing_players = set()
+
+        try:
+            existing_assignments = set(
+                read_query(
+                    "SELECT player_id FROM roster_assignments WHERE season_id = ?",
+                    self.db_path, [season]
+                )["player_id"].tolist()
+            )
+        except Exception:
+            existing_assignments = set()
+
+        new_players = []
+        new_assignments = []
+
+        for _, b in base_df.iterrows():
+            pid = int(b["PLAYER_ID"])
+            tid = int(b["TEAM_ID"])
+            name = b.get("PLAYER_NAME", "") or ""
+
+            # Backfill players table
+            if pid not in existing_players:
+                new_players.append({
+                    "player_id": pid,
+                    "full_name": name,
+                    "position": "",
+                    "height_inches": None,
+                    "weight_lbs": None,
+                    "birth_date": "",
+                    "experience": None,
+                    "is_active": 1,
+                })
+                existing_players.add(pid)
+
+            # Backfill roster_assignments table
+            if pid not in existing_assignments:
+                new_assignments.append({
+                    "player_id": pid,
+                    "team_id": tid,
+                    "season_id": season,
+                    "jersey_number": "",
+                    "listed_position": "",
+                })
+                existing_assignments.add(pid)
+
+        if new_players:
+            players_df = pd.DataFrame(new_players)
+            save_dataframe(players_df, "players", self.db_path, if_exists="append")
+            logger.info(
+                f"  Backfilled {len(new_players)} missing players "
+                f"(rookies/trades/two-way)"
+            )
+
+        if new_assignments:
+            assign_df = pd.DataFrame(new_assignments)
+            save_dataframe(assign_df, "roster_assignments", self.db_path, if_exists="append")
+            logger.info(
+                f"  Backfilled {len(new_assignments)} missing roster assignments"
+            )
+
+        if not new_players and not new_assignments:
+            logger.info("  No backfill needed — all players accounted for")
+
     def collect_team_season_stats(self, season: str):
         """Collect team-level season stats. ~2 API calls."""
         # Base team stats
