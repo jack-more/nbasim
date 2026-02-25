@@ -4738,12 +4738,12 @@ def render_matchup_card(m, idx, team_map):
     away_lq = bd.get("away_lineup_q", 0)
     raw_power_val = bd.get("raw_power", 0)
 
-    # B2B badge HTML
+    # B2B badge HTML — ▼ arrow = fatigue penalty (weaker), not a spread line
     b2b_badges = ""
     if home_b2b:
-        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {ha} (-2)</span>'
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">{ha} B2B \u25BC2</span>'
     if away_b2b:
-        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">B2B {aa} (-2.5)</span>'
+        b2b_badges += f'<span class="b2b-badge" style="color:#FF6B6B">{aa} B2B \u25BC2.5</span>'
 
     # OUT player count badges
     out_badges = ""
