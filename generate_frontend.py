@@ -4826,7 +4826,7 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
-                <span class="hca-badge">HCA +2 {ha}</span>
+                <span class="hca-badge">HCA \u25B22 {ha}</span>
                 {b2b_badges}
                 {out_badges}
             </div>
