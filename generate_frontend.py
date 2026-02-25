@@ -1682,11 +1682,13 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
                               player_ds_dict, usg_min_rank):
     """Build 5-man lineups by plugging missing players into a core (4/3/2-man combo).
 
-    For each missing slot, pick the best available player by archetype fit
-    (average pair synergy with every player already in the lineup).
-    Players are candidates based on usg_min_rank (usage + minutes ordering).
+    For each missing slot, score ALL available candidates by their WOWY pair
+    synergy with the current core. Return up to 3 lineup variants (one per
+    top candidate combination) so the system averages across multiple possible
+    rotations — preventing selection bias from only keeping the best fit.
 
-    Returns list of completed 5-man lineup dicts.
+    Players are ranked by usage+minutes ordering for candidate priority.
+    Returns list of completed 5-man lineup dicts (up to 3).
     """
     core_pids = set(core_lineup["player_ids"])
     n_missing = 5 - len(core_pids)
@@ -1698,53 +1700,29 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
     if len(candidates) < n_missing:
         return []
 
-    # Greedily pick best-fitting players one at a time
-    current_pids = list(core_pids)
-    for _ in range(n_missing):
-        best_pid = None
-        best_fit = -999
-        for cand in candidates:
-            if cand in current_pids:
-                continue
-            # Archetype fit = average pair synergy with everyone already in the lineup
-            fit_scores = []
-            for existing in current_pids:
-                key = (min(cand, existing), max(cand, existing))
-                pair_data = pair_lookup.get(key)
-                if pair_data:
-                    fit_scores.append(pair_data["syn"])
-                else:
-                    fit_scores.append(50.0)
-            avg_fit = sum(fit_scores) / len(fit_scores) if fit_scores else 50.0
-            # Boost by projected minutes (higher usage guys preferred)
-            mpg_bonus = projected_minutes.get(cand, 0) * 0.1
-            total_fit = avg_fit + mpg_bonus
-            if total_fit > best_fit:
-                best_fit = total_fit
-                best_pid = cand
-        if best_pid is None:
-            break
-        current_pids.append(best_pid)
+    def _score_candidate(cand, current_pids_list):
+        """Score a candidate's WOWY fit with the current lineup members."""
+        fit_scores = []
+        for existing in current_pids_list:
+            key = (min(cand, existing), max(cand, existing))
+            pair_data = pair_lookup.get(key)
+            if pair_data:
+                fit_scores.append(pair_data["syn"])
+            else:
+                fit_scores.append(45.0)  # unknown pair = slight negative risk
+        avg_fit = sum(fit_scores) / len(fit_scores) if fit_scores else 45.0
+        mpg_bonus = projected_minutes.get(cand, 0) * 0.1
+        return avg_fit + mpg_bonus
 
-    if len(current_pids) != 5:
-        return []
-
-    # Estimate NRtg: start from core's real NRtg, adjust for plugged-in players
-    # Each plugged player contributes based on their pair fit with the core
-    plugged_pids = [p for p in current_pids if p not in core_pids]
-    core_nrtg = core_lineup["raw_nrtg"]
-
-    # For each plugged player: estimate their NRtg contribution using
-    # WOWY pair synergy with the core players, amplified if they're in an expanded role
-    adj = 0.0
-    for plug_pid in plugged_pids:
+    def _compute_plug_adj(plug_pid, full_pids):
+        """Compute NRtg adjustment for a plugged-in player using WOWY + role amplification."""
         # WOWY signal: average pair synergy with every core player
         plug_fits = []
         for cp in core_lineup["player_ids"]:
             key = (min(plug_pid, cp), max(plug_pid, cp))
             pair_data = pair_lookup.get(key)
-            plug_fits.append(pair_data["syn"] if pair_data else 50.0)
-        wowy_with_core = sum(plug_fits) / len(plug_fits) if plug_fits else 50.0
+            plug_fits.append(pair_data["syn"] if pair_data else 45.0)
+        wowy_with_core = sum(plug_fits) / len(plug_fits) if plug_fits else 45.0
 
         # Elevated role: if projected minutes >> season average,
         # this player shares more court time with the core → WOWY data is more predictive
@@ -1759,19 +1737,76 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
 
         # Small DS kicker (raw player quality vs lineup avg)
         ds = player_ds_dict.get(plug_pid, 50)
-        team_avg = sum(player_ds_dict.get(p, 50) for p in current_pids) / 5
+        team_avg = sum(player_ds_dict.get(p, 50) for p in full_pids) / 5
         ds_adj = (ds - team_avg) * 0.03 / 5.0
 
-        adj += wowy_adj + ds_adj
+        return wowy_adj + ds_adj
 
-    return [{
-        "player_ids": current_pids,
-        "raw_nrtg": core_nrtg + adj,
-        "possessions": core_lineup["possessions"],
-        "historical_minutes": core_lineup["historical_minutes"],
-        "group_size": 5,
-        "base_group": core_lineup["group_size"],  # track what we built from
-    }]
+    if n_missing == 1:
+        # 4-man core → plug 1: return up to 3 lineup variants
+        scored = [(c, _score_candidate(c, list(core_pids))) for c in candidates]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        top_picks = scored[:3]
+
+        results = []
+        for pick_pid, _ in top_picks:
+            full_pids = list(core_pids) + [pick_pid]
+            adj = _compute_plug_adj(pick_pid, full_pids)
+            results.append({
+                "player_ids": full_pids,
+                "raw_nrtg": core_lineup["raw_nrtg"] + adj,
+                "possessions": core_lineup["possessions"],
+                "historical_minutes": core_lineup["historical_minutes"],
+                "group_size": 5,
+                "base_group": core_lineup["group_size"],
+            })
+        return results
+
+    else:
+        # 3-man or 2-man core → plug multiple slots
+        # Generate up to 3 lineup variants by varying the first plug choice
+        # then greedily filling the rest
+        first_slot_scored = [(c, _score_candidate(c, list(core_pids))) for c in candidates]
+        first_slot_scored.sort(key=lambda x: x[1], reverse=True)
+        first_picks = first_slot_scored[:3]
+
+        results = []
+        for first_pid, _ in first_picks:
+            current_pids = list(core_pids) + [first_pid]
+            remaining_cands = [c for c in candidates if c != first_pid]
+
+            # Greedily fill remaining slots
+            for _ in range(n_missing - 1):
+                best_pid = None
+                best_fit = -999
+                for cand in remaining_cands:
+                    if cand in current_pids:
+                        continue
+                    total_fit = _score_candidate(cand, current_pids)
+                    if total_fit > best_fit:
+                        best_fit = total_fit
+                        best_pid = cand
+                if best_pid is None:
+                    break
+                current_pids.append(best_pid)
+
+            if len(current_pids) != 5:
+                continue
+
+            # Compute adjustments for ALL plugged players
+            plugged_pids = [p for p in current_pids if p not in core_pids]
+            adj = sum(_compute_plug_adj(pp, current_pids) for pp in plugged_pids)
+
+            results.append({
+                "player_ids": current_pids,
+                "raw_nrtg": core_lineup["raw_nrtg"] + adj,
+                "possessions": core_lineup["possessions"],
+                "historical_minutes": core_lineup["historical_minutes"],
+                "group_size": 5,
+                "base_group": core_lineup["group_size"],
+            })
+
+        return results
 
 
 def _assign_lineup_minutes(all_lineups, projected_minutes):
@@ -1799,7 +1834,13 @@ def _assign_lineup_minutes(all_lineups, projected_minutes):
 
 
 def _compute_pair_composite(player_ids, pair_lookup):
-    """Average pair synergy for all C(5,2)=10 pairs in a 5-man lineup."""
+    """Possession-weighted average pair synergy for all C(N,2) pairs in a lineup.
+
+    Known pairs (with WOWY data) are weighted by their possessions.
+    Unknown pairs (no shared court time data) are treated as slightly negative
+    risk (syn=45) with very low weight (0.1) so they barely affect the average
+    but don't inflate it either.
+    """
     from itertools import combinations
     total_syn = 0.0
     total_w = 0.0
@@ -1810,8 +1851,10 @@ def _compute_pair_composite(player_ids, pair_lookup):
             total_syn += pair_data["syn"] * pair_data["poss"]
             total_w += pair_data["poss"]
         else:
-            total_syn += 50.0
-            total_w += 1.0
+            # Unknown pair: no shared court time data → slight negative risk
+            # Low weight so these don't dominate OR get a free pass
+            total_syn += 45.0 * 0.1
+            total_w += 0.1
     return total_syn / total_w if total_w > 0 else 50.0
 
 
@@ -1857,8 +1900,11 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     """SYN v2: Lineup-simulation synergy model.
 
     Cascading lineup build: 5-man → 4-man → 3-man → 2-man.
-    Start with best available data, plug missing players by archetype fit.
+    Start with best available data, plug missing players by WOWY pair
+    synergy with core players (player ID-based, not archetype-based).
+    Archetypes are only used for scheme interaction multipliers.
     Players sorted by usage rate + minutes (highest first).
+    Depth penalty applied for teams with missing rotation players.
     """
     from config import SCHEME_QUALITY_FACTORS
 
@@ -2001,6 +2047,16 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
 
     weighted_quality = sum(lu["final_quality"] * lu["est_minutes"] for lu in all_lineups)
     syn_score = weighted_quality / total_min
+
+    # ── Depth penalty: missing players reduce lineup flexibility ──
+    # A full rotation is ~10 players. Each missing player regresses SYN
+    # 5% toward neutral (50.0). This penalizes injured teams for losing
+    # depth and lineup options, preventing SYN inflation from survivor bias.
+    n_available = len(avail_set)
+    n_full_rotation = 10
+    n_missing = max(0, n_full_rotation - n_available)
+    depth_penalty = n_missing * 0.05  # 5% regression per missing player
+    syn_score = syn_score * (1.0 - depth_penalty) + 50.0 * depth_penalty
 
     return max(0.0, min(100.0, syn_score))
 
