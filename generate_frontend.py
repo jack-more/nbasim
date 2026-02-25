@@ -58,6 +58,11 @@ _load_value_scores()
 # Maps player_id → adjusted composite (0-100) reflecting who's actually OUT.
 _INJURY_ADJUSTED_VS = {}
 
+# ─── Top WOWY Partners Cache ────────────────────────────────────
+# Maps player_id → [(partner_name, syn_score, poss), ...] top 3 by syn
+_PLAYER_TOP_PAIRS = {}
+_PID_NAMES = {}  # player_id → full_name lookup
+
 
 def _build_injury_adjusted_cache(matchups):
     """Recompute synergy-based composite values excluding OUT players.
@@ -66,8 +71,10 @@ def _build_injury_adjusted_cache(matchups):
     OUT players and recomposes the composite. Result stored in
     _INJURY_ADJUSTED_VS so matchup-card DS reflects tonight's rotation.
     """
-    global _INJURY_ADJUSTED_VS
+    global _INJURY_ADJUSTED_VS, _PLAYER_TOP_PAIRS, _PID_NAMES
     _INJURY_ADJUSTED_VS = {}
+    _PLAYER_TOP_PAIRS = {}
+    _PID_NAMES = {}
 
     from config import (
         SYNERGY_WEIGHTS, BASE_VALUE_WEIGHT, ARCHETYPE_FIT_WEIGHT,
@@ -242,6 +249,41 @@ def _build_injury_adjusted_cache(matchups):
             adj_composite = max(vs["composite"] - 15, min(vs["composite"] + 15, adj_composite))
 
             _INJURY_ADJUSTED_VS[pid] = adj_composite
+
+    # ── Build player name lookup + top WOWY partners ──
+    all_pids = set()
+    for (t, pid) in team_player_pairs.keys():
+        all_pids.add(pid)
+        for partner_id, syn, poss in team_player_pairs[(t, pid)]:
+            all_pids.add(partner_id)
+
+    if all_pids:
+        pid_list = list(all_pids)
+        ph = ",".join("?" * len(pid_list))
+        names_df = read_query(
+            f"SELECT player_id, full_name FROM players WHERE player_id IN ({ph})",
+            DB_PATH, pid_list
+        )
+        if not names_df.empty:
+            for _, row in names_df.iterrows():
+                _PID_NAMES[int(row["player_id"])] = row["full_name"]
+
+    # For each player, find top 3 WOWY partners by synergy score (min 10 poss)
+    seen = set()
+    for (t, pid), partners in team_player_pairs.items():
+        if pid in seen:
+            continue
+        seen.add(pid)
+        qualified = [(p, syn, poss) for p, syn, poss in partners if poss >= 10]
+        qualified.sort(key=lambda x: x[1], reverse=True)
+        top3 = []
+        for partner_id, syn, poss in qualified[:3]:
+            pname = _PID_NAMES.get(partner_id, f"#{partner_id}")
+            parts = pname.split()
+            short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else pname
+            top3.append(f"{short} ({syn:+.1f} SYN, {int(poss)} poss)")
+        if top3:
+            _PLAYER_TOP_PAIRS[pid] = top3
 
 
 # ─── NBA Team Colors ───────────────────────────────────────────────
@@ -3082,8 +3124,9 @@ def get_fade_combos():
 
 
 def get_lab_data():
-    """Build LAB_DATA JSON for the Lineup Lab tab — rosters, pair synergies, combo data.
+    """Build LAB_DATA JSON for the WOWY Explorer tab — rosters, pair synergies, combo data.
     All data baked at build time for client-side interactivity."""
+    from collections import defaultdict
 
     # Rosters grouped by team abbreviation
     rosters_df = read_query("""
@@ -3113,71 +3156,102 @@ def get_lab_data():
             "archetype": row.get("archetype_label") or "Unclassified",
         })
 
-    # Pair synergy data
+    # Build PID → name lookup for all roster players
+    pid_names = {}
+    for team_players in rosters.values():
+        for p in team_players:
+            pid_names[p["id"]] = p["name"]
+
+    # Pair synergy data — add team_id for team grouping
     pairs_df = read_query("""
         SELECT player_a_id, player_b_id, synergy_score, net_rating,
-               minutes_together, possessions
+               minutes_together, possessions, team_id
         FROM pair_synergy
         WHERE season_id = '2025-26'
     """, DB_PATH)
 
     pairs = {}
+    # Team-grouped pairs for WOWY explorer: team_abbr → [{players, nrtg, min, poss, syn}]
+    team_pairs = defaultdict(list)
+    # Reverse team_id → abbr
+    tid_to_abbr = {v: k for k, v in TEAM_IDS.items()}
+
     for _, row in pairs_df.iterrows():
         a = int(row["player_a_id"])
         b = int(row["player_b_id"])
         key = f"{a}-{b}"
+        syn_val = round(float(row["synergy_score"] or 50), 1)
+        nrtg_val = round(float(row["net_rating"] or 0), 1)
+        min_val = round(float(row["minutes_together"] or 0), 1)
+        poss_val = round(float(row["possessions"] or 0), 0)
         pairs[key] = {
-            "syn": round(float(row["synergy_score"] or 50), 1),
-            "nrtg": round(float(row["net_rating"] or 0), 1),
-            "min": round(float(row["minutes_together"] or 0), 1),
-            "poss": round(float(row["possessions"] or 0), 0),
+            "syn": syn_val, "nrtg": nrtg_val,
+            "min": min_val, "poss": poss_val,
         }
+        tid = int(row.get("team_id", 0) or 0)
+        abbr = tid_to_abbr.get(tid, "")
+        if abbr and min_val > 0:
+            name_a = pid_names.get(a, f"#{a}")
+            name_b = pid_names.get(b, f"#{b}")
+            team_pairs[abbr].append({
+                "pids": [a, b],
+                "names": [name_a, name_b],
+                "nrtg": nrtg_val, "min": min_val,
+                "poss": int(poss_val), "syn": syn_val,
+            })
 
-    # 3-man combo data
-    combos_3 = {}
-    threes = read_query("""
-        SELECT player_ids, net_rating, minutes, gp
-        FROM lineup_stats
-        WHERE season_id = '2025-26' AND group_quantity = 3
-              AND net_rating IS NOT NULL AND minutes > 5
-    """, DB_PATH)
-    for _, row in threes.iterrows():
-        pids = sorted(json.loads(row["player_ids"]))
-        key = "-".join(str(p) for p in pids)
-        combos_3[key] = {
-            "nrtg": round(float(row["net_rating"]), 1),
-            "min": round(float(row["minutes"]), 1),
-            "gp": int(row["gp"] or 0),
-        }
+    # N-man combo data — 2, 3, 4, 5
+    combos = {"2": {}, "3": {}, "4": {}, "5": {}}
+    team_combos = {"2": defaultdict(list), "3": defaultdict(list),
+                   "4": defaultdict(list), "5": defaultdict(list)}
 
-    # 5-man combo data
-    combos_5 = {}
-    fives = read_query("""
-        SELECT player_ids, net_rating, minutes, gp
-        FROM lineup_stats
-        WHERE season_id = '2025-26' AND group_quantity = 5
-              AND net_rating IS NOT NULL AND minutes > 5
-    """, DB_PATH)
-    for _, row in fives.iterrows():
-        pids = sorted(json.loads(row["player_ids"]))
-        key = "-".join(str(p) for p in pids)
-        combos_5[key] = {
-            "nrtg": round(float(row["net_rating"]), 1),
-            "min": round(float(row["minutes"]), 1),
-            "gp": int(row["gp"] or 0),
-        }
+    for n in [2, 3, 4, 5]:
+        df = read_query(f"""
+            SELECT player_ids, net_rating, minutes, gp, team_id
+            FROM lineup_stats
+            WHERE season_id = '2025-26' AND group_quantity = {n}
+                  AND net_rating IS NOT NULL AND minutes > 5
+        """, DB_PATH)
+        for _, row in df.iterrows():
+            try:
+                pids = sorted(json.loads(row["player_ids"]))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+            key = "-".join(str(p) for p in pids)
+            nrtg_val = round(float(row["net_rating"]), 1)
+            min_val = round(float(row["minutes"]), 1)
+            gp_val = int(row["gp"] or 0)
+            combos[str(n)][key] = {
+                "nrtg": nrtg_val, "min": min_val, "gp": gp_val,
+            }
+            tid = int(row.get("team_id", 0) or 0)
+            abbr = tid_to_abbr.get(tid, "")
+            if abbr:
+                names = [pid_names.get(p, f"#{p}") for p in pids]
+                team_combos[str(n)][abbr].append({
+                    "pids": pids, "names": names,
+                    "nrtg": nrtg_val, "min": min_val, "gp": gp_val,
+                })
 
     return {
         "rosters": rosters,
         "pairs": pairs,
-        "combos_3": combos_3,
-        "combos_5": combos_5,
+        "combos_3": combos["3"],
+        "combos_5": combos["5"],
+        "team_pairs": dict(team_pairs),
+        "team_combos": {k: dict(v) for k, v in team_combos.items()},
     }
 
 
 def build_lab_html(lab_data):
-    """Build the Lineup Lab HTML + inline JS for interactive team/player selection."""
-    lab_json = json.dumps(lab_data, separators=(",", ":"))
+    """Build the WOWY Explorer HTML + inline JS — DataBallr-inspired lineup data browser."""
+    # Prepare WOWY data: team_pairs + team_combos (2/3/4/5-man)
+    wowy_data = {
+        "rosters": lab_data["rosters"],
+        "pairs": lab_data.get("team_pairs", {}),
+        "combos": lab_data.get("team_combos", {}),
+    }
+    wowy_json = json.dumps(wowy_data, separators=(",", ":"))
 
     # Build team options
     team_options = ""
@@ -3186,215 +3260,229 @@ def build_lab_html(lab_data):
         team_options += f'<option value="{abbr}">{abbr} — {name}</option>\n'
 
     return f"""
-    <div class="lab-container">
-        <div class="lab-team-chooser">
-            <label class="lab-label">TEAM</label>
-            <select id="labTeamSelect" class="lab-select" onchange="labTeamChange()">
-                <option value="">Select a team...</option>
-                {team_options}
-            </select>
-        </div>
-
-        <div class="lab-slots" id="labSlots" style="display:none">
-            <div class="lab-slot-row">
-                <div class="lab-slot">
-                    <label class="lab-label">SLOT 1</label>
-                    <select id="labPlayer1" class="lab-select lab-player-select" onchange="labUpdate()">
-                        <option value="">—</option>
-                    </select>
-                </div>
-                <div class="lab-slot">
-                    <label class="lab-label">SLOT 2</label>
-                    <select id="labPlayer2" class="lab-select lab-player-select" onchange="labUpdate()">
-                        <option value="">—</option>
-                    </select>
-                </div>
-                <div class="lab-slot">
-                    <label class="lab-label">SLOT 3</label>
-                    <select id="labPlayer3" class="lab-select lab-player-select" onchange="labUpdate()">
-                        <option value="">—</option>
-                    </select>
-                </div>
+    <div class="wowy-container">
+        <div class="wowy-controls">
+            <div class="wowy-team-chooser">
+                <label class="wowy-label">TEAM</label>
+                <select id="wowyTeamSelect" class="wowy-select" onchange="wowyTeamChange()">
+                    <option value="">Select a team...</option>
+                    {team_options}
+                </select>
             </div>
-            <div class="lab-slot-row">
-                <div class="lab-slot">
-                    <label class="lab-label">SLOT 4</label>
-                    <select id="labPlayer4" class="lab-select lab-player-select" onchange="labUpdate()">
-                        <option value="">—</option>
-                    </select>
-                </div>
-                <div class="lab-slot">
-                    <label class="lab-label">SLOT 5</label>
-                    <select id="labPlayer5" class="lab-select lab-player-select" onchange="labUpdate()">
-                        <option value="">—</option>
-                    </select>
-                </div>
+            <div class="wowy-tabs" id="wowyTabs" style="display:none">
+                <button class="wowy-tab active" data-n="2" onclick="wowySetTab(2)">2-MAN</button>
+                <button class="wowy-tab" data-n="3" onclick="wowySetTab(3)">3-MAN</button>
+                <button class="wowy-tab" data-n="4" onclick="wowySetTab(4)">4-MAN</button>
+                <button class="wowy-tab" data-n="5" onclick="wowySetTab(5)">5-MAN</button>
             </div>
         </div>
 
-        <div class="lab-results" id="labResults" style="display:none">
-            <div class="lab-results-inner" id="labResultsInner"></div>
+        <div class="wowy-filters" id="wowyFilters" style="display:none">
+            <div class="wowy-filter-label">FILTER BY PLAYER</div>
+            <div class="wowy-chips" id="wowyChips"></div>
+        </div>
+
+        <div class="wowy-table-wrap" id="wowyTableWrap" style="display:none">
+            <table class="wowy-table" id="wowyTable">
+                <thead>
+                    <tr>
+                        <th class="wowy-th-players" onclick="wowySort('players')">PLAYERS</th>
+                        <th class="wowy-th-nrtg wowy-sortable" onclick="wowySort('nrtg')">NRtg</th>
+                        <th class="wowy-th-min wowy-sortable active-sort" onclick="wowySort('min')">MIN ▼</th>
+                        <th class="wowy-th-poss wowy-sortable" onclick="wowySort('poss')">POSS</th>
+                        <th class="wowy-th-gp wowy-sortable" onclick="wowySort('gp')">GP</th>
+                    </tr>
+                </thead>
+                <tbody id="wowyBody"></tbody>
+            </table>
+        </div>
+
+        <div class="wowy-empty" id="wowyEmpty">
+            <div class="wowy-empty-icon">📊</div>
+            <div class="wowy-empty-text">Select a team to explore lineup combinations</div>
         </div>
     </div>
 
     <script>
-    const LAB_DATA = {lab_json};
+    const WOWY_DATA = {wowy_json};
+    let wowyCurrentTeam = '';
+    let wowyCurrentN = 2;
+    let wowyCurrentSort = 'min';
+    let wowySortDir = -1; // -1 = desc
+    let wowyActiveFilters = new Set();
 
-    function labTeamChange() {{
-        const team = document.getElementById('labTeamSelect').value;
-        const slotsDiv = document.getElementById('labSlots');
-        const resultsDiv = document.getElementById('labResults');
+    function wowyTeamChange() {{
+        wowyCurrentTeam = document.getElementById('wowyTeamSelect').value;
+        wowyActiveFilters.clear();
 
-        if (!team) {{
-            slotsDiv.style.display = 'none';
-            resultsDiv.style.display = 'none';
+        if (!wowyCurrentTeam) {{
+            document.getElementById('wowyTabs').style.display = 'none';
+            document.getElementById('wowyFilters').style.display = 'none';
+            document.getElementById('wowyTableWrap').style.display = 'none';
+            document.getElementById('wowyEmpty').style.display = 'block';
             return;
         }}
 
-        slotsDiv.style.display = 'block';
-        const roster = LAB_DATA.rosters[team] || [];
+        document.getElementById('wowyTabs').style.display = 'flex';
+        document.getElementById('wowyFilters').style.display = 'block';
+        document.getElementById('wowyTableWrap').style.display = 'block';
+        document.getElementById('wowyEmpty').style.display = 'none';
 
-        // Populate all 5 player selects
-        for (let i = 1; i <= 5; i++) {{
-            const sel = document.getElementById('labPlayer' + i);
-            sel.innerHTML = '<option value="">—</option>';
-            roster.forEach(p => {{
-                sel.innerHTML += '<option value="' + p.id + '">' + p.name + ' (DS ' + p.ds + ')</option>';
+        // Build player filter chips
+        const roster = WOWY_DATA.rosters[wowyCurrentTeam] || [];
+        const chipsDiv = document.getElementById('wowyChips');
+        chipsDiv.innerHTML = '';
+        roster.forEach(p => {{
+            const chip = document.createElement('button');
+            chip.className = 'wowy-chip';
+            chip.textContent = p.name.split(' ').pop();
+            chip.dataset.pid = p.id;
+            chip.onclick = () => wowyToggleFilter(p.id, chip);
+            chipsDiv.appendChild(chip);
+        }});
+
+        wowyRender();
+    }}
+
+    function wowySetTab(n) {{
+        wowyCurrentN = n;
+        document.querySelectorAll('.wowy-tab').forEach(b => b.classList.remove('active'));
+        document.querySelector('.wowy-tab[data-n="' + n + '"]').classList.add('active');
+
+        // Update table header — pairs show SYN column instead of GP
+        const headers = document.querySelectorAll('#wowyTable thead th');
+        if (n === 2) {{
+            headers[3].textContent = 'POSS';
+            headers[3].onclick = () => wowySort('poss');
+            headers[4].textContent = 'SYN';
+            headers[4].onclick = () => wowySort('syn');
+        }} else {{
+            headers[3].textContent = 'POSS';
+            headers[3].onclick = () => wowySort('poss');
+            headers[4].textContent = 'GP';
+            headers[4].onclick = () => wowySort('gp');
+        }}
+
+        wowyRender();
+    }}
+
+    function wowyToggleFilter(pid, chip) {{
+        if (wowyActiveFilters.has(pid)) {{
+            wowyActiveFilters.delete(pid);
+            chip.classList.remove('active');
+        }} else {{
+            wowyActiveFilters.add(pid);
+            chip.classList.add('active');
+        }}
+        wowyRender();
+    }}
+
+    function wowySort(col) {{
+        if (wowyCurrentSort === col) {{
+            wowySortDir *= -1;
+        }} else {{
+            wowyCurrentSort = col;
+            wowySortDir = -1;
+        }}
+
+        // Update sort indicators
+        document.querySelectorAll('#wowyTable thead th').forEach(th => {{
+            th.classList.remove('active-sort');
+            const text = th.textContent.replace(/ [▲▼]$/, '');
+            th.textContent = text;
+        }});
+
+        wowyRender();
+    }}
+
+    function wowyRender() {{
+        const team = wowyCurrentTeam;
+        const n = wowyCurrentN;
+        let rows = [];
+
+        if (n === 2) {{
+            // Use pair data
+            const pairs = WOWY_DATA.pairs[team] || [];
+            rows = pairs.map(p => ({{
+                names: p.names,
+                pids: p.pids,
+                nrtg: p.nrtg,
+                min: p.min,
+                poss: p.poss,
+                gp: 0,
+                syn: p.syn,
+            }}));
+        }} else {{
+            // Use combo data
+            const combos = (WOWY_DATA.combos[String(n)] || {{}})[team] || [];
+            rows = combos.map(c => ({{
+                names: c.names,
+                pids: c.pids,
+                nrtg: c.nrtg,
+                min: c.min,
+                poss: 0,
+                gp: c.gp,
+                syn: 0,
+            }}));
+        }}
+
+        // Filter by active player chips (AND logic)
+        if (wowyActiveFilters.size > 0) {{
+            rows = rows.filter(r => {{
+                for (const pid of wowyActiveFilters) {{
+                    if (!r.pids.includes(pid)) return false;
+                }}
+                return true;
             }});
         }}
 
-        resultsDiv.style.display = 'none';
-        document.getElementById('labResultsInner').innerHTML = '';
-    }}
+        // Sort
+        const col = wowyCurrentSort;
+        rows.sort((a, b) => {{
+            const av = a[col] || 0;
+            const bv = b[col] || 0;
+            return (av - bv) * wowySortDir;
+        }});
 
-    function labUpdate() {{
-        const ids = [];
-        for (let i = 1; i <= 5; i++) {{
-            const v = document.getElementById('labPlayer' + i).value;
-            if (v) ids.push(parseInt(v));
+        // Update sort arrow in header
+        const headers = document.querySelectorAll('#wowyTable thead th');
+        const colMap = {{'players': 0, 'nrtg': 1, 'min': 2, 'poss': 3, 'gp': 4, 'syn': 4}};
+        const idx = colMap[col];
+        if (idx !== undefined && headers[idx]) {{
+            headers[idx].classList.add('active-sort');
+            const text = headers[idx].textContent.replace(/ [▲▼]$/, '');
+            headers[idx].textContent = text + (wowySortDir === -1 ? ' ▼' : ' ▲');
         }}
 
-        const resultsDiv = document.getElementById('labResults');
-        const inner = document.getElementById('labResultsInner');
-
-        if (ids.length < 2) {{
-            resultsDiv.style.display = 'none';
-            inner.innerHTML = '';
+        // Render rows
+        const tbody = document.getElementById('wowyBody');
+        if (rows.length === 0) {{
+            tbody.innerHTML = '<tr><td colspan="5" class="wowy-nodata">No lineup data available</td></tr>';
             return;
         }}
 
-        resultsDiv.style.display = 'block';
         let html = '';
+        rows.forEach(r => {{
+            const nrtgColor = r.nrtg >= 0 ? '#00FF55' : '#FF3333';
+            const nrtgSign = r.nrtg >= 0 ? '+' : '';
+            const shortNames = r.names.map(nm => {{
+                const parts = nm.split(' ');
+                return parts.length > 1 ? parts[0][0] + '. ' + parts.slice(1).join(' ') : nm;
+            }}).join(' / ');
 
-        // Player DS cards
-        const team = document.getElementById('labTeamSelect').value;
-        const roster = LAB_DATA.rosters[team] || [];
-        const selected = roster.filter(p => ids.includes(p.id));
-        const avgDS = selected.length ? Math.round(selected.reduce((s, p) => s + p.ds, 0) / selected.length) : 0;
+            const lastCol = n === 2
+                ? '<td class="wowy-td-syn">' + r.syn.toFixed(1) + '</td>'
+                : '<td class="wowy-td-gp">' + r.gp + '</td>';
 
-        html += '<div class="lab-section-title">INDIVIDUAL SCORES</div>';
-        html += '<div class="lab-player-cards">';
-        selected.forEach(p => {{
-            const dsClass = p.ds >= 83 ? 'ds-elite' : p.ds >= 67 ? 'ds-good' : p.ds >= 52 ? 'ds-avg' : 'ds-low';
-            const headshot = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + p.id + '.png';
-            html += '<div class="lab-player-card">' +
-                '<img src="' + headshot + '" class="lab-player-face" onerror="this.style.display=\\'none\\'">' +
-                '<span class="lab-player-name">' + p.name + '</span>' +
-                '<span class="lab-player-arch">' + p.archetype + '</span>' +
-                '<span class="lab-player-ds ' + dsClass + '">' + p.ds + '</span>' +
-                '</div>';
+            html += '<tr class="wowy-row">' +
+                '<td class="wowy-td-players">' + shortNames + '</td>' +
+                '<td class="wowy-td-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + r.nrtg.toFixed(1) + '</td>' +
+                '<td class="wowy-td-min">' + r.min.toFixed(1) + '</td>' +
+                '<td class="wowy-td-poss">' + (n === 2 ? r.poss : '—') + '</td>' +
+                lastCol +
+                '</tr>';
         }});
-        html += '</div>';
-        html += '<div class="lab-avg-ds">AVG DS: <strong>' + avgDS + '</strong></div>';
-
-        // Pair synergy matrix
-        html += '<div class="lab-section-title">PAIR SYNERGY</div>';
-        html += '<div class="lab-pair-grid">';
-        for (let i = 0; i < ids.length; i++) {{
-            for (let j = i + 1; j < ids.length; j++) {{
-                const a = Math.min(ids[i], ids[j]);
-                const b = Math.max(ids[i], ids[j]);
-                const key = a + '-' + b;
-                const pair = LAB_DATA.pairs[key];
-                const pA = roster.find(p => p.id === ids[i]);
-                const pB = roster.find(p => p.id === ids[j]);
-                const nameA = pA ? pA.name.split(' ').pop() : ids[i];
-                const nameB = pB ? pB.name.split(' ').pop() : ids[j];
-
-                if (pair) {{
-                    const synClass = pair.syn >= 70 ? 'syn-high' : pair.syn >= 45 ? 'syn-mid' : 'syn-low';
-                    const nrtgColor = pair.nrtg >= 0 ? '#00FF55' : '#FF3333';
-                    const nrtgSign = pair.nrtg >= 0 ? '+' : '';
-                    html += '<div class="lab-pair-card">' +
-                        '<div class="lab-pair-names">' + nameA + ' + ' + nameB + '</div>' +
-                        '<div class="lab-pair-syn ' + synClass + '">SYN ' + pair.syn + '</div>' +
-                        '<div class="lab-pair-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + pair.nrtg + ' NRtg</div>' +
-                        '<div class="lab-pair-min">' + pair.min + ' min</div>' +
-                        '</div>';
-                }} else {{
-                    html += '<div class="lab-pair-card lab-pair-nodata">' +
-                        '<div class="lab-pair-names">' + nameA + ' + ' + nameB + '</div>' +
-                        '<div class="lab-pair-syn">NO DATA</div>' +
-                        '</div>';
-                }}
-            }}
-        }}
-        html += '</div>';
-
-        // 3-man combo (if 3+ selected)
-        if (ids.length >= 3) {{
-            html += '<div class="lab-section-title">3-MAN COMBOS</div>';
-            html += '<div class="lab-combo-list">';
-            const sorted3 = ids.slice().sort((a, b) => a - b);
-            // Check all 3-combinations
-            let found3 = false;
-            for (let i = 0; i < sorted3.length; i++) {{
-                for (let j = i + 1; j < sorted3.length; j++) {{
-                    for (let k = j + 1; k < sorted3.length; k++) {{
-                        const key3 = sorted3[i] + '-' + sorted3[j] + '-' + sorted3[k];
-                        const combo = LAB_DATA.combos_3[key3];
-                        if (combo) {{
-                            found3 = true;
-                            const p1 = roster.find(p => p.id === sorted3[i]);
-                            const p2 = roster.find(p => p.id === sorted3[j]);
-                            const p3 = roster.find(p => p.id === sorted3[k]);
-                            const names = [p1, p2, p3].map(p => p ? p.name.split(' ').pop() : '?').join(' / ');
-                            const nrtgColor = combo.nrtg >= 0 ? '#00FF55' : '#FF3333';
-                            const nrtgSign = combo.nrtg >= 0 ? '+' : '';
-                            html += '<div class="lab-combo-row">' +
-                                '<span class="lab-combo-names">' + names + '</span>' +
-                                '<span class="lab-combo-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + combo.nrtg + '</span>' +
-                                '<span class="lab-combo-meta">' + combo.gp + 'G / ' + combo.min + ' min</span>' +
-                                '</div>';
-                        }}
-                    }}
-                }}
-            }}
-            if (!found3) {{
-                html += '<div class="lab-combo-row lab-nodata">No 3-man data available for this combination</div>';
-            }}
-            html += '</div>';
-        }}
-
-        // 5-man unit (if all 5 selected)
-        if (ids.length === 5) {{
-            html += '<div class="lab-section-title">5-MAN UNIT</div>';
-            const sorted5 = ids.slice().sort((a, b) => a - b);
-            const key5 = sorted5.join('-');
-            const unit = LAB_DATA.combos_5[key5];
-            if (unit) {{
-                const nrtgColor = unit.nrtg >= 0 ? '#00FF55' : '#FF3333';
-                const nrtgSign = unit.nrtg >= 0 ? '+' : '';
-                html += '<div class="lab-unit-card">' +
-                    '<div class="lab-unit-nrtg" style="color:' + nrtgColor + '">' + nrtgSign + unit.nrtg + ' NRtg</div>' +
-                    '<div class="lab-unit-meta">' + unit.gp + ' games // ' + unit.min + ' minutes</div>' +
-                    '</div>';
-            }} else {{
-                html += '<div class="lab-unit-card lab-nodata">No 5-man data for this exact lineup</div>';
-            }}
-        }}
-
-        inner.innerHTML = html;
+        tbody.innerHTML = html;
     }}
     </script>
     """
@@ -4104,7 +4192,7 @@ def generate_html():
             <button class="filter-btn active" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Stats</button>
             <button class="filter-btn" data-tab="trends">Trends</button>
-            <button class="filter-btn" data-tab="lab">Lab</button>
+            <button class="filter-btn" data-tab="lab">WOWY</button>
             <button class="filter-btn" data-tab="info">Info</button>
         </div>
     </div>
@@ -4223,11 +4311,11 @@ def generate_html():
             </div>
         </div>
 
-        <!-- LAB TAB -->
+        <!-- WOWY TAB -->
         <div class="tab-content" id="tab-lab">
             <div class="section-header">
-                <h2>LINEUP LAB</h2>
-                <span class="section-sub">Build a custom lineup — see pair synergy data</span>
+                <h2>WOWY EXPLORER</h2>
+                <span class="section-sub">With Or Without You — explore lineup combinations by team</span>
             </div>
             {lab_html}
         </div>
@@ -4254,8 +4342,8 @@ def generate_html():
             <span>TRENDS</span>
         </button>
         <button class="nav-btn" data-tab="lab">
-            <span class="nav-icon">🧪</span>
-            <span>LAB</span>
+            <span class="nav-icon">📊</span>
+            <span>WOWY</span>
         </button>
         <button class="nav-btn" data-tab="info">
             <span class="nav-icon">ℹ️</span>
@@ -4336,7 +4424,7 @@ def render_matchup_card(m, idx, team_map):
         else:
             edge_team = ""
 
-        sim_proj_html = f'<div class="mc-sim-proj">{sim_fav_team} {sim_fav_spread:+.1f} (SIM) · EDGE {edge_abs:.1f} {edge_team}</div>'
+        sim_proj_html = f'<div class="mc-sim-proj ma-premium">{sim_fav_team} {sim_fav_spread:+.1f} (SIM) · EDGE {edge_abs:.1f} {edge_team}</div>'
     else:
         sim_proj_html = ""
 
@@ -4587,7 +4675,7 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-val">{ha} {home_syn:.1f}</span>
                 <span class="dsi-edge-sm">{syn_fav} {syn_fav_val}</span>
             </div>
-            <div class="dsi-row dsi-model-row">
+            <div class="dsi-row dsi-model-row ma-premium">
                 <span class="dsi-label">MODEL</span>
                 <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
@@ -4610,9 +4698,9 @@ def render_matchup_card(m, idx, team_map):
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread" style="color:{edge_color}">{spread_display}{spread_tag}</div>
+                <div class="mc-spread ma-premium" style="color:{edge_color}">{spread_display}{spread_tag}</div>
                 <div class="mc-total">O/U {total:.1f}{total_tag}</div>
-                <div class="mc-pick"><span class="pick-label">SPREAD</span> {pick_text} <span class="mc-conf-num" style="color:{conf_color}">{conf_10}</span></div>
+                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> {pick_text} <span class="mc-conf-num" style="color:{conf_color}">{conf_10}</span></div>
                 {implied_html}
                 {sim_proj_html}
             </div>
@@ -4717,6 +4805,10 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
         status_class = "player-gtd"
         status_badge = '<span class="rw-status-badge rw-gtd">GTD</span>'
 
+    # Top WOWY partners for enhanced player card
+    top_pairs = _PLAYER_TOP_PAIRS.get(pid, [])
+    top_pairs_json = json.dumps(top_pairs).replace('"', '&quot;')
+
     return f"""
     <div class="player-row {starter_class} {status_class}" onclick="openPlayerSheet(this)"
          data-name="{name}" data-arch="{arch}" data-ds="{ds}" data-range="{low}-{high}"
@@ -4729,7 +4821,8 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
          data-impact-pct="{bd['impact_c']}"
          data-raw-ds="{bd.get('raw_ds', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
          data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
-         data-inj-delta="{inj_delta}">
+         data-inj-delta="{inj_delta}"
+         data-top-pairs="{top_pairs_json}">
         <img src="{headshot}" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
             <span class="pr-name">{short} {status_badge}</span>
@@ -6173,214 +6266,125 @@ def generate_css():
             padding: 4px 8px 8px;
         }
 
-        /* ─── LINEUP LAB ─── */
-        .lab-container {
-            padding: 0 4px;
+        /* ─── WOWY EXPLORER ─── */
+        .wowy-container { padding: 0 4px; }
+        .wowy-controls {
+            display: flex; align-items: flex-end; gap: 12px;
+            margin-bottom: 16px; flex-wrap: wrap;
         }
-        .lab-team-chooser {
-            margin-bottom: 16px;
+        .wowy-team-chooser { flex: 1; min-width: 180px; }
+        .wowy-label {
+            display: block; font-family: var(--font-mono); font-size: 10px;
+            color: rgba(0,0,0,0.5); text-transform: uppercase;
+            letter-spacing: 1px; margin-bottom: 4px;
         }
-        .lab-label {
-            display: block;
-            font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.5);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
+        .wowy-select {
+            width: 100%; padding: 10px 12px;
+            border: 2px solid rgba(0,0,0,0.1); border-radius: 8px;
+            background: #f8f8f8; font-family: var(--font-body);
+            font-size: 14px; font-weight: 600; color: #111;
+            appearance: none; -webkit-appearance: none; cursor: pointer;
         }
-        .lab-select {
-            width: 100%;
-            padding: 10px 12px;
+        .wowy-select:focus { outline: none; border-color: var(--green); }
+        .wowy-tabs {
+            display: flex; gap: 0; border-radius: 8px; overflow: hidden;
             border: 2px solid rgba(0,0,0,0.1);
-            border-radius: 8px;
-            background: #f8f8f8;
-            font-family: var(--font-body);
-            font-size: 14px;
-            font-weight: 600;
-            color: #111;
-            appearance: none;
-            -webkit-appearance: none;
-            cursor: pointer;
         }
-        .lab-select:focus {
-            outline: none;
-            border-color: var(--accent-nba, #00FF55);
+        .wowy-tab {
+            padding: 8px 16px; border: none; background: #f0f0f0;
+            font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+            letter-spacing: 1px; cursor: pointer; color: rgba(0,0,0,0.5);
+            transition: all 0.15s;
         }
-        .lab-slots {
-            margin-bottom: 16px;
+        .wowy-tab.active {
+            background: var(--ink); color: var(--green);
         }
-        .lab-slot-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
+        .wowy-tab:hover:not(.active) { background: #e4e4e4; }
+
+        /* Filter chips */
+        .wowy-filters { margin-bottom: 12px; }
+        .wowy-filter-label {
+            font-family: var(--font-mono); font-size: 10px;
+            color: rgba(0,0,0,0.4); letter-spacing: 1px;
+            margin-bottom: 6px; text-transform: uppercase;
         }
-        .lab-slot {
-            flex: 1;
+        .wowy-chips {
+            display: flex; flex-wrap: wrap; gap: 6px;
         }
-        .lab-player-select {
-            font-size: 12px;
-            padding: 8px 6px;
+        .wowy-chip {
+            padding: 5px 12px; border-radius: 20px;
+            border: 1.5px solid rgba(0,0,0,0.12); background: #f8f8f8;
+            font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s; color: #333;
         }
-        .lab-results {
-            margin-top: 16px;
+        .wowy-chip:hover { border-color: var(--green); }
+        .wowy-chip.active {
+            background: var(--ink); color: var(--green);
+            border-color: var(--green);
         }
-        .lab-section-title {
-            font-family: var(--font-display);
-            font-size: 14px;
-            color: rgba(0,0,0,0.7);
-            letter-spacing: 1px;
-            margin: 20px 0 8px;
-            padding-bottom: 4px;
-            border-bottom: 2px solid rgba(0,0,0,0.06);
+
+        /* Data table */
+        .wowy-table-wrap {
+            overflow-x: auto; border-radius: 10px;
+            border: 2px solid rgba(0,0,0,0.08);
+            -webkit-overflow-scrolling: touch;
         }
-        .lab-player-cards {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+        .wowy-table {
+            width: 100%; border-collapse: collapse;
+            font-family: var(--font-mono); font-size: 12px;
         }
-        .lab-player-card {
-            flex: 1 1 calc(50% - 8px);
-            min-width: 140px;
-            background: #f8f8f8;
-            border-radius: 10px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            border: 2px solid rgba(0,0,0,0.06);
+        .wowy-table thead {
+            position: sticky; top: 0; z-index: 2;
         }
-        .lab-player-face {
-            width: 48px;
-            height: 36px;
-            object-fit: cover;
-            border-radius: 50%;
+        .wowy-table th {
+            background: var(--ink); color: rgba(255,255,255,0.5);
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; padding: 10px 12px;
+            text-align: left; cursor: pointer; user-select: none;
+            white-space: nowrap; transition: color 0.15s;
         }
-        .lab-player-name {
-            font-family: var(--font-body);
+        .wowy-table th:hover { color: rgba(255,255,255,0.8); }
+        .wowy-table th.active-sort { color: var(--green); }
+        .wowy-table td {
+            padding: 10px 12px; border-bottom: 1px solid rgba(0,0,0,0.04);
+            white-space: nowrap;
+        }
+        .wowy-row:hover { background: rgba(0,255,85,0.04); }
+        .wowy-td-players {
+            font-weight: 600; font-size: 11px; color: #222;
+            max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+        }
+        .wowy-td-nrtg { font-weight: 800; }
+        .wowy-td-min { color: rgba(0,0,0,0.5); }
+        .wowy-td-poss { color: rgba(0,0,0,0.4); }
+        .wowy-td-gp { color: rgba(0,0,0,0.4); }
+        .wowy-td-syn {
             font-weight: 700;
-            font-size: 12px;
-            text-align: center;
+            color: #F59E0B;
         }
-        .lab-player-arch {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.4);
+        .wowy-nodata {
+            text-align: center; color: rgba(0,0,0,0.3);
+            font-family: var(--font-mono); padding: 30px 12px !important;
         }
-        .lab-player-ds {
-            font-family: var(--font-display);
-            font-size: 20px;
+
+        /* Empty state */
+        .wowy-empty {
+            text-align: center; padding: 60px 20px;
         }
-        .lab-player-ds.ds-elite { color: #00CC44; }
-        .lab-player-ds.ds-good { color: #0a0a0a; }
-        .lab-player-ds.ds-avg { color: #888; }
-        .lab-player-ds.ds-low { color: #FF3333; }
-        .lab-avg-ds {
-            text-align: center;
-            font-family: var(--font-mono);
-            font-size: 13px;
-            margin: 8px 0;
-            color: rgba(0,0,0,0.6);
+        .wowy-empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .wowy-empty-text {
+            font-family: var(--font-mono); font-size: 13px;
+            color: rgba(0,0,0,0.3); letter-spacing: 0.5px;
         }
-        .lab-pair-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .lab-pair-card {
-            flex: 1 1 calc(50% - 8px);
-            min-width: 140px;
-            background: #f8f8f8;
-            border-radius: 10px;
-            padding: 10px;
-            text-align: center;
-            border: 2px solid rgba(0,0,0,0.06);
-        }
-        .lab-pair-card.lab-pair-nodata {
-            opacity: 0.4;
-        }
-        .lab-pair-names {
-            font-family: var(--font-body);
-            font-weight: 700;
-            font-size: 11px;
-            margin-bottom: 4px;
-        }
-        .lab-pair-syn {
-            font-family: var(--font-display);
-            font-size: 16px;
-            margin-bottom: 2px;
-        }
-        .lab-pair-syn.syn-high { color: #00CC44; }
-        .lab-pair-syn.syn-mid { color: #F59E0B; }
-        .lab-pair-syn.syn-low { color: #FF3333; }
-        .lab-pair-nrtg {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            font-weight: 700;
-        }
-        .lab-pair-min {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.4);
-        }
-        .lab-combo-list {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .lab-combo-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 10px;
-            background: #f8f8f8;
-            border-radius: 8px;
-            border: 2px solid rgba(0,0,0,0.06);
-        }
-        .lab-combo-row.lab-nodata {
-            color: rgba(0,0,0,0.4);
-            font-family: var(--font-mono);
-            font-size: 11px;
-            justify-content: center;
-        }
-        .lab-combo-names {
-            font-family: var(--font-body);
-            font-weight: 600;
-            font-size: 12px;
-            flex: 1;
-        }
-        .lab-combo-nrtg {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            font-weight: 700;
-        }
-        .lab-combo-meta {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            color: rgba(0,0,0,0.4);
-        }
-        .lab-unit-card {
-            text-align: center;
-            padding: 16px;
-            background: #f8f8f8;
-            border-radius: 10px;
-            border: 2px solid rgba(0,0,0,0.06);
-        }
-        .lab-unit-card.lab-nodata {
-            color: rgba(0,0,0,0.4);
-            font-family: var(--font-mono);
-            font-size: 12px;
-        }
-        .lab-unit-nrtg {
-            font-family: var(--font-display);
-            font-size: 28px;
-        }
-        .lab-unit-meta {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            color: rgba(0,0,0,0.4);
-            margin-top: 4px;
+
+        @media (max-width: 600px) {
+            .wowy-controls { flex-direction: column; }
+            .wowy-tabs { width: 100%; }
+            .wowy-tab { flex: 1; padding: 10px 8px; font-size: 10px; text-align: center; }
+            .wowy-td-players { max-width: 140px; font-size: 10px; }
+            .wowy-table td { padding: 8px 8px; font-size: 11px; }
+            .wowy-table th { padding: 8px; font-size: 9px; }
+            .wowy-chip { padding: 4px 10px; font-size: 10px; }
         }
 
         /* ─── BOTTOM SHEET ─── */
@@ -6469,6 +6473,99 @@ def generate_css():
             transition: width 0.4s ease;
         }
         .sheet-bar-pct { font-family: var(--font-mono); font-size: 11px; width: 35px; text-align: right; }
+
+        /* ─── ENHANCED PLAYER CARD (DataBallr-inspired) ─── */
+        .sheet-arch-badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border: 1px solid;
+            border-radius: 3px;
+            margin-top: 4px;
+        }
+        .sheet-meta-sub {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: rgba(255,255,255,0.35);
+            margin-top: 4px;
+        }
+        .sheet-ds-label {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+        }
+        .sheet-role-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-align: center;
+            margin: 8px 0 12px;
+            font-weight: 700;
+        }
+        .sheet-radar-section {
+            text-align: center;
+            margin: 4px 0 8px;
+        }
+        .sheet-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .sheet-stat-cell {
+            text-align: center;
+            padding: 8px 4px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 4px;
+        }
+        .sheet-stat-num {
+            font-family: var(--font-mono);
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .sheet-stat-lbl {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .sheet-pairs-container {
+            margin-bottom: 8px;
+        }
+        .sheet-pair-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .sheet-pair-rank {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,255,85,0.12);
+            color: var(--green);
+            border-radius: 50%;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .sheet-pair-name {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+        }
 
         /* ─── BOTTOM NAV ─── */
         .bottom-nav {
@@ -6806,7 +6903,12 @@ def generate_css():
 
 def generate_js():
     """Generate all JavaScript for tab switching, sorting, expand, bottom sheet."""
-    return """
+    # Build team colors JS object from Python dict (inject at start)
+    tc_entries = ", ".join(f'"{k}":"{v}"' for k, v in TEAM_COLORS.items())
+    tc_line = f"const TEAM_COLORS_JS = {{{tc_entries}}};"
+    return f"""
+        {tc_line}
+""" + """
         // ─── RANKINGS TOGGLE ───
         function toggleRankings() {
             const body = document.getElementById('rankingsBody');
@@ -6883,6 +6985,63 @@ def generate_js():
         const sheet = document.getElementById('bottomSheet');
         const sheetContent = document.getElementById('sheetContent');
 
+        function buildRadarSVG(scoring, playmaking, defense, efficiency, impact) {
+            // 5-axis radar chart — pure SVG, no library
+            const cx = 70, cy = 70, r = 55;
+            const axes = [
+                {label: 'SCR', val: scoring},
+                {label: 'PLY', val: playmaking},
+                {label: 'DEF', val: defense},
+                {label: 'EFF', val: efficiency},
+                {label: 'IMP', val: impact}
+            ];
+            const n = axes.length;
+            const angleStep = (2 * Math.PI) / n;
+            const startAngle = -Math.PI / 2;
+
+            // Grid rings at 25%, 50%, 75%, 100%
+            let gridLines = '';
+            [0.25, 0.5, 0.75, 1.0].forEach(pct => {
+                const pts = [];
+                for (let i = 0; i < n; i++) {
+                    const angle = startAngle + i * angleStep;
+                    pts.push((cx + r * pct * Math.cos(angle)).toFixed(1) + ',' + (cy + r * pct * Math.sin(angle)).toFixed(1));
+                }
+                gridLines += '<polygon points="' + pts.join(' ') + '" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>';
+            });
+
+            // Axis lines
+            let axisLines = '';
+            for (let i = 0; i < n; i++) {
+                const angle = startAngle + i * angleStep;
+                const x2 = cx + r * Math.cos(angle);
+                const y2 = cy + r * Math.sin(angle);
+                axisLines += '<line x1="' + cx + '" y1="' + cy + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>';
+            }
+
+            // Data polygon
+            const dataPts = [];
+            for (let i = 0; i < n; i++) {
+                const angle = startAngle + i * angleStep;
+                const pct = Math.min((axes[i].val || 0) / 100, 1);
+                dataPts.push((cx + r * pct * Math.cos(angle)).toFixed(1) + ',' + (cy + r * pct * Math.sin(angle)).toFixed(1));
+            }
+
+            // Labels
+            let labels = '';
+            for (let i = 0; i < n; i++) {
+                const angle = startAngle + i * angleStep;
+                const lx = cx + (r + 14) * Math.cos(angle);
+                const ly = cy + (r + 14) * Math.sin(angle);
+                labels += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" fill="rgba(255,255,255,0.6)" font-size="8" font-family="JetBrains Mono,monospace">' + axes[i].label + '</text>';
+            }
+
+            return '<svg viewBox="0 0 140 140" width="140" height="140" style="display:block;margin:0 auto">'
+                + gridLines + axisLines
+                + '<polygon points="' + dataPts.join(' ') + '" fill="rgba(0,255,85,0.15)" stroke="#00FF55" stroke-width="1.5"/>'
+                + labels + '</svg>';
+        }
+
         function openPlayerSheet(el) {
             const d = el.dataset;
             const pid = d.pid || '';
@@ -6890,70 +7049,75 @@ def generate_js():
             const netVal = parseFloat(d.net || 0);
             const netColor = netVal >= 0 ? '#00FF55' : '#FF3333';
             const netSign = netVal >= 0 ? '+' : '';
+            const dsVal = parseInt(d.ds || 50);
+            const dsColor = dsVal >= 83 ? '#00FF55' : dsVal >= 67 ? '#4CAF50' : dsVal >= 52 ? '#FF9800' : '#FF3333';
+
+            // Team color lookup
+            const teamColors = TEAM_COLORS_JS;
+            const tc = teamColors[d.team] || '#333';
+
+            // Parse top pairs
+            let topPairs = [];
+            try { topPairs = JSON.parse((d.topPairs || '[]').replace(/&quot;/g, '"')); } catch(e) {}
+            const pairsHtml = topPairs.length > 0 ? topPairs.map((p, i) =>
+                '<div class="sheet-pair-row"><span class="sheet-pair-rank">' + (i+1) + '</span><span class="sheet-pair-name">' + p + '</span></div>'
+            ).join('') : '<div class="sheet-pair-row" style="opacity:0.4">No pair data available</div>';
+
+            // Radar chart
+            const radarSVG = buildRadarSVG(
+                parseFloat(d.scoringPct || 0),
+                parseFloat(d.playmakingPct || 0),
+                parseFloat(d.defensePct || 0),
+                parseFloat(d.efficiencyPct || 0),
+                parseFloat(d.impactPct || 0)
+            );
+
+            // Injury delta section
+            const injDelta = parseInt(d.injDelta || 0);
+            const roleContext = injDelta !== 0
+                ? '<div class="sheet-role-badge" style="background:' + (injDelta > 0 ? 'rgba(0,204,68,0.15);color:#00CC44' : 'rgba(255,51,51,0.15);color:#FF3333') + '">'
+                  + (injDelta > 0 ? '▲ ELEVATED' : '▼ REDUCED') + ' ROLE (' + (injDelta > 0 ? '+' : '') + injDelta + ' DS)</div>'
+                : '<div class="sheet-role-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4)">STANDARD ROLE</div>';
 
             sheetContent.innerHTML = `
-                <div class="sheet-header">
+                <div class="sheet-header" style="border-left:3px solid ${tc}">
                     ${headshot ? '<img src="' + headshot + '" class="sheet-face" onerror="this.style.display=\\'none\\'">' : ''}
                     <div>
                         <div class="sheet-name">${d.name || '—'}</div>
-                        <div class="sheet-meta">${d.arch || '—'} // ${d.team || '—'}</div>
+                        <div class="sheet-arch-badge" style="border-color:${tc};color:${tc}">${d.arch || '—'}</div>
+                        <div class="sheet-meta-sub">${d.team || '—'} · ${d.mpg || '—'} MPG · DS Range ${d.range || '—'}</div>
                     </div>
-                    <div style="margin-left:auto; text-align:center">
-                        <div class="sheet-ds">${d.ds || '—'}</div>
-                        <div class="sheet-ds-range">${d.range || ''}</div>
+                    <div style="margin-left:auto;text-align:center">
+                        <div class="sheet-ds" style="color:${dsColor}">${d.ds || '—'}</div>
+                        <div class="sheet-ds-label">DS</div>
                     </div>
+                </div>
+
+                ${roleContext}
+
+                <div class="sheet-radar-section">
+                    <div class="sheet-section">DS BREAKDOWN</div>
+                    ${radarSVG}
                 </div>
 
                 <div class="sheet-section">STAT LINE</div>
-                <div class="sheet-stat"><span>Points</span><span class="sheet-stat-val">${d.pts || '—'} ppg</span></div>
-                <div class="sheet-stat"><span>Assists</span><span class="sheet-stat-val">${d.ast || '—'} apg</span></div>
-                <div class="sheet-stat"><span>Rebounds</span><span class="sheet-stat-val">${d.reb || '—'} rpg</span></div>
-                <div class="sheet-stat"><span>Steals / Blocks</span><span class="sheet-stat-val">${d.stl || '—'} / ${d.blk || '—'}</span></div>
-                <div class="sheet-stat"><span>True Shooting</span><span class="sheet-stat-val">${d.ts || '—'}%</span></div>
-                <div class="sheet-stat"><span>Net Rating</span><span class="sheet-stat-val" style="color:${netColor}">${netSign}${netVal.toFixed(1)}</span></div>
-                <div class="sheet-stat"><span>Usage Rate</span><span class="sheet-stat-val">${d.usg || '—'}%</span></div>
-                <div class="sheet-stat"><span>Minutes</span><span class="sheet-stat-val">${d.mpg || '—'} mpg</span></div>
+                <div class="sheet-stat-grid">
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.pts || '—'}</div><div class="sheet-stat-lbl">PTS</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.ast || '—'}</div><div class="sheet-stat-lbl">AST</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.reb || '—'}</div><div class="sheet-stat-lbl">REB</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.ts || '—'}%</div><div class="sheet-stat-lbl">TS%</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.usg || '—'}%</div><div class="sheet-stat-lbl">USG</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num" style="color:${netColor}">${netSign}${netVal.toFixed(1)}</div><div class="sheet-stat-lbl">NET</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.stl || '—'}</div><div class="sheet-stat-lbl">STL</div></div>
+                    <div class="sheet-stat-cell"><div class="sheet-stat-num">${d.blk || '—'}</div><div class="sheet-stat-lbl">BLK</div></div>
+                </div>
 
-                <div class="sheet-section">SCORE BREAKDOWN</div>
-                <div class="sheet-bar-row">
-                    <span class="sheet-bar-label">Scoring</span>
-                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.scoringPct || 0, 100)}%"></div></div>
-                    <span class="sheet-bar-pct">${Math.round(d.scoringPct || 0)}%</span>
-                </div>
-                <div class="sheet-bar-row">
-                    <span class="sheet-bar-label">Playmaking</span>
-                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.playmakingPct || 0, 100)}%"></div></div>
-                    <span class="sheet-bar-pct">${Math.round(d.playmakingPct || 0)}%</span>
-                </div>
-                <div class="sheet-bar-row">
-                    <span class="sheet-bar-label">Defense</span>
-                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.defensePct || 0, 100)}%"></div></div>
-                    <span class="sheet-bar-pct">${Math.round(d.defensePct || 0)}%</span>
-                </div>
-                <div class="sheet-bar-row">
-                    <span class="sheet-bar-label">Efficiency</span>
-                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.efficiencyPct || 0, 100)}%"></div></div>
-                    <span class="sheet-bar-pct">${Math.round(d.efficiencyPct || 0)}%</span>
-                </div>
-                <div class="sheet-bar-row">
-                    <span class="sheet-bar-label">Impact</span>
-                    <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.impactPct || 0, 100)}%"></div></div>
-                    <span class="sheet-bar-pct">${Math.round(d.impactPct || 0)}%</span>
+                <div class="sheet-section">TOP WOWY PARTNERS</div>
+                <div class="sheet-pairs-container">
+                    ${pairsHtml}
                 </div>
 
                 <div class="sheet-section">CONTEXT FACTORS</div>
-                <div class="sheet-stat">
-                    <span>Raw DS (box score)</span>
-                    <span class="sheet-stat-val">${d.rawDs || d.ds || '—'}</span>
-                </div>
-                <div class="sheet-stat">
-                    <span>Final DS (contextual)</span>
-                    <span class="sheet-stat-val" style="font-weight:900">${d.ds || '—'}</span>
-                </div>
-                ${parseInt(d.injDelta || 0) !== 0 ? `<div class="sheet-stat">
-                    <span>Tonight (injury-adjusted)</span>
-                    <span class="sheet-stat-val" style="color:${parseInt(d.injDelta) < 0 ? '#FF3333' : '#00CC44'}; font-weight:700">${parseInt(d.injDelta) > 0 ? '+' : ''}${d.injDelta} DS due to teammate injuries</span>
-                </div>` : ''}
                 <div class="sheet-bar-row">
                     <span class="sheet-bar-label">WOWY Impact</span>
                     <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.soloImpact || 50, 100)}%; background:#6366F1"></div></div>
