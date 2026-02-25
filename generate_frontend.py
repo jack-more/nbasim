@@ -717,11 +717,10 @@ def compute_spread_and_total(home_data, away_data):
 # Model constants
 _DSI_CONSTANTS = {
     "DS_SCALE":     1.0,    # 1pt DS gap → 1.0 points on spread scale
-    "DSI_WEIGHT":   0.20,   # DSI share in final blend
-    "NRTG_WEIGHT":  0.15,   # adjusted net rating share in final blend
-    "SYN_WEIGHT":   0.45,   # lineup synergy share in final blend (SYN v2)
+    "DSI_WEIGHT":   0.45,   # DSI share in final blend (proven)
+    "NRTG_WEIGHT":  0.35,   # adjusted net rating share in final blend (proven)
+    "SYN_WEIGHT":   0.20,   # lineup synergy share in final blend (SYN v2, unproven — modifier only)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
-    "H2H_WEIGHT":   0.20,   # head-to-head backstop share in final blend
     "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
     "B2B_HOME":     2.0,    # home back-to-back penalty (less severe — still at home)
     "B2B_ROAD":     2.5,    # road back-to-back penalty (travel + fatigue)
@@ -2211,17 +2210,13 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     syn_diff = home_syn - away_syn
     synergy_as_points = syn_diff * K["SYN_SCALE"]
 
-    # ── Head-to-head backstop ──
-    h2h_margin = compute_h2h(home_tid, away_tid)
-
-    # ── Final blend: 45% SYN + 20% DSI + 15% NRtg + 20% H2H ──
+    # ── Final blend: 45% DSI + 35% NRtg + 20% SYN ──
     dsi_diff = home_dsi - away_dsi
     dsi_as_points = dsi_diff * K["DS_SCALE"]
 
-    raw_power = (K["SYN_WEIGHT"] * synergy_as_points +
-                 K["DSI_WEIGHT"] * dsi_as_points +
+    raw_power = (K["DSI_WEIGHT"] * dsi_as_points +
                  K["NRTG_WEIGHT"] * nrtg_diff +
-                 K["H2H_WEIGHT"] * h2h_margin)
+                 K["SYN_WEIGHT"] * synergy_as_points)
 
     proj_spread = -raw_power
     proj_spread = round(proj_spread * 2) / 2  # round to nearest 0.5
@@ -2252,8 +2247,6 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
         "away_syn": round(away_syn, 1),
         "syn_diff": round(syn_diff, 1),
         "syn_pts": round(synergy_as_points, 1),
-        "h2h_margin": round(h2h_margin, 1),
-        "h2h_weighted": round(K["H2H_WEIGHT"] * h2h_margin, 1),
         "home_b2b": home_b2b,
         "away_b2b": away_b2b,
         "home_out": len(home_out_ids),
@@ -2266,7 +2259,6 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     print(f"  [DSI] {away_abbr}@{home_abbr}: DSI {home_dsi:.1f}v{away_dsi:.1f} | "
           f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
           f"SYN {home_syn:.1f}v{away_syn:.1f} | "
-          f"H2H {h2h_margin:+.1f} | "
           f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
           f"OUT: {len(home_out_ids)}h/{len(away_out_ids)}a"
           f"{' B2B:'+home_abbr if home_b2b else ''}{' B2B:'+away_abbr if away_b2b else ''}")
@@ -4504,8 +4496,6 @@ def render_matchup_card(m, idx, team_map):
     away_syn = bd.get("away_syn", 50)
     syn_diff = bd.get("syn_diff", 0)
     syn_pts = bd.get("syn_pts", 0)
-    h2h_margin = bd.get("h2h_margin", 0)
-    h2h_weighted = bd.get("h2h_weighted", 0)
     home_b2b = bd.get("home_b2b", False)
     away_b2b = bd.get("away_b2b", False)
     home_out_n = bd.get("home_out", 0)
@@ -4555,10 +4545,9 @@ def render_matchup_card(m, idx, team_map):
         nrtg_fav_val = ""
 
     # Model weighting computations
-    syn_weighted = 0.45 * syn_pts
-    dsi_weighted = 0.20 * dsi_pts
-    nrtg_weighted = 0.15 * nrtg_diff
-    h2h_display = h2h_margin
+    dsi_weighted = 0.45 * dsi_pts
+    nrtg_weighted = 0.35 * nrtg_diff
+    syn_weighted = 0.20 * syn_pts
     proj_spread_val = m.get("proj_spread", 0)
 
     # Which team SYN favors
@@ -4598,14 +4587,9 @@ def render_matchup_card(m, idx, team_map):
                 <span class="dsi-val">{ha} {home_syn:.1f}</span>
                 <span class="dsi-edge-sm">{syn_fav} {syn_fav_val}</span>
             </div>
-            <div class="dsi-row">
-                <span class="dsi-label">H2H</span>
-                <div class="dsi-mid-spacer"></div>
-                <span class="dsi-val">{ha if h2h_margin >= 0 else aa} {abs(h2h_margin):+.1f} avg margin</span>
-            </div>
             <div class="dsi-row dsi-model-row">
                 <span class="dsi-label">MODEL</span>
-                <span class="dsi-model-formula">45% SYN ({syn_weighted:+.1f}) + 20% DSI ({dsi_weighted:+.1f}) + 15% NRtg ({nrtg_weighted:+.1f}) + 20% H2H ({h2h_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
+                <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="dsi-row dsi-tags">
                 <span class="hca-badge">HCA +2 {ha}</span>
