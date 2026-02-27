@@ -1,33 +1,40 @@
 #!/usr/bin/env python3
 """
-grade_picks.py — Fetch scores, grade picks W/L/P, compute profit.
+grade_picks.py — CSV-based pick tracker with auto-grading.
 
-Reads picks from the picks table (or inserts hardcoded picks if empty),
-fetches completed game scores from The Odds API,
-grades each pick, and writes settlement_results.json.
+Reads picks from data/picks.csv, fetches scores from The Odds API,
+grades ungraded picks W/L/P, updates the CSV in-place.
 
 Usage:
-  python scripts/grade_picks.py
+  python scripts/grade_picks.py                          # Grade pending picks
+  python scripts/grade_picks.py --add "2026-02-26,OKC @ LAL,LAL +3.5,spread,50"
+  python scripts/grade_picks.py --summary                # Just print record
 """
 
-import json
+import csv
 import os
+import re
 import sys
-import sqlite3
 from datetime import datetime, timezone
 
 import requests
 
-# ── Ensure project root is on path ──
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from config import DB_PATH
+# ── Paths ──
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
+RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
 
 # ── API config ──
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 if not ODDS_API_KEY:
-    from dotenv import load_dotenv
-    load_dotenv()
-    ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
+    sys.path.insert(0, PROJECT_ROOT)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+        ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
+    except ImportError:
+        pass
 
 ODDS_TEAM_MAP = {
     "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
@@ -44,86 +51,73 @@ ODDS_TEAM_MAP = {
     "Utah Jazz": "UTA", "Washington Wizards": "WAS",
 }
 
-# ── Starting bankroll ──
-STARTING_BANKROLL = 1000.0
-
-# ── Hardcoded picks (insert once, then read from DB) ──
-CURRENT_PICKS = [
-    # FEB 19 — THURSDAY (Spreads only)
-    {"slate_date": "2026-02-19", "pick_type": "spread", "matchup": "BKN @ CLE",
-     "side": "CLE -16.0", "line_value": 16.0, "direction": "home_spread",
-     "confidence": 10, "risk_amount": 50},
-    {"slate_date": "2026-02-19", "pick_type": "spread", "matchup": "PHX @ SAS",
-     "side": "SAS -8.0", "line_value": 8.0, "direction": "home_spread",
-     "confidence": 7, "risk_amount": 30},
-    # FEB 20 — FRIDAY (Spreads only)
-    {"slate_date": "2026-02-20", "pick_type": "spread", "matchup": "DAL @ MIN",
-     "side": "MIN -12.0", "line_value": 12.0, "direction": "home_spread",
-     "confidence": 9, "risk_amount": 50},
-    {"slate_date": "2026-02-20", "pick_type": "spread", "matchup": "UTA @ MEM",
-     "side": "MEM -4.5", "line_value": 4.5, "direction": "home_spread",
-     "confidence": 7, "risk_amount": 30},
-    # FEB 21 — SATURDAY (DSI Model Leans)
-    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "PHI @ NOP",
-     "side": "NOP +4.0", "line_value": -4.0, "direction": "home_spread",
-     "confidence": 8, "risk_amount": 40},
-    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "SAC @ SAS",
-     "side": "SAS -18.5", "line_value": 18.5, "direction": "home_spread",
-     "confidence": 7, "risk_amount": 30},
-    {"slate_date": "2026-02-21", "pick_type": "spread", "matchup": "HOU @ NYK",
-     "side": "HOU +3.5", "line_value": 3.5, "direction": "away_spread",
-     "confidence": 7, "risk_amount": 30},
-]
+STARTING_BANKROLL = 1150.0
+CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit"]
 
 
-def ensure_picks_in_db():
-    """Insert hardcoded picks into DB if not already there."""
-    from db.schema import create_all_tables
-    create_all_tables(DB_PATH)
+# ── CSV I/O ──────────────────────────────────────────────────────────
 
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    inserted = 0
-    for p in CURRENT_PICKS:
-        try:
-            cur.execute("""
-                INSERT OR IGNORE INTO picks
-                (slate_date, pick_type, matchup, side, player_name, stat_type,
-                 line_value, direction, confidence, risk_amount)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                p["slate_date"], p["pick_type"], p["matchup"], p["side"],
-                p.get("player_name"), p.get("stat_type"),
-                p["line_value"], p["direction"], p["confidence"], p["risk_amount"],
-            ))
-            if cur.rowcount > 0:
-                inserted += 1
-        except sqlite3.IntegrityError:
-            pass
-    conn.commit()
-    conn.close()
-    print(f"Inserted {inserted} new picks into DB")
+def read_picks():
+    """Read all picks from CSV. Returns list of dicts."""
+    if not os.path.exists(PICKS_CSV):
+        print(f"No picks file at {PICKS_CSV}")
+        return []
+    with open(PICKS_CSV, newline="") as f:
+        reader = csv.DictReader(f)
+        rows = []
+        for row in reader:
+            row["risk"] = row.get("risk", "0").strip()
+            row["result"] = row.get("result", "").strip()
+            row["profit"] = row.get("profit", "").strip()
+            rows.append(row)
+        return rows
 
 
-def get_pending_picks():
-    """Get all picks that haven't been graded yet."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    picks = conn.execute("SELECT * FROM picks WHERE result IS NULL").fetchall()
-    conn.close()
-    return [dict(p) for p in picks]
+def write_picks(picks):
+    """Write picks back to CSV."""
+    os.makedirs(os.path.dirname(PICKS_CSV), exist_ok=True)
+    with open(PICKS_CSV, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(picks)
 
 
-def fetch_scores():
+def add_pick(raw_str):
+    """Append a pick from CLI string: 'date,matchup,side,type,risk'"""
+    parts = [p.strip() for p in raw_str.split(",")]
+    if len(parts) < 5:
+        print("Format: date,matchup,side,type,risk")
+        print('Example: "2026-02-26,OKC @ LAL,LAL +3.5,spread,50"')
+        sys.exit(1)
+
+    new_pick = {
+        "date": parts[0],
+        "matchup": parts[1],
+        "side": parts[2],
+        "type": parts[3],
+        "risk": parts[4],
+        "result": "",
+        "profit": "",
+    }
+
+    picks = read_picks()
+    picks.append(new_pick)
+    write_picks(picks)
+    print(f"Added: {new_pick['date']} | {new_pick['matchup']} | {new_pick['side']} | risk {new_pick['risk']}")
+
+
+# ── Score Fetching ───────────────────────────────────────────────────
+
+def fetch_scores(days_from=5):
     """Fetch completed NBA game scores from The Odds API."""
     if not ODDS_API_KEY:
-        print("No ODDS_API_KEY — skipping score fetch")
+        print("No ODDS_API_KEY set — cannot auto-grade. Set result column manually.")
         return {}
 
     url = "https://api.the-odds-api.com/v4/sports/basketball_nba/scores"
     resp = requests.get(url, params={
         "apiKey": ODDS_API_KEY,
-        "daysFrom": 3,
+        "daysFrom": days_from,
     })
 
     if resp.status_code != 200:
@@ -131,7 +125,7 @@ def fetch_scores():
         return {}
 
     remaining = resp.headers.get("x-requests-remaining", "?")
-    print(f"[Scores API] Fetched — {remaining} API requests remaining")
+    print(f"[Scores API] {remaining} requests remaining")
 
     scores = {}
     for event in resp.json():
@@ -164,54 +158,24 @@ def fetch_scores():
                 "home_score": home_score,
                 "away_score": away_score,
             }
-            print(f"  {key}: {away_abbr} {away_score} - {home_abbr} {home_score}")
 
+    print(f"  Found {len(scores)} completed games")
     return scores
 
 
-# ── Hardcoded scores + player stats for immediate grading ──
-# Fallback when games just completed and Odds API hasn't updated yet.
-# The automated system will fetch these from the Odds API / nba_api.
-KNOWN_SCORES = {
-    "PHX @ SAS": {"home_abbr": "SAS", "away_abbr": "PHX", "home_score": 91, "away_score": 65},
-    "DAL @ MIN": {"home_abbr": "MIN", "away_abbr": "DAL", "home_score": 122, "away_score": 111},
-    "UTA @ MEM": {"home_abbr": "MEM", "away_abbr": "UTA", "home_score": 123, "away_score": 114},
-}
+# ── Grading Logic ────────────────────────────────────────────────────
 
-KNOWN_PLAYER_STATS = {
-    "2026-02-19": {
-        "BKN @ CLE": {
-            "Mitchell": {"PTS": 17, "REB": 5, "AST": 5},
-            "Harden": {"PTS": 16, "REB": 3, "AST": 9},
-        },
-        "PHX @ SAS": {
-            "Wembanyama": {"PTS": 24, "REB": 10, "AST": 3},
-        },
-    },
-}
+def parse_side(side_str):
+    """Parse 'CLE -16.0' or 'BOS +4.5' into (team, line_value, direction).
 
-
-def get_player_stat(pick, scores):
-    """Look up actual player stat for a prop pick.
-
-    First checks KNOWN_PLAYER_STATS (hardcoded from research).
-    In the future, this will query nba_api or the DB.
+    Returns (team_abbr, line_float, 'home_spread'|'away_spread') or None.
     """
-    slate = pick["slate_date"]
-    matchup = pick["matchup"]
-    player = pick["player_name"]
-    stat = pick["stat_type"]
-
-    # Extract last name from "N. Jokic" -> "Jokic"
-    last_name = player.split(". ", 1)[-1] if ". " in player else player
-
-    # Check hardcoded stats
-    if slate in KNOWN_PLAYER_STATS:
-        game_stats = KNOWN_PLAYER_STATS[slate].get(matchup, {})
-        if last_name in game_stats:
-            return game_stats[last_name].get(stat)
-
-    return None
+    m = re.match(r"([A-Z]{3})\s+([+-]?[\d.]+)", side_str.strip())
+    if not m:
+        return None
+    team = m.group(1)
+    line = float(m.group(2))
+    return team, line
 
 
 def compute_profit(result, risk_amount, odds=-110):
@@ -220,218 +184,180 @@ def compute_profit(result, risk_amount, odds=-110):
         return round(risk_amount * (100 / abs(odds)), 2)
     elif result == "L":
         return round(-risk_amount, 2)
-    else:  # Push
+    else:
         return 0.0
 
 
-def grade_pick(pick, scores):
-    """Grade a single pick. Returns (result, profit, actual_value, home_score, away_score) or None if game not completed."""
-    matchup = pick["matchup"]
-
-    # Check if game score is available
+def grade_spread(matchup, side_str, scores):
+    """Grade a spread pick. Returns (result, profit_amount) or None."""
     game = scores.get(matchup)
     if game is None:
-        return None  # Game not completed yet
+        return None
 
+    parsed = parse_side(side_str)
+    if parsed is None:
+        return None
+
+    team, line = parsed
     home_score = game["home_score"]
     away_score = game["away_score"]
+    home_abbr = game["home_abbr"]
+    away_abbr = game["away_abbr"]
+    actual_margin = home_score - away_score
 
-    if pick["pick_type"] == "spread":
-        # Spread grading
-        actual_margin = home_score - away_score
-        line = pick["line_value"]
+    if team == home_abbr:
+        # Picked home team with this spread
+        # Home -16.0: home needs to win by more than 16
+        # Home +4.5: home can lose by up to 4
+        cover_margin = actual_margin - line  # positive means cover
+    elif team == away_abbr:
+        # Picked away team with this spread
+        # Away +4.5 means line is +4.5, away covers if they lose by less than 4.5
+        cover_margin = -actual_margin - line  # flip perspective
+    else:
+        return None
 
-        if pick.get("direction") == "away_spread":
-            # Betting on the away team: away covers if home margin < |line|
-            # Flip: away wins their spread if home does NOT cover
-            if actual_margin < line:
-                result = "W"
-            elif actual_margin == line:
-                result = "P"
-            else:
-                result = "L"
-        else:
-            # "home_spread" — home team covering
-            if actual_margin > line:
-                result = "W"
-            elif actual_margin == line:
-                result = "P"
-            else:
-                result = "L"
-
-        profit = compute_profit(result, pick["risk_amount"])
-        return result, profit, actual_margin, home_score, away_score
-
-    elif pick["pick_type"] == "total":
-        # O/U grading
-        actual_total = home_score + away_score
-        line = pick["line_value"]
-
-        if pick["direction"] == "over":
-            if actual_total > line:
-                result = "W"
-            elif actual_total == line:
-                result = "P"
-            else:
-                result = "L"
-        else:  # under
-            if actual_total < line:
-                result = "W"
-            elif actual_total == line:
-                result = "P"
-            else:
-                result = "L"
-
-        profit = compute_profit(result, pick["risk_amount"])
-        return result, profit, actual_total, home_score, away_score
-
-    elif pick["pick_type"] == "prop":
-        # Prop grading
-        actual_stat = get_player_stat(pick, scores)
-        if actual_stat is None:
-            return None  # Can't grade without stats
-
-        line = pick["line_value"]
-
-        if pick["direction"] == "over":
-            if actual_stat > line:
-                result = "W"
-            elif actual_stat == line:
-                result = "P"
-            else:
-                result = "L"
-        else:  # under
-            if actual_stat < line:
-                result = "W"
-            elif actual_stat == line:
-                result = "P"
-            else:
-                result = "L"
-
-        profit = compute_profit(result, pick["risk_amount"])
-        return result, profit, actual_stat, home_score, away_score
-
-    return None
+    if cover_margin > 0:
+        return "W"
+    elif cover_margin == 0:
+        return "P"
+    else:
+        return "L"
 
 
-def update_pick_in_db(pick_id, result, profit, actual_value, home_score, away_score):
-    """Write grading result back to the DB."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        UPDATE picks
-        SET result = ?, profit = ?, actual_value = ?,
-            home_score = ?, away_score = ?,
-            graded_at = ?
-        WHERE pick_id = ?
-    """, (result, profit, actual_value, home_score, away_score,
-          datetime.now(timezone.utc).isoformat(), pick_id))
-    conn.commit()
-    conn.close()
+# ── Main ─────────────────────────────────────────────────────────────
 
-
-def get_all_picks():
-    """Get all picks from DB (graded and pending)."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    picks = conn.execute("SELECT * FROM picks ORDER BY slate_date, pick_id").fetchall()
-    conn.close()
-    return [dict(p) for p in picks]
-
-
-def main():
-    print("=== NBA SIM Pick Grading ===\n")
-
-    # Step 1: Ensure picks are in DB
-    ensure_picks_in_db()
-
-    # Step 2: Get pending picks
-    pending = get_pending_picks()
-    print(f"\nPending picks: {len(pending)}")
-
-    if not pending:
-        print("No pending picks to grade")
+def grade_all():
+    """Grade all pending picks from CSV using Odds API scores."""
+    picks = read_picks()
+    if not picks:
+        print("No picks in CSV")
         return
 
-    # Step 3: Fetch scores (API + hardcoded fallback)
-    print("\nFetching completed game scores...")
-    scores = fetch_scores()
-    # Merge in hardcoded scores for games the API hasn't updated yet
-    for key, val in KNOWN_SCORES.items():
-        if key not in scores:
-            scores[key] = val
-            print(f"  (hardcoded) {key}: {val['away_abbr']} {val['away_score']} - {val['home_abbr']} {val['home_score']}")
-    print(f"Found {len(scores)} completed games\n")
+    # Count pending
+    pending = [p for p in picks if not p["result"]]
+    if not pending:
+        print("All picks already graded")
+        print_summary(picks)
+        return
 
-    # Step 4: Grade each pending pick
+    print(f"\n{len(pending)} pending picks to grade\n")
+
+    # Fetch scores
+    scores = fetch_scores()
+
+    # Grade each pending pick
     graded = 0
-    for pick in pending:
-        result = grade_pick(pick, scores)
+    for pick in picks:
+        if pick["result"]:
+            continue  # Already graded
+
+        matchup = pick["matchup"]
+        side = pick["side"]
+        pick_type = pick.get("type", "spread")
+        risk = float(pick.get("risk", 0) or 0)
+
+        if pick_type == "spread":
+            result = grade_spread(matchup, side, scores)
+        else:
+            result = None  # TODO: total/prop grading
+
         if result is None:
-            print(f"  PENDING: {pick['matchup']} — {pick['side']} (game not completed)")
+            print(f"  PENDING: {pick['date']} | {matchup} | {side}")
             continue
 
-        res, profit, actual, h_score, a_score = result
-        update_pick_in_db(pick["pick_id"], res, profit, actual, h_score, a_score)
+        profit = compute_profit(result, risk)
+        pick["result"] = result
+        pick["profit"] = str(profit)
         graded += 1
 
-        emoji = {"W": "+", "L": "-", "P": "="}[res]
-        print(f"  {emoji} {res}: {pick['matchup']} — {pick['side']} | "
-              f"Actual: {actual} | Profit: {profit:+.2f} $PP")
+        marker = {"W": "+", "L": "-", "P": "="}[result]
+        print(f"  {marker} {result}: {matchup} | {side} | {profit:+.2f} $PP")
 
-    print(f"\nGraded {graded} of {len(pending)} pending picks")
+    # Write updated CSV
+    write_picks(picks)
+    print(f"\nGraded {graded} picks")
 
-    # Step 5: Build settlement results
-    all_picks = get_all_picks()
+    print_summary(picks)
+
+
+def print_summary(picks):
+    """Print running record and bankroll."""
     record = {"W": 0, "L": 0, "P": 0}
     total_profit = 0.0
-    results_list = []
+    pending = 0
 
-    for p in all_picks:
-        if p["result"]:
-            record[p["result"]] += 1
-            total_profit += p["profit"] or 0
-            away, home = p["matchup"].split(" @ ")
+    for p in picks:
+        r = p.get("result", "").strip()
+        if r in ("W", "L", "P"):
+            record[r] += 1
+            total_profit += float(p.get("profit", 0) or 0)
+        else:
+            pending += 1
+
+    bankroll = STARTING_BANKROLL + total_profit
+
+    print(f"\n{'='*50}")
+    print(f"  RECORD:   {record['W']}-{record['L']}-{record['P']}")
+    print(f"  P/L:      {total_profit:+.2f} $PP")
+    print(f"  BANKROLL: {STARTING_BANKROLL:.0f} -> {bankroll:.0f} $PP")
+    if pending:
+        print(f"  PENDING:  {pending} picks")
+    print(f"{'='*50}")
+
+    # Also write settlement JSON for blog integration
+    import json
+    results_list = []
+    for p in picks:
+        r = p.get("result", "").strip()
+        if r:
             results_list.append({
+                "date": p["date"],
                 "matchup": p["matchup"],
                 "side": p["side"],
-                "pick_type": p["pick_type"],
-                "player_name": p.get("player_name"),
-                "result": p["result"],
-                "profit": p["profit"],
-                "actual_value": p["actual_value"],
-                "home_score": p["home_score"],
-                "away_score": p["away_score"],
-                "risk_amount": p["risk_amount"],
+                "type": p.get("type", "spread"),
+                "risk": float(p.get("risk", 0) or 0),
+                "result": r,
+                "profit": float(p.get("profit", 0) or 0),
             })
-
-    new_bankroll = round(STARTING_BANKROLL + total_profit, 2)
-    pending_count = sum(1 for p in all_picks if p["result"] is None)
 
     settlement = {
         "graded_at": datetime.now(timezone.utc).isoformat(),
         "picks": results_list,
-        "pending_count": pending_count,
+        "pending_count": pending,
         "record": record,
         "total_profit": round(total_profit, 2),
         "starting_bankroll": STARTING_BANKROLL,
-        "new_bankroll": new_bankroll,
-        "status": "SETTLED" if pending_count == 0 else "PARTIAL",
+        "new_bankroll": round(bankroll, 2),
+        "status": "SETTLED" if pending == 0 else "PARTIAL",
     }
 
-    # Write results
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-    os.makedirs(data_dir, exist_ok=True)
-    out_path = os.path.join(data_dir, "settlement_results.json")
-
-    with open(out_path, "w") as f:
+    os.makedirs(os.path.dirname(RESULTS_JSON), exist_ok=True)
+    with open(RESULTS_JSON, "w") as f:
         json.dump(settlement, f, indent=2)
 
-    print(f"\n{'='*50}")
-    print(f"Record: {record['W']}-{record['L']}-{record['P']}")
-    print(f"P/L: {total_profit:+.2f} $PP")
-    print(f"Bankroll: {STARTING_BANKROLL:.0f} → {new_bankroll:.0f} $PP")
-    print(f"Status: {settlement['status']} ({pending_count} pending)")
-    print(f"\nResults written to: {out_path}")
+
+def main():
+    print("=== NBA SIM Pick Tracker ===\n")
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--add" and len(sys.argv) > 2:
+            add_pick(sys.argv[2])
+            return
+        elif sys.argv[1] == "--summary":
+            picks = read_picks()
+            if picks:
+                print_summary(picks)
+            return
+        else:
+            print(f"Unknown flag: {sys.argv[1]}")
+            print("Usage:")
+            print('  python scripts/grade_picks.py                  # Grade pending')
+            print('  python scripts/grade_picks.py --add "..."      # Add a pick')
+            print('  python scripts/grade_picks.py --summary        # Print record')
+            sys.exit(1)
+
+    grade_all()
 
 
 if __name__ == "__main__":
