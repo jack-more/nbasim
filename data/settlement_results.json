@@ -1,177 +1,147 @@
 {
-  "graded_at": "2026-02-27T17:35:52.966171+00:00",
+  "graded_at": "2026-02-26T17:56:29.385015+00:00",
   "picks": [
     {
-      "date": "2026-02-19",
       "matchup": "BKN @ CLE",
-      "side": "CLE -8.5",
-      "type": "spread",
-      "risk": 50.0,
+      "side": "CLE -16.0",
+      "pick_type": "spread",
+      "player_name": null,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "actual_value": 28.0,
+      "home_score": 112,
+      "away_score": 84,
+      "risk_amount": 50.0
     },
     {
-      "date": "2026-02-19",
       "matchup": "PHX @ SAS",
-      "side": "SAS -12.5",
-      "type": "spread",
-      "risk": 30.0,
+      "side": "SAS -8.0",
+      "pick_type": "spread",
+      "player_name": null,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "actual_value": 26.0,
+      "home_score": 91,
+      "away_score": 65,
+      "risk_amount": 30.0
     },
     {
-      "date": "2026-02-20",
+      "matchup": "BKN @ CLE",
+      "side": "OVER 229.5",
+      "pick_type": "total",
+      "player_name": null,
+      "result": "L",
+      "profit": -30.0,
+      "actual_value": 196.0,
+      "home_score": 112,
+      "away_score": 84,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "PHX @ SAS",
+      "side": "OVER 230.0",
+      "pick_type": "total",
+      "player_name": null,
+      "result": "L",
+      "profit": -30.0,
+      "actual_value": 156.0,
+      "home_score": 91,
+      "away_score": 65,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "BKN @ CLE",
+      "side": "OVER 27.2 PTS",
+      "pick_type": "prop",
+      "player_name": "D. Mitchell",
+      "result": "L",
+      "profit": -30.0,
+      "actual_value": 17.0,
+      "home_score": 112,
+      "away_score": 84,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "BKN @ CLE",
+      "side": "OVER 20.2 PTS",
+      "pick_type": "prop",
+      "player_name": "J. Harden",
+      "result": "L",
+      "profit": -30.0,
+      "actual_value": 16.0,
+      "home_score": 112,
+      "away_score": 84,
+      "risk_amount": 30.0
+    },
+    {
+      "matchup": "PHX @ SAS",
+      "side": "OVER 11.0 REB",
+      "pick_type": "prop",
+      "player_name": "V. Wembanyama",
+      "result": "L",
+      "profit": -10.0,
+      "actual_value": 10.0,
+      "home_score": 91,
+      "away_score": 65,
+      "risk_amount": 10.0
+    },
+    {
       "matchup": "DAL @ MIN",
-      "side": "MIN -5.5",
-      "type": "spread",
-      "risk": 50.0,
+      "side": "MIN -12.0",
+      "pick_type": "spread",
+      "player_name": null,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "actual_value": 11.0,
+      "home_score": 122,
+      "away_score": 111,
+      "risk_amount": 50.0
     },
     {
-      "date": "2026-02-20",
       "matchup": "UTA @ MEM",
-      "side": "MEM -3.5",
-      "type": "spread",
-      "risk": 30.0,
+      "side": "MEM -4.5",
+      "pick_type": "spread",
+      "player_name": null,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "actual_value": 9.0,
+      "home_score": 123,
+      "away_score": 114,
+      "risk_amount": 30.0
     },
     {
-      "date": "2026-02-21",
-      "matchup": "PHI @ NOP",
-      "side": "NOP -5.0",
-      "type": "spread",
-      "risk": 40.0,
+      "matchup": "DAL @ MIN",
+      "side": "UNDER 235.5",
+      "pick_type": "total",
+      "player_name": null,
       "result": "W",
-      "profit": 36.36
+      "profit": 27.27,
+      "actual_value": 233.0,
+      "home_score": 122,
+      "away_score": 111,
+      "risk_amount": 30.0
     },
     {
-      "date": "2026-02-21",
-      "matchup": "SAC @ SAS",
-      "side": "SAS -12.5",
-      "type": "spread",
-      "risk": 30.0,
+      "matchup": "UTA @ MEM",
+      "side": "OVER 241.5",
+      "pick_type": "total",
+      "player_name": null,
       "result": "L",
-      "profit": -30.0
-    },
-    {
-      "date": "2026-02-21",
-      "matchup": "HOU @ NYK",
-      "side": "HOU -3.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "DEN @ GSW",
-      "side": "GSW ML",
-      "type": "ml",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "BOS @ LAL",
-      "side": "BOS -7.0",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "POR @ PHX",
-      "side": "PHX ML",
-      "type": "ml",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "ORL @ LAC",
-      "side": "ORL +3.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-23",
-      "matchup": "SAC @ MEM",
-      "side": "MEM -3.0",
-      "type": "spread",
-      "risk": 20.0,
-      "result": "L",
-      "profit": -20.0
-    },
-    {
-      "date": "2026-02-23",
-      "matchup": "UTA @ HOU",
-      "side": "HOU -3.0",
-      "type": "spread",
-      "risk": 20.0,
-      "result": "W",
-      "profit": 18.18
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "PHI @ IND",
-      "side": "IND +9.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "WAS @ ATL",
-      "side": "WAS +12.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "ORL @ LAL",
-      "side": "ORL +5.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "BOS @ PHX",
-      "side": "BOS -5.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-25",
-      "matchup": "BOS @ DEN",
-      "side": "BOS +4.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
+      "profit": -30.0,
+      "actual_value": 237.0,
+      "home_score": 123,
+      "away_score": 114,
+      "risk_amount": 30.0
     }
   ],
-  "pending_count": 1,
+  "pending_count": 4,
   "record": {
-    "W": 11,
+    "W": 4,
     "L": 7,
     "P": 0
   },
-  "total_profit": 90.87,
-  "starting_bankroll": 1150.0,
-  "new_bankroll": 1240.87,
+  "total_profit": -82.74,
+  "starting_bankroll": 1000.0,
+  "new_bankroll": 917.26,
   "status": "PARTIAL"
 }

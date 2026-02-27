@@ -829,8 +829,9 @@ def compute_spread_and_total(home_data, away_data):
     h_pace = (home_data.get("pace", 100) or 100)
     a_pace = (away_data.get("pace", 100) or 100)
 
-    # Home court advantage = ~2.0 points (modern NBA trend)
-    HCA = 2.0
+    # Home court advantage — variable by arena (Denver/Boston elevated)
+    home_abbr = home_data.get("abbreviation", "")
+    HCA = TEAM_HCA.get(home_abbr, 1.8)
     net_diff = h_net - a_net
     raw_spread = -(net_diff + HCA)  # Negative = home favored
     # Round to nearest 0.5
@@ -863,7 +864,7 @@ _MOJI_CONSTANTS = {
     "NRTG_WEIGHT":  0.35,   # adjusted net rating share in final blend (proven)
     "SYN_WEIGHT":   0.20,   # lineup synergy share in final blend (SYN v2, unproven — modifier only)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
-    "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
+    "HCA":          1.8,    # base home court advantage (most arenas — modern NBA)
     "B2B_HOME":     2.0,    # home back-to-back penalty (less severe — still at home)
     "B2B_ROAD":     2.5,    # road back-to-back penalty (travel + fatigue)
     "USAGE_DECAY":      0.995,  # MOJO multiplier per 1% extra usage (efficiency tax)
@@ -876,6 +877,13 @@ _MOJI_CONSTANTS = {
     "SYN_NRTG_RANGE":   15.0,   # NRtg range for 0-100 mapping [-15, +15]
     "SYN_5MAN_PRIOR":   100,    # Bayesian prior possessions for 5-man NRtg shrinkage
     "SYN_MIN_POSS":     10,     # minimum possessions for a 5-man lineup to count
+}
+
+# Per-team home court advantage — Denver altitude + Boston historic dominance
+# Everyone else uses base 1.8 from _MOJI_CONSTANTS["HCA"]
+TEAM_HCA = {
+    "DEN": 3.8,  # Ball Arena, 5,280 ft elevation — altitude is a real advantage
+    "BOS": 3.5,  # TD Garden — historically dominant home court
 }
 
 # Pre-computed B2B schedule for 2025-26 NBA season
@@ -2485,7 +2493,8 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     home_nrtg_attrition = home_mojo_drop * K["NRTG_MOJO_ATTRITION"]
     away_nrtg_attrition = away_mojo_drop * K["NRTG_MOJO_ATTRITION"]
 
-    home_adj_nrtg = h_net + K["HCA"] - home_nrtg_attrition
+    team_hca = TEAM_HCA.get(home_abbr, K["HCA"])
+    home_adj_nrtg = h_net + team_hca - home_nrtg_attrition
     away_adj_nrtg = a_net - away_nrtg_attrition
 
     if home_b2b:
@@ -2652,10 +2661,13 @@ def get_player_trend(player_id, team_abbreviation):
     return trend
 
 
-def get_wowy_trending_players():
+def get_wowy_trending_players(out_player_ids=None):
     """Get top 4 risers and top 4 fallers by NRtg WOWY delta (last 10 days vs prior 10 days).
     Uses most recent data date as anchor (not today) in case boxscores are delayed.
-    10-day trailing window updated daily at 8 AM PST."""
+    10-day trailing window updated daily at 8 AM PST.
+    out_player_ids: set of player IDs currently OUT (injured) — excluded from fallers."""
+    if out_player_ids is None:
+        out_player_ids = set()
     # Find the most recent game date with player stats
     latest_df = read_query("""
         SELECT MAX(g.game_date) as latest
@@ -2736,9 +2748,11 @@ def get_wowy_trending_players():
         })
 
     # Top 4 risers (biggest positive NRtg delta), top 4 fallers (biggest negative)
+    # Filter OUT (injured) players from fallers — we only want legit cold players
     trending.sort(key=lambda x: x["delta"], reverse=True)
     risers = trending[:4]
-    fallers = sorted(trending, key=lambda x: x["delta"])[:4]
+    fallers_pool = [p for p in trending if p["player_id"] not in out_player_ids]
+    fallers = sorted(fallers_pool, key=lambda x: x["delta"])[:4]
 
     return risers, fallers
 
@@ -3441,6 +3455,8 @@ def get_lab_data():
             "stl": round(float(row.get("stl_pg") or 0), 1),
             "blk": round(float(row.get("blk_pg") or 0), 1),
             "mpg": round(float(row.get("minutes_per_game") or 0), 1),
+            "usg": round(float(row.get("usg_pct") or 20), 1),
+            "ts": round(float(row.get("ts_pct") or 0.54), 3),
             "solo": round(float(vs.get("solo", 50)), 1),
             "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
             "rapm_off": _RAPM_DATA.get(pid, {}).get("rapm_off"),
@@ -3552,6 +3568,27 @@ def get_lab_data():
                     "nrtg": nrtg_val, "min": min_val, "gp": gp_val,
                 })
 
+    # ── Team-level stats for SIM engine (pace, ORTG, DRTG, NRtg) ──
+    team_stats_df = read_query("""
+        SELECT t.abbreviation, ts.pace, ts.off_rating, ts.def_rating, ts.net_rating,
+               cp.def_scheme_label, cp.off_scheme_label
+        FROM team_season_stats ts
+        JOIN teams t ON ts.team_id = t.team_id
+        LEFT JOIN coaching_profiles cp ON ts.team_id = cp.team_id AND ts.season_id = cp.season_id
+        WHERE ts.season_id = '2025-26'
+    """, DB_PATH)
+    team_stats = {}
+    for _, row in team_stats_df.iterrows():
+        abbr = row["abbreviation"]
+        team_stats[abbr] = {
+            "pace": round(float(row.get("pace") or 100), 1),
+            "ortg": round(float(row.get("off_rating") or 111.7), 1),
+            "drtg": round(float(row.get("def_rating") or 111.7), 1),
+            "nrtg": round(float(row.get("net_rating") or 0), 1),
+            "def_scheme": row.get("def_scheme_label") or "Standard",
+            "off_scheme": row.get("off_scheme_label") or "Balanced",
+        }
+
     return {
         "rosters": rosters,
         "pairs": pairs,
@@ -3559,6 +3596,7 @@ def get_lab_data():
         "combos_5": combos["5"],
         "team_pairs": dict(team_pairs),
         "team_combos": {k: dict(v) for k, v in team_combos.items()},
+        "team_stats": team_stats,
     }
 
 
@@ -4519,16 +4557,35 @@ def generate_html():
             </div>
         </div>"""
 
+    # ── Build global OUT player ID set (for filtering injured from trends) ──
+    global_out_pids = set()
+    if matchups:
+        rw_lu = matchups[0].get("rw_lineups", {})
+        for team_abbr, lineup_info in rw_lu.items():
+            roster = _get_full_roster(team_abbr)
+            for name in lineup_info.get("out", []):
+                pid = _match_player_name(name, roster)
+                if pid is not None:
+                    global_out_pids.add(int(pid))
+            for name, pos, status in lineup_info.get("starters", []):
+                if status == "OUT":
+                    pid = _match_player_name(name, roster)
+                    if pid is not None:
+                        global_out_pids.add(int(pid))
+    print(f"[Trends] {len(global_out_pids)} OUT players excluded from fallers")
+
     # ── Build WOWY Trending Players HTML ──
-    risers, fallers = get_wowy_trending_players()
+    risers, fallers = get_wowy_trending_players(out_player_ids=global_out_pids)
     trending_html = ""
     if risers or fallers:
         riser_cards = ""
         for p in risers:
             icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
             headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+            team_logo = get_team_logo_url(p["team"])
             riser_cards += f"""
             <div class="trend-card trend-up">
+                <img src="{team_logo}" class="trend-team-logo" onerror="this.style.display='none'">
                 <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
                 <div class="trend-info">
                     <span class="trend-name">{p['name']}</span>
@@ -4542,8 +4599,10 @@ def generate_html():
         for p in fallers:
             icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
             headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
+            team_logo = get_team_logo_url(p["team"])
             faller_cards += f"""
             <div class="trend-card trend-down">
+                <img src="{team_logo}" class="trend-team-logo" onerror="this.style.display='none'">
                 <img src="{headshot}" class="trend-face" onerror="this.style.display='none'">
                 <div class="trend-info">
                     <span class="trend-name">{p['name']}</span>
@@ -4573,6 +4632,25 @@ def generate_html():
     # ── Build Lineup Lab HTML ──
     lab_data = get_lab_data()
     lab_html = build_lab_html(lab_data)
+
+    # ── Build SIM tab data ──
+    sim_data_json = json.dumps({
+        "rosters": lab_data["rosters"],
+        "pairs": lab_data.get("pairs", {}),
+        "team_stats": lab_data.get("team_stats", {}),
+        "team_hca": TEAM_HCA,
+        "team_colors": TEAM_COLORS,
+        "team_secondary": TEAM_SECONDARY,
+        "team_ids": TEAM_IDS,
+        "team_names": TEAM_FULL_NAMES,
+        "moji_constants": _MOJI_CONSTANTS,
+    }, separators=(",", ":"))
+
+    # Build team option HTML for sim selectors
+    sim_team_options = ""
+    for abbr in sorted(lab_data["rosters"].keys()):
+        name = TEAM_FULL_NAMES.get(abbr, abbr)
+        sim_team_options += f'<option value="{abbr}">{abbr} — {name}</option>\n'
 
     # ── Build INFO page content ──
     info_content = render_info_page()
@@ -4610,7 +4688,8 @@ def generate_html():
     <!-- FILTER BAR -->
     <div class="filter-bar">
         <div class="filter-bar-inner">
-            <button class="filter-btn active" data-tab="slate">Game Lines</button>
+            <button class="filter-btn active" data-tab="sim">SIM</button>
+            <button class="filter-btn" data-tab="slate">Game Lines</button>
             <button class="filter-btn" data-tab="props">Player Stats</button>
             <button class="filter-btn" data-tab="trends">Trends</button>
             <button class="filter-btn" data-tab="lab">WOWY</button>
@@ -4622,7 +4701,7 @@ def generate_html():
     <main class="content">
 
         <!-- SLATE TAB -->
-        <div class="tab-content active" id="tab-slate">
+        <div class="tab-content" id="tab-slate">
             <div class="section-header">
                 <h2>{slate_date} SLATE</h2>
                 <span class="section-sub">{len(matchups)} games</span>
@@ -4741,6 +4820,164 @@ def generate_html():
             {lab_html}
         </div>
 
+        <!-- SIM TAB -->
+        <div class="tab-content active" id="tab-sim">
+            <div class="sim-container">
+                <!-- SIM CONTROLS -->
+                <div class="sim-controls">
+                    <div class="sim-team-select">
+                        <div class="sim-team-picker home">
+                            <label class="sim-label">HOME</label>
+                            <select id="simHomeTeam" class="sim-select" onchange="simTeamChange('home')">
+                                <option value="">Select home team...</option>
+                                {sim_team_options}
+                            </select>
+                        </div>
+                        <div class="sim-vs">VS</div>
+                        <div class="sim-team-picker away">
+                            <label class="sim-label">AWAY</label>
+                            <select id="simAwayTeam" class="sim-select" onchange="simTeamChange('away')">
+                                <option value="">Select away team...</option>
+                                {sim_team_options}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="sim-options">
+                        <div class="sim-option">
+                            <label class="sim-label">VENUE</label>
+                            <select id="simVenue" class="sim-select-sm">
+                                <option value="home">Home Court</option>
+                                <option value="neutral">Neutral Court</option>
+                            </select>
+                        </div>
+                        <div class="sim-option">
+                            <label class="sim-label">HOME B2B</label>
+                            <label class="sim-toggle">
+                                <input type="checkbox" id="simHomeB2B">
+                                <span class="sim-toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="sim-option">
+                            <label class="sim-label">AWAY B2B</label>
+                            <label class="sim-toggle">
+                                <input type="checkbox" id="simAwayB2B">
+                                <span class="sim-toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COURT AREA -->
+                <div class="sim-court-wrapper" id="simCourtWrapper" style="display:none">
+                    <div class="sim-moji-bar">
+                        <div class="sim-moji home" id="simHomeMoji">
+                            <img id="simHomeLogoMoji" class="sim-moji-logo" src="" alt="">
+                            <span class="sim-moji-label">MOJI</span>
+                            <span class="sim-moji-val" id="simHomeMojiVal">—</span>
+                        </div>
+                        <div class="sim-moji-vs">⚡</div>
+                        <div class="sim-moji away" id="simAwayMoji">
+                            <img id="simAwayLogoMoji" class="sim-moji-logo" src="" alt="">
+                            <span class="sim-moji-label">MOJI</span>
+                            <span class="sim-moji-val" id="simAwayMojiVal">—</span>
+                        </div>
+                    </div>
+
+                    <div class="sim-court-split">
+                        <!-- HOME SIDE -->
+                        <div class="sim-side home">
+                            <div class="sim-side-header" id="simHomeHeader">
+                                <img id="simHomeLogo" class="sim-side-logo" src="" alt="">
+                                <span id="simHomeLabel">HOME</span>
+                            </div>
+                            <div class="sim-zone court" id="simHomeCourt">
+                                <div class="sim-zone-label">🏀 COURT <span class="sim-zone-count" id="simHomeCourtCount">0/5</span></div>
+                                <div class="sim-zone-minutes">
+                                    <label>MIN PER PLAYER</label>
+                                    <input type="number" id="simHomeCourtMin" class="sim-min-input" value="32" min="1" max="48" onchange="simRecalc()">
+                                </div>
+                                <div class="sim-drop-zone" id="simHomeCourtZone" ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                            <div class="sim-zone bench" id="simHomeBench">
+                                <div class="sim-zone-label">💺 BENCH <span class="sim-zone-count" id="simHomeBenchCount">0</span></div>
+                                <div class="sim-zone-minutes">
+                                    <label>MIN PER PLAYER</label>
+                                    <input type="number" id="simHomeBenchMin" class="sim-min-input" value="16" min="1" max="48" onchange="simRecalc()">
+                                </div>
+                                <div class="sim-drop-zone bench-zone" id="simHomeBenchZone" ondrop="simDrop(event,'home','bench')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                            <div class="sim-zone locker" id="simHomeLocker">
+                                <div class="sim-zone-label">🔒 LOCKER ROOM <span class="sim-zone-count" id="simHomeLockerCount">0</span></div>
+                                <div class="sim-drop-zone locker-zone" id="simHomeLockerZone" ondrop="simDrop(event,'home','locker')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- AWAY SIDE -->
+                        <div class="sim-side away">
+                            <div class="sim-side-header" id="simAwayHeader">
+                                <img id="simAwayLogo" class="sim-side-logo" src="" alt="">
+                                <span id="simAwayLabel">AWAY</span>
+                            </div>
+                            <div class="sim-zone court" id="simAwayCourt">
+                                <div class="sim-zone-label">🏀 COURT <span class="sim-zone-count" id="simAwayCourtCount">0/5</span></div>
+                                <div class="sim-zone-minutes">
+                                    <label>MIN PER PLAYER</label>
+                                    <input type="number" id="simAwayCourtMin" class="sim-min-input" value="32" min="1" max="48" onchange="simRecalc()">
+                                </div>
+                                <div class="sim-drop-zone" id="simAwayCourtZone" ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                            <div class="sim-zone bench" id="simAwayBench">
+                                <div class="sim-zone-label">💺 BENCH <span class="sim-zone-count" id="simAwayBenchCount">0</span></div>
+                                <div class="sim-zone-minutes">
+                                    <label>MIN PER PLAYER</label>
+                                    <input type="number" id="simAwayBenchMin" class="sim-min-input" value="16" min="1" max="48" onchange="simRecalc()">
+                                </div>
+                                <div class="sim-drop-zone bench-zone" id="simAwayBenchZone" ondrop="simDrop(event,'away','bench')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                            <div class="sim-zone locker" id="simAwayLocker">
+                                <div class="sim-zone-label">🔒 LOCKER ROOM <span class="sim-zone-count" id="simAwayLockerCount">0</span></div>
+                                <div class="sim-drop-zone locker-zone" id="simAwayLockerZone" ondrop="simDrop(event,'away','locker')" ondragover="simAllowDrop(event)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SIM BUTTON -->
+                    <div class="sim-action-bar">
+                        <button class="sim-btn" id="simRunBtn" onclick="simRunGame()" disabled>
+                            🏀 SIM GAME
+                        </button>
+                        <div class="sim-action-info" id="simActionInfo">Select 5 starters per team to simulate</div>
+                    </div>
+                </div>
+
+                <!-- RESULTS AREA -->
+                <div class="sim-results" id="simResults" style="display:none">
+                    <div class="sim-scoreboard" id="simScoreboard"></div>
+                    <div class="sim-boxscore-wrap" id="simBoxScores"></div>
+                    <div class="sim-resim-bar">
+                        <button class="sim-btn resim" onclick="simResim()">🔄 CHANGE ROTATIONS &amp; RE-SIM</button>
+                        <button class="sim-btn resim" onclick="simRunGame()">⚡ RUN AGAIN</button>
+                    </div>
+                </div>
+
+                <!-- EMPTY STATE -->
+                <div class="sim-empty" id="simEmpty">
+                    <div class="sim-empty-icon">🏀</div>
+                    <div class="sim-empty-text">BUILD YOUR LINEUP</div>
+                    <div class="sim-empty-sub">Select two teams, drag players onto the court, set minutes, and press SIM to simulate a full game with quarter-by-quarter scores and box stats.</div>
+                </div>
+            </div>
+
+            <script>
+            const SIM_DATA = {sim_data_json};
+            </script>
+        </div>
+
         <!-- INFO TAB -->
         <div class="tab-content" id="tab-info">
             {info_content}
@@ -4750,7 +4987,11 @@ def generate_html():
 
     <!-- BOTTOM NAV (MOBILE) -->
     <nav class="bottom-nav">
-        <button class="nav-btn active" data-tab="slate">
+        <button class="nav-btn active" data-tab="sim">
+            <span class="nav-icon">🏀</span>
+            <span>SIM</span>
+        </button>
+        <button class="nav-btn" data-tab="slate">
             <span class="nav-icon">📊</span>
             <span>SLATE</span>
         </button>
@@ -5107,7 +5348,7 @@ def render_matchup_card(m, idx, team_map):
                 <span class="moji-model-formula">45% MOJI ({moji_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="moji-row moji-tags">
-                <span class="hca-badge">HCA \u25B22 {ha}</span>
+                <span class="hca-badge">HCA \u25B2{TEAM_HCA.get(ha, 1.8):.1f} {ha}</span>
                 {b2b_badges}
                 {out_badges}
             </div>
@@ -5559,7 +5800,7 @@ def render_info_page():
                 <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
                 <div class="formula-row"><span>Step 4</span><span>Compute adjusted MOJI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
-                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −2.0/−2.5)</span></div>
+                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + HCA [1.8 base, 3.8 DEN, 3.5 BOS], with B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
                 <div class="formula-row"><span>Step 8</span><span>Blend: 45% SYN + 20% MOJI + 15% Adjusted NRtg + 20% H2H = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
@@ -6525,6 +6766,12 @@ def generate_css():
             border-radius: var(--radius);
             margin-bottom: 8px;
             border: 1px solid rgba(0,0,0,0.06);
+        }
+        .trend-team-logo {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            flex-shrink: 0;
         }
         .trend-face {
             width: 40px;
@@ -7543,6 +7790,285 @@ def generate_css():
             background: rgba(0,255,85,0.1); padding: 2px 4px; border-radius: 3px;
         }
 
+        /* ─── SIM TAB ─── */
+        .sim-container { max-width: 1200px; margin: 0 auto; }
+        .sim-controls {
+            background: var(--surface); border: var(--border); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px;
+        }
+        .sim-team-select {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            justify-content: center;
+        }
+        .sim-team-picker {
+            flex: 1; min-width: 200px; max-width: 350px;
+        }
+        .sim-team-picker.home .sim-label { color: #007A33; }
+        .sim-team-picker.away .sim-label { color: #CE1141; }
+        .sim-vs {
+            font-family: var(--font-display); font-size: 28px; color: var(--ink);
+            padding: 0 8px;
+        }
+        .sim-label {
+            display: block; font-family: var(--font-display); font-size: 13px;
+            letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase;
+        }
+        .sim-select, .sim-select-sm {
+            width: 100%; padding: 10px 12px; border: var(--border-thin); border-radius: 8px;
+            font-family: var(--font-body); font-size: 14px; font-weight: 600;
+            background: #fff; cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%23333'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
+        }
+        .sim-select:focus, .sim-select-sm:focus { outline: none; border-color: var(--green); }
+        .sim-select-sm { width: auto; min-width: 140px; padding: 8px 30px 8px 10px; font-size: 13px; }
+        .sim-options {
+            display: flex; gap: 16px; align-items: flex-end; margin-top: 12px;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .sim-option { display: flex; flex-direction: column; align-items: center; }
+        .sim-option .sim-label { font-size: 11px; margin-bottom: 6px; }
+        .sim-toggle {
+            position: relative; display: inline-block; width: 44px; height: 24px;
+        }
+        .sim-toggle input { opacity: 0; width: 0; height: 0; }
+        .sim-toggle-slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .3s; border-radius: 24px;
+        }
+        .sim-toggle-slider::before {
+            position: absolute; content: ""; height: 18px; width: 18px;
+            left: 3px; bottom: 3px; background: white; transition: .3s; border-radius: 50%;
+        }
+        .sim-toggle input:checked + .sim-toggle-slider { background-color: var(--green-dark); }
+        .sim-toggle input:checked + .sim-toggle-slider::before { transform: translateX(20px); }
+
+        /* COURT WRAPPER */
+        .sim-court-wrapper {
+            background: var(--surface); border: var(--border); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px;
+        }
+        .sim-moji-bar {
+            display: flex; align-items: center; justify-content: center; gap: 20px;
+            margin-bottom: 16px; padding: 10px 0;
+            border-bottom: 2px solid rgba(0,0,0,0.08);
+        }
+        .sim-moji {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.04); padding: 8px 16px; border-radius: 8px;
+        }
+        .sim-moji-logo { width: 28px; height: 28px; object-fit: contain; }
+        .sim-moji-label {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+            color: rgba(0,0,0,0.5); letter-spacing: 1px;
+        }
+        .sim-moji-val {
+            font-family: var(--font-display); font-size: 28px; color: var(--ink);
+        }
+        .sim-moji-vs {
+            font-size: 20px;
+        }
+
+        /* COURT SPLIT */
+        .sim-court-split {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        .sim-side {
+            background: rgba(0,0,0,0.02); border-radius: 10px; padding: 12px;
+            border: 2px solid rgba(0,0,0,0.06);
+        }
+        .sim-side.home { border-color: rgba(0,122,51,0.2); }
+        .sim-side.away { border-color: rgba(206,17,65,0.2); }
+        .sim-side-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+            padding-bottom: 8px; border-bottom: 2px solid rgba(0,0,0,0.06);
+        }
+        .sim-side-logo { width: 32px; height: 32px; object-fit: contain; }
+        .sim-side-header span {
+            font-family: var(--font-display); font-size: 20px; letter-spacing: 1px;
+        }
+
+        /* ZONES */
+        .sim-zone {
+            margin-bottom: 12px; border-radius: 8px; padding: 8px;
+        }
+        .sim-zone.court {
+            background: linear-gradient(135deg, rgba(0,255,85,0.06) 0%, rgba(0,200,68,0.03) 100%);
+            border: 2px dashed rgba(0,255,85,0.3);
+        }
+        .sim-zone.bench {
+            background: rgba(255,214,0,0.06);
+            border: 2px dashed rgba(255,214,0,0.3);
+        }
+        .sim-zone.locker {
+            background: rgba(0,0,0,0.04);
+            border: 2px dashed rgba(0,0,0,0.15);
+        }
+        .sim-zone-label {
+            font-family: var(--font-display); font-size: 13px; letter-spacing: 1px;
+            margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+        }
+        .sim-zone-count {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+            background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px;
+        }
+        .sim-zone-minutes {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+        }
+        .sim-zone-minutes label {
+            font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+            color: rgba(0,0,0,0.5); letter-spacing: 0.5px;
+        }
+        .sim-min-input {
+            width: 52px; padding: 4px 6px; border: 2px solid rgba(0,0,0,0.15);
+            border-radius: 6px; font-family: var(--font-mono); font-size: 13px;
+            font-weight: 700; text-align: center; background: #fff;
+        }
+        .sim-min-input:focus { outline: none; border-color: var(--green); }
+        .sim-drop-zone {
+            min-height: 60px; display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 6px; border-radius: 6px; transition: background 0.2s;
+        }
+        .sim-drop-zone.drag-over {
+            background: rgba(0,255,85,0.12); border-color: var(--green);
+        }
+
+        /* PLAYER CHIPS (draggable) */
+        .sim-chip {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 10px 5px 6px; background: #fff; border: 2px solid #000;
+            border-radius: 8px; cursor: grab; user-select: none;
+            font-family: var(--font-body); font-size: 12px; font-weight: 600;
+            box-shadow: 2px 2px 0 #000; transition: transform 0.15s, box-shadow 0.15s;
+            position: relative;
+        }
+        .sim-chip:active { cursor: grabbing; transform: scale(1.04); box-shadow: 3px 3px 0 #000; }
+        .sim-chip.dragging { opacity: 0.4; }
+        .sim-chip-face {
+            width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+            border: 2px solid #000; background: #eee;
+        }
+        .sim-chip-info { display: flex; flex-direction: column; line-height: 1.2; }
+        .sim-chip-name { font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .sim-chip-meta {
+            font-family: var(--font-mono); font-size: 9px; color: rgba(0,0,0,0.5);
+        }
+        .sim-chip-mojo {
+            position: absolute; top: -6px; right: -6px;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+            background: var(--green); color: #000; padding: 1px 5px; border-radius: 6px;
+            border: 2px solid #000; line-height: 1.3;
+        }
+
+        /* SIM BUTTON */
+        .sim-action-bar {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            margin-top: 16px; padding-top: 16px; border-top: 2px solid rgba(0,0,0,0.08);
+        }
+        .sim-btn {
+            font-family: var(--font-display); font-size: 22px; letter-spacing: 2px;
+            padding: 14px 48px; background: var(--surface-dark); color: var(--green);
+            border: var(--border); border-radius: var(--radius); cursor: pointer;
+            box-shadow: var(--shadow); transition: transform 0.15s, box-shadow 0.15s;
+            text-transform: uppercase;
+        }
+        .sim-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .sim-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .sim-btn.resim {
+            font-size: 14px; padding: 10px 24px; background: #fff; color: var(--ink);
+        }
+        .sim-action-info {
+            font-family: var(--font-mono); font-size: 11px; color: rgba(0,0,0,0.5);
+        }
+
+        /* RESULTS */
+        .sim-results {
+            background: var(--surface); border: var(--border); border-radius: var(--radius);
+            box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px;
+        }
+        .sim-scoreboard {
+            margin-bottom: 16px;
+        }
+        .sim-sb-table {
+            width: 100%; border-collapse: collapse; font-family: var(--font-mono);
+        }
+        .sim-sb-table th {
+            font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.5);
+            padding: 6px 12px; text-align: center; border-bottom: 2px solid #000;
+            letter-spacing: 1px;
+        }
+        .sim-sb-table td {
+            font-size: 16px; font-weight: 600; padding: 10px 12px; text-align: center;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        .sim-sb-table .sim-sb-team {
+            text-align: left; display: flex; align-items: center; gap: 8px;
+        }
+        .sim-sb-logo { width: 24px; height: 24px; object-fit: contain; }
+        .sim-sb-name {
+            font-family: var(--font-display); font-size: 18px; letter-spacing: 1px;
+        }
+        .sim-sb-final {
+            font-size: 22px; font-weight: 900; background: rgba(0,255,85,0.1);
+            border-radius: 6px;
+        }
+        .sim-sb-winner { color: var(--green-dark); }
+        .sim-sb-qtr { color: rgba(0,0,0,0.6); }
+        .sim-sb-half { font-weight: 800; color: var(--ink); background: rgba(0,0,0,0.03); }
+
+        /* BOX SCORES */
+        .sim-boxscore-wrap { margin-top: 16px; }
+        .sim-box-team {
+            margin-bottom: 16px; border: 2px solid rgba(0,0,0,0.1); border-radius: 8px;
+            overflow: hidden;
+        }
+        .sim-box-header {
+            display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+            font-family: var(--font-display); font-size: 16px; letter-spacing: 1px;
+        }
+        .sim-box-header img { width: 24px; height: 24px; object-fit: contain; }
+        .sim-box-table {
+            width: 100%; border-collapse: collapse; font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        .sim-box-table th {
+            font-size: 10px; font-weight: 700; color: rgba(0,0,0,0.5);
+            padding: 6px 8px; text-align: center; border-bottom: 2px solid rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.02); letter-spacing: 0.5px;
+        }
+        .sim-box-table th:first-child { text-align: left; padding-left: 12px; }
+        .sim-box-table td {
+            padding: 5px 8px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .sim-box-table td:first-child {
+            text-align: left; padding-left: 12px; font-weight: 600;
+            font-family: var(--font-body); font-size: 12px;
+        }
+        .sim-box-starter { background: rgba(0,255,85,0.04); }
+        .sim-box-bench { background: rgba(0,0,0,0.02); }
+        .sim-box-total {
+            font-weight: 800; border-top: 2px solid #000;
+            background: rgba(0,0,0,0.04);
+        }
+        .sim-resim-bar {
+            display: flex; gap: 12px; justify-content: center; margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* EMPTY STATE */
+        .sim-empty {
+            text-align: center; padding: 60px 20px;
+        }
+        .sim-empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .sim-empty-text {
+            font-family: var(--font-display); font-size: 28px; letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .sim-empty-sub {
+            font-size: 13px; color: rgba(0,0,0,0.5); max-width: 420px; margin: 0 auto;
+            line-height: 1.5;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width: 768px) {
             .top-bar { padding: 8px 12px; }
@@ -7564,6 +8090,9 @@ def generate_css():
             .rank-team-logo { display: none; }
             .proj-grid { grid-template-columns: 1fr; }
             .proj-half:first-child { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
+            .sim-court-split { grid-template-columns: 1fr; }
+            .sim-vs { font-size: 20px; }
+            .sim-team-picker { max-width: 100%; }
         }
 
         @media (min-width: 769px) {
@@ -7826,6 +8355,677 @@ def generate_js():
             const diff = e.touches[0].clientY - sheetStartY;
             if (diff > 80) closeSheet();
         });
+
+        // ─── SIM ENGINE ───
+        // State for both sides
+        const simState = {
+            home: { team: '', court: [], bench: [], locker: [] },
+            away: { team: '', court: [], bench: [], locker: [] },
+        };
+        let simDragPid = null;
+        let simDragSide = null;
+        let simDragFrom = null;
+
+        function simGetTeamLogo(abbr) {
+            if (!SIM_DATA || !SIM_DATA.team_ids) return '';
+            const tid = SIM_DATA.team_ids[abbr] || 0;
+            return 'https://cdn.nba.com/logos/nba/' + tid + '/global/L/logo.svg';
+        }
+
+        function simTeamChange(side) {
+            const sel = document.getElementById(side === 'home' ? 'simHomeTeam' : 'simAwayTeam');
+            const abbr = sel.value;
+            simState[side].team = abbr;
+            simState[side].court = [];
+            simState[side].bench = [];
+            simState[side].locker = [];
+
+            if (abbr && SIM_DATA.rosters[abbr]) {
+                // Auto-fill: top 5 by MPG → court, next 4 → bench, rest → locker
+                const roster = [...SIM_DATA.rosters[abbr]].sort((a,b) => b.mpg - a.mpg);
+                roster.forEach((p, i) => {
+                    if (i < 5) simState[side].court.push(p.id);
+                    else if (i < 9) simState[side].bench.push(p.id);
+                    else simState[side].locker.push(p.id);
+                });
+            }
+
+            // Update header
+            const logo = document.getElementById(side === 'home' ? 'simHomeLogo' : 'simAwayLogo');
+            const label = document.getElementById(side === 'home' ? 'simHomeLabel' : 'simAwayLabel');
+            const mojiLogo = document.getElementById(side === 'home' ? 'simHomeLogoMoji' : 'simAwayLogoMoji');
+            if (abbr) {
+                logo.src = simGetTeamLogo(abbr);
+                mojiLogo.src = simGetTeamLogo(abbr);
+                label.textContent = abbr + ' ' + (SIM_DATA.team_names[abbr] || '').toUpperCase();
+                const col = SIM_DATA.team_colors[abbr] || '#333';
+                document.getElementById(side === 'home' ? 'simHomeHeader' : 'simAwayHeader').style.borderBottomColor = col;
+            } else {
+                logo.src = '';
+                mojiLogo.src = '';
+                label.textContent = side.toUpperCase();
+            }
+
+            simRenderAll();
+            simCheckReady();
+        }
+
+        function simGetPlayer(side, pid) {
+            const abbr = simState[side].team;
+            if (!abbr || !SIM_DATA.rosters[abbr]) return null;
+            return SIM_DATA.rosters[abbr].find(p => p.id === pid) || null;
+        }
+
+        function simBuildChip(pid, side) {
+            const p = simGetPlayer(side, pid);
+            if (!p) return '';
+            const face = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + pid + '.png';
+            const nameParts = p.name.split(' ');
+            const shortName = nameParts.length > 1 ? nameParts[0][0] + '. ' + nameParts.slice(1).join(' ') : p.name;
+            return '<div class="sim-chip" draggable="true" data-pid="' + pid + '" data-side="' + side + '"'
+                + ' ondragstart="simDragStart(event)" ondragend="simDragEnd(event)">'
+                + '<img class="sim-chip-face" src="' + face + '" onerror="this.style.display=\\\'none\\\'">'
+                + '<div class="sim-chip-info">'
+                + '<span class="sim-chip-name">' + shortName + '</span>'
+                + '<span class="sim-chip-meta">' + (p.arch_icon||'') + ' ' + p.mpg + ' MPG</span>'
+                + '</div>'
+                + '<span class="sim-chip-mojo">' + p.mojo + '</span>'
+                + '</div>';
+        }
+
+        function simRenderZone(side, zone) {
+            const zoneEl = document.getElementById('sim' + cap(side) + cap(zone) + 'Zone');
+            const ids = simState[side][zone];
+            zoneEl.innerHTML = ids.map(pid => simBuildChip(pid, side)).join('');
+
+            // Update counts
+            const countEl = document.getElementById('sim' + cap(side) + cap(zone) + 'Count');
+            if (zone === 'court') countEl.textContent = ids.length + '/5';
+            else countEl.textContent = ids.length;
+        }
+
+        function simRenderAll() {
+            const wrapper = document.getElementById('simCourtWrapper');
+            const empty = document.getElementById('simEmpty');
+            if (simState.home.team || simState.away.team) {
+                wrapper.style.display = 'block';
+                empty.style.display = 'none';
+            } else {
+                wrapper.style.display = 'none';
+                empty.style.display = 'block';
+            }
+            ['home','away'].forEach(side => {
+                ['court','bench','locker'].forEach(zone => simRenderZone(side, zone));
+            });
+            simRecalc();
+        }
+
+        function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+        // Drag and drop
+        function simDragStart(e) {
+            simDragPid = parseInt(e.target.closest('.sim-chip').dataset.pid);
+            simDragSide = e.target.closest('.sim-chip').dataset.side;
+            // Find which zone
+            for (const zone of ['court','bench','locker']) {
+                if (simState[simDragSide][zone].includes(simDragPid)) {
+                    simDragFrom = zone;
+                    break;
+                }
+            }
+            e.target.closest('.sim-chip').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', simDragPid);
+        }
+
+        function simDragEnd(e) {
+            document.querySelectorAll('.sim-chip.dragging').forEach(c => c.classList.remove('dragging'));
+            document.querySelectorAll('.sim-drop-zone.drag-over').forEach(z => z.classList.remove('drag-over'));
+        }
+
+        function simAllowDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+            e.currentTarget.addEventListener('dragleave', function handler() {
+                e.currentTarget.classList.remove('drag-over');
+                e.currentTarget.removeEventListener('dragleave', handler);
+            });
+        }
+
+        function simDrop(e, targetSide, targetZone) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            if (simDragPid === null || simDragSide !== targetSide) return;
+            if (simDragFrom === targetZone) return; // same zone
+
+            // Court max 5
+            if (targetZone === 'court' && simState[targetSide].court.length >= 5) return;
+
+            // Remove from old zone
+            simState[targetSide][simDragFrom] = simState[targetSide][simDragFrom].filter(id => id !== simDragPid);
+            // Add to new zone
+            simState[targetSide][targetZone].push(simDragPid);
+
+            simDragPid = null;
+            simDragSide = null;
+            simDragFrom = null;
+
+            simRenderAll();
+            simCheckReady();
+        }
+
+        // Also support touch drag for mobile
+        (function() {
+            let touchChip = null, touchClone = null, touchSide = null, touchPid = null, touchFrom = null;
+            document.addEventListener('touchstart', function(e) {
+                const chip = e.target.closest('.sim-chip');
+                if (!chip) return;
+                touchPid = parseInt(chip.dataset.pid);
+                touchSide = chip.dataset.side;
+                for (const zone of ['court','bench','locker']) {
+                    if (simState[touchSide][zone].includes(touchPid)) { touchFrom = zone; break; }
+                }
+                touchChip = chip;
+                touchClone = chip.cloneNode(true);
+                touchClone.style.position = 'fixed';
+                touchClone.style.zIndex = '9999';
+                touchClone.style.opacity = '0.85';
+                touchClone.style.pointerEvents = 'none';
+                touchClone.style.transform = 'scale(1.08)';
+                document.body.appendChild(touchClone);
+                chip.classList.add('dragging');
+            }, {passive: true});
+
+            document.addEventListener('touchmove', function(e) {
+                if (!touchClone) return;
+                const t = e.touches[0];
+                touchClone.style.left = (t.clientX - 40) + 'px';
+                touchClone.style.top = (t.clientY - 20) + 'px';
+            }, {passive: true});
+
+            document.addEventListener('touchend', function(e) {
+                if (!touchClone) return;
+                touchClone.remove();
+                if (touchChip) touchChip.classList.remove('dragging');
+                // Find drop target
+                const t = e.changedTouches[0];
+                const el = document.elementFromPoint(t.clientX, t.clientY);
+                if (el) {
+                    const dropZone = el.closest('.sim-drop-zone');
+                    if (dropZone && touchSide && touchPid) {
+                        const zoneId = dropZone.id;
+                        let targetZone = null, targetSide = null;
+                        if (zoneId.includes('Court')) targetZone = 'court';
+                        else if (zoneId.includes('Bench')) targetZone = 'bench';
+                        else if (zoneId.includes('Locker')) targetZone = 'locker';
+                        if (zoneId.includes('Home')) targetSide = 'home';
+                        else if (zoneId.includes('Away')) targetSide = 'away';
+                        if (targetSide === touchSide && targetZone && targetZone !== touchFrom) {
+                            if (targetZone !== 'court' || simState[targetSide].court.length < 5) {
+                                simState[touchSide][touchFrom] = simState[touchSide][touchFrom].filter(id => id !== touchPid);
+                                simState[touchSide][targetZone].push(touchPid);
+                                simRenderAll();
+                                simCheckReady();
+                            }
+                        }
+                    }
+                }
+                touchChip = null; touchClone = null; touchSide = null; touchPid = null; touchFrom = null;
+            });
+        })();
+
+        // Compute live MOJI + per-player adjusted MOJO
+        const simAdjustedMojo = {home: {}, away: {}};  // pid → adjusted mojo
+
+        function simComputeMoji(side) {
+            const abbr = simState[side].team;
+            if (!abbr || !SIM_DATA.rosters[abbr]) return 0;
+            const roster = SIM_DATA.rosters[abbr];
+            const courtIds = simState[side].court;
+            const benchIds = simState[side].bench;
+            const lockerIds = simState[side].locker;
+            const courtMin = parseFloat(document.getElementById('sim' + cap(side) + 'CourtMin').value) || 32;
+            const benchMin = parseFloat(document.getElementById('sim' + cap(side) + 'BenchMin').value) || 16;
+            const K = SIM_DATA.moji_constants;
+
+            // Clear adjusted map
+            simAdjustedMojo[side] = {};
+
+            // Calculate usage redistribution from DNP (locker) players
+            // Formula: 60% to same archetype, 25% to same position, 15% spread
+            let dnpUsageTotal = 0, dnpStocks = 0;
+            const dnpByArch = {};  // archetype → total usage from DNP players
+            lockerIds.forEach(pid => {
+                const p = roster.find(r => r.id === pid);
+                if (p) {
+                    const usage = (p.pts || 0) * (p.mpg || 0) / 48;  // usage proxy scaled by minutes share
+                    dnpUsageTotal += usage;
+                    dnpStocks += ((p.stl || 0) + (p.blk || 0)) * (p.mpg || 0) / 48;
+                    const arch = p.archetype || 'Unclassified';
+                    dnpByArch[arch] = (dnpByArch[arch] || 0) + usage;
+                }
+            });
+
+            // Active players
+            const activeIds = [...courtIds, ...benchIds];
+            const totalActive = activeIds.length || 1;
+
+            // Compute adjusted MOJO per active player
+            let totalWeighted = 0, totalMinutes = 0;
+            activeIds.forEach(pid => {
+                const p = roster.find(r => r.id === pid);
+                if (!p) return;
+                const min = courtIds.includes(pid) ? courtMin : benchMin;
+                const arch = p.archetype || 'Unclassified';
+
+                // Usage absorbed from DNP players (archetype-weighted redistribution)
+                const archShare = (dnpByArch[arch] || 0) * 0.6;  // 60% to same archetype
+                const spreadShare = dnpUsageTotal * 0.15 / totalActive;  // 15% spread
+                const extraUsage = (archShare / Math.max(1, activeIds.filter(id => {
+                    const r = roster.find(rr => rr.id === id);
+                    return r && r.archetype === arch;
+                }).length)) + spreadShare;
+
+                const extraUsagePct = Math.max(0, extraUsage / Math.max(1, (p.pts || 5) * (p.mpg || 20) / 48) * 100);
+
+                // Usage decay from formula: 0.995 standard, 0.985 for defensive archetypes
+                const isDefArch = arch.includes('Rim') || arch.includes('Defensive') || arch.includes('Traditional Center');
+                const decayRate = isDefArch ? K.USAGE_DECAY_DEF : K.USAGE_DECAY;
+                const usageDecay = Math.pow(decayRate, extraUsagePct);
+
+                // Minutes factor: bench players promoted to starter reps get a rhythm boost
+                // Stars playing way above normal get fatigue penalty
+                const minRatio = min / Math.max(1, p.mpg || 20);
+                let minFactor = 1.0;
+                if (minRatio > 1.5) {
+                    minFactor = 0.96;  // way above normal — fatigue/overwork
+                } else if (minRatio > 1.2) {
+                    minFactor = 0.98;  // moderately above normal
+                } else if (minRatio >= 0.8 && minRatio <= 1.2) {
+                    minFactor = 1.0;   // normal range — no change
+                } else if (minRatio >= 0.5 && minRatio < 0.8) {
+                    // Bench player getting consistent reps — slight rhythm boost
+                    // But only for offensive players, not defensive specialists
+                    minFactor = isDefArch ? 1.0 : 1.01;
+                }
+
+                const adjMojo = Math.round(Math.max(33, Math.min(99, p.mojo * usageDecay * minFactor)));
+                simAdjustedMojo[side][pid] = adjMojo;
+
+                totalWeighted += adjMojo * min;
+                totalMinutes += min;
+            });
+
+            // Locker room players: show raw mojo (DNP — no adjustment)
+            lockerIds.forEach(pid => {
+                const p = roster.find(r => r.id === pid);
+                if (p) simAdjustedMojo[side][pid] = p.mojo;
+            });
+
+            // Stocks penalty: team loses defensive value from missing DNP players
+            const stocksPenalty = dnpStocks * K.STOCKS_PENALTY;
+            const rawMoji = totalMinutes > 0 ? totalWeighted / totalMinutes : 0;
+            return Math.max(33, rawMoji - stocksPenalty);
+        }
+
+        function simRecalc() {
+            ['home','away'].forEach(side => {
+                const moji = simComputeMoji(side);
+                const el = document.getElementById('sim' + cap(side) + 'MojiVal');
+                el.textContent = moji > 0 ? moji.toFixed(1) : '—';
+
+                // Update MOJO badges on all chips
+                const abbr = simState[side].team;
+                if (!abbr) return;
+                document.querySelectorAll('.sim-chip[data-side="' + side + '"]').forEach(chip => {
+                    const pid = parseInt(chip.dataset.pid);
+                    const adjMojo = simAdjustedMojo[side][pid];
+                    const badge = chip.querySelector('.sim-chip-mojo');
+                    if (badge && adjMojo !== undefined) {
+                        const p = SIM_DATA.rosters[abbr].find(r => r.id === pid);
+                        const rawMojo = p ? p.mojo : adjMojo;
+                        badge.textContent = adjMojo;
+                        // Color code: green if boosted, red if decayed, default if same
+                        if (adjMojo > rawMojo) {
+                            badge.style.background = '#00FF55';
+                        } else if (adjMojo < rawMojo) {
+                            badge.style.background = '#FF6B6B';
+                        } else {
+                            badge.style.background = '';
+                        }
+                    }
+                });
+            });
+        }
+
+        function simCheckReady() {
+            const btn = document.getElementById('simRunBtn');
+            const info = document.getElementById('simActionInfo');
+            const hReady = simState.home.court.length === 5;
+            const aReady = simState.away.court.length === 5;
+            if (hReady && aReady) {
+                btn.disabled = false;
+                info.textContent = 'Ready to simulate!';
+            } else {
+                btn.disabled = true;
+                const needs = [];
+                if (!hReady) needs.push('Home needs ' + (5 - simState.home.court.length) + ' more starters');
+                if (!aReady) needs.push('Away needs ' + (5 - simState.away.court.length) + ' more starters');
+                info.textContent = needs.join(' · ');
+            }
+        }
+
+        // ─── CORE SIM ENGINE ───
+        function gaussRand() {
+            // Box-Muller transform for normal distribution
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function poissonRand(lambda) {
+            let L = Math.exp(-lambda), k = 0, p = 1;
+            do { k++; p *= Math.random(); } while (p > L);
+            return k - 1;
+        }
+
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+        function simComputePairSynergy(courtIds, side) {
+            // Average pair synergy for the 5-man lineup on court
+            const abbr = simState[side].team;
+            if (!abbr || courtIds.length < 2) return 50;
+            let total = 0, count = 0;
+            for (let i = 0; i < courtIds.length; i++) {
+                for (let j = i + 1; j < courtIds.length; j++) {
+                    const keyA = courtIds[i] + '-' + courtIds[j];
+                    const keyB = courtIds[j] + '-' + courtIds[i];
+                    const pair = SIM_DATA.pairs[keyA] || SIM_DATA.pairs[keyB];
+                    if (pair) { total += pair.syn; count++; }
+                }
+            }
+            return count > 0 ? total / count : 50;
+        }
+
+        function simRunGame() {
+            const hAbbr = simState.home.team;
+            const aAbbr = simState.away.team;
+            if (!hAbbr || !aAbbr) return;
+            if (simState.home.court.length !== 5 || simState.away.court.length !== 5) return;
+
+            const K = SIM_DATA.moji_constants;
+            const hStats = SIM_DATA.team_stats[hAbbr] || {pace:100,ortg:111.7,drtg:111.7,nrtg:0};
+            const aStats = SIM_DATA.team_stats[aAbbr] || {pace:100,ortg:111.7,drtg:111.7,nrtg:0};
+
+            // Minutes setup
+            const hCourtMin = parseFloat(document.getElementById('simHomeCourtMin').value) || 32;
+            const hBenchMin = parseFloat(document.getElementById('simHomeBenchMin').value) || 16;
+            const aCourtMin = parseFloat(document.getElementById('simAwayCourtMin').value) || 32;
+            const aBenchMin = parseFloat(document.getElementById('simAwayBenchMin').value) || 16;
+
+            // MOJI
+            const hMoji = simComputeMoji('home');
+            const aMoji = simComputeMoji('away');
+
+            // Synergy
+            const hSyn = simComputePairSynergy(simState.home.court, 'home');
+            const aSyn = simComputePairSynergy(simState.away.court, 'away');
+            const synDiff = (hSyn - aSyn) * K.SYN_SCALE;
+
+            // HCA
+            const venue = document.getElementById('simVenue').value;
+            let hca = 0;
+            if (venue === 'home') {
+                hca = (SIM_DATA.team_hca[hAbbr] !== undefined) ? SIM_DATA.team_hca[hAbbr] : 1.8;
+            }
+
+            // B2B
+            const hB2B = document.getElementById('simHomeB2B').checked ? K.B2B_HOME : 0;
+            const aB2B = document.getElementById('simAwayB2B').checked ? K.B2B_ROAD : 0;
+
+            // Adjusted NRtg
+            const hNrtg = hStats.nrtg + hca - hB2B;
+            const aNrtg = aStats.nrtg - aB2B;
+            const nrtgDiff = hNrtg - aNrtg;
+
+            // Raw power (spread model)
+            const mojiDiff = (hMoji - aMoji) * K.MOJO_SCALE;
+            const rawPower = K.MOJI_WEIGHT * mojiDiff + K.NRTG_WEIGHT * nrtgDiff + K.SYN_WEIGHT * synDiff;
+
+            // Expected points from pace + ratings
+            const leaguePace = 99.87;
+            const matchupPace = (hStats.pace * aStats.pace) / leaguePace;
+            const poss = matchupPace;
+
+            // Adjust ORTG based on MOJI differential (better lineup → better offense)
+            const mojiOrtgBonus = rawPower * 0.3; // 30% of advantage goes to offense
+            const hExpected = ((hStats.ortg + mojiOrtgBonus/2 + aStats.drtg) / 2) * (poss / 100) + hca/2;
+            const aExpected = ((aStats.ortg - mojiOrtgBonus/2 + hStats.drtg) / 2) * (poss / 100) - hca/2;
+
+            // Apply B2B
+            const hPts = hExpected - hB2B * 0.5;
+            const aPts = aExpected - aB2B * 0.5;
+
+            // Generate quarters with noise
+            const quarters = generateQuarters(hPts, aPts, matchupPace);
+
+            // Generate box scores
+            const hBox = generateBoxScore('home', hCourtMin, hBenchMin, quarters.home.reduce((a,b)=>a+b,0));
+            const aBox = generateBoxScore('away', aCourtMin, aBenchMin, quarters.away.reduce((a,b)=>a+b,0));
+
+            // Render
+            renderSimResults(quarters, hBox, aBox, {
+                hMoji, aMoji, hSyn, aSyn, rawPower, hca, nrtgDiff, mojiDiff, synDiff
+            });
+        }
+
+        function generateQuarters(hTotal, aTotal, pace) {
+            // Split into 4 quarters with realistic variance
+            const stddev = Math.max(3, Math.sqrt(pace) * 0.45); // ~4-5 pts per quarter
+            const home = [], away = [];
+            let hSum = 0, aSum = 0;
+
+            for (let q = 0; q < 4; q++) {
+                if (q < 3) {
+                    let hq = Math.round(hTotal / 4 + gaussRand() * stddev);
+                    let aq = Math.round(aTotal / 4 + gaussRand() * stddev);
+                    hq = clamp(hq, 15, 42);
+                    aq = clamp(aq, 15, 42);
+                    home.push(hq);
+                    away.push(aq);
+                    hSum += hq;
+                    aSum += aq;
+                } else {
+                    // Q4: balance so total is near expected
+                    let hq4 = Math.round(hTotal - hSum + gaussRand() * 2);
+                    let aq4 = Math.round(aTotal - aSum + gaussRand() * 2);
+                    hq4 = clamp(hq4, 15, 42);
+                    aq4 = clamp(aq4, 15, 42);
+                    home.push(hq4);
+                    away.push(aq4);
+                }
+            }
+            return { home, away };
+        }
+
+        function generateBoxScore(side, courtMin, benchMin, teamTotal) {
+            const abbr = simState[side].team;
+            const roster = SIM_DATA.rosters[abbr] || [];
+            const courtIds = simState[side].court;
+            const benchIds = simState[side].bench;
+            const players = [];
+
+            // Build usage weights
+            let totalUsage = 0;
+            const allActive = [...courtIds, ...benchIds];
+            allActive.forEach(pid => {
+                const p = roster.find(r => r.id === pid);
+                if (p) totalUsage += (p.pts || 5) * ((courtIds.includes(pid) ? courtMin : benchMin) / 32);
+            });
+
+            allActive.forEach(pid => {
+                const p = roster.find(r => r.id === pid);
+                if (!p) return;
+                const min = courtIds.includes(pid) ? courtMin : benchMin;
+                const usageWeight = (p.pts || 5) * (min / 32);
+                const share = totalUsage > 0 ? usageWeight / totalUsage : 1 / allActive.length;
+
+                // Points with variance
+                const expectedPts = teamTotal * share;
+                const pts = Math.max(0, Math.round(expectedPts + gaussRand() * Math.sqrt(expectedPts) * 0.6));
+
+                // Other stats scaled by minutes
+                const minFactor = min / (p.mpg || 28);
+                const reb = Math.max(0, poissonRand(Math.max(0.5, (p.reb || 3) * minFactor)));
+                const ast = Math.max(0, poissonRand(Math.max(0.3, (p.ast || 2) * minFactor)));
+                const stl = Math.max(0, poissonRand(Math.max(0.1, (p.stl || 0.5) * minFactor)));
+                const blk = Math.max(0, poissonRand(Math.max(0.05, (p.blk || 0.3) * minFactor)));
+
+                // FG approximation
+                const fga = Math.max(1, Math.round(pts / 1.1 + gaussRand() * 1.5));
+                const fgm = clamp(Math.round(fga * (0.42 + Math.random() * 0.12)), 0, fga);
+                const tpa = clamp(Math.round(fga * (0.25 + Math.random() * 0.2)), 0, fga);
+                const tpm = clamp(Math.round(tpa * (0.30 + Math.random() * 0.15)), 0, tpa);
+                const fta = clamp(poissonRand(Math.max(0.5, pts * 0.22)), 0, 20);
+                const ftm = clamp(Math.round(fta * (0.72 + Math.random() * 0.15)), 0, fta);
+
+                players.push({
+                    id: pid, name: p.name, mojo: p.mojo,
+                    starter: courtIds.includes(pid),
+                    min, pts, reb, ast, stl, blk,
+                    fgm, fga, tpm, tpa, ftm, fta,
+                });
+            });
+
+            // Sort: starters first (by mojo), then bench (by mojo)
+            players.sort((a,b) => {
+                if (a.starter !== b.starter) return a.starter ? -1 : 1;
+                return b.mojo - a.mojo;
+            });
+
+            return players;
+        }
+
+        function renderSimResults(quarters, hBox, aBox, meta) {
+            const hAbbr = simState.home.team;
+            const aAbbr = simState.away.team;
+            const hLogo = simGetTeamLogo(hAbbr);
+            const aLogo = simGetTeamLogo(aAbbr);
+            const hName = SIM_DATA.team_names[hAbbr] || hAbbr;
+            const aName = SIM_DATA.team_names[aAbbr] || aAbbr;
+
+            const hTotal = quarters.home.reduce((a,b) => a+b, 0);
+            const aTotal = quarters.away.reduce((a,b) => a+b, 0);
+            const hHalf = quarters.home[0] + quarters.home[1];
+            const aHalf = quarters.away[0] + quarters.away[1];
+            const hWin = hTotal > aTotal;
+            const aWin = aTotal > hTotal;
+
+            // Scoreboard
+            let sb = '<table class="sim-sb-table"><thead><tr>'
+                + '<th></th><th>Q1</th><th>Q2</th><th>HALF</th><th>Q3</th><th>Q4</th><th>FINAL</th>'
+                + '</tr></thead><tbody>';
+
+            // Away row (top)
+            sb += '<tr>'
+                + '<td><div class="sim-sb-team"><img class="sim-sb-logo" src="' + aLogo + '"><span class="sim-sb-name">' + aAbbr + '</span></div></td>'
+                + '<td class="sim-sb-qtr">' + quarters.away[0] + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.away[1] + '</td>'
+                + '<td class="sim-sb-half">' + aHalf + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.away[2] + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.away[3] + '</td>'
+                + '<td class="sim-sb-final' + (aWin ? ' sim-sb-winner' : '') + '">' + aTotal + '</td>'
+                + '</tr>';
+
+            // Home row (bottom)
+            sb += '<tr>'
+                + '<td><div class="sim-sb-team"><img class="sim-sb-logo" src="' + hLogo + '"><span class="sim-sb-name">' + hAbbr + '</span></div></td>'
+                + '<td class="sim-sb-qtr">' + quarters.home[0] + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.home[1] + '</td>'
+                + '<td class="sim-sb-half">' + hHalf + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.home[2] + '</td>'
+                + '<td class="sim-sb-qtr">' + quarters.home[3] + '</td>'
+                + '<td class="sim-sb-final' + (hWin ? ' sim-sb-winner' : '') + '">' + hTotal + '</td>'
+                + '</tr>';
+
+            sb += '</tbody></table>';
+
+            // Meta line
+            sb += '<div style="text-align:center;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:rgba(0,0,0,0.4)">'
+                + 'MOJI ' + meta.hMoji.toFixed(1) + ' vs ' + meta.aMoji.toFixed(1)
+                + ' · SYN ' + meta.hSyn.toFixed(0) + ' vs ' + meta.aSyn.toFixed(0)
+                + ' · HCA ' + meta.hca.toFixed(1)
+                + '</div>';
+
+            document.getElementById('simScoreboard').innerHTML = sb;
+
+            // Box scores
+            let boxHtml = '';
+            [{abbr: aAbbr, box: aBox, label: aName, logo: aLogo},
+             {abbr: hAbbr, box: hBox, label: hName, logo: hLogo}].forEach(team => {
+                const col = SIM_DATA.team_colors[team.abbr] || '#333';
+                boxHtml += '<div class="sim-box-team">'
+                    + '<div class="sim-box-header" style="background:' + col + ';color:#fff">'
+                    + '<img src="' + team.logo + '" style="width:20px;height:20px">'
+                    + team.abbr + ' ' + team.label.toUpperCase()
+                    + '</div>'
+                    + '<table class="sim-box-table"><thead><tr>'
+                    + '<th>PLAYER</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th>'
+                    + '<th>STL</th><th>BLK</th><th>FG</th><th>3P</th><th>FT</th><th>MOJO</th>'
+                    + '</tr></thead><tbody>';
+
+                let totals = {min:0,pts:0,reb:0,ast:0,stl:0,blk:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0};
+                team.box.forEach(p => {
+                    const cls = p.starter ? 'sim-box-starter' : 'sim-box-bench';
+                    const nameParts = p.name.split(' ');
+                    const short = nameParts.length > 1 ? nameParts[0][0] + '. ' + nameParts.slice(1).join(' ') : p.name;
+                    boxHtml += '<tr class="' + cls + '">'
+                        + '<td>' + short + '</td>'
+                        + '<td>' + p.min + '</td>'
+                        + '<td style="font-weight:800">' + p.pts + '</td>'
+                        + '<td>' + p.reb + '</td>'
+                        + '<td>' + p.ast + '</td>'
+                        + '<td>' + p.stl + '</td>'
+                        + '<td>' + p.blk + '</td>'
+                        + '<td>' + p.fgm + '-' + p.fga + '</td>'
+                        + '<td>' + p.tpm + '-' + p.tpa + '</td>'
+                        + '<td>' + p.ftm + '-' + p.fta + '</td>'
+                        + '<td style="font-weight:700;color:' + (p.mojo >= 70 ? 'var(--green-dark)' : p.mojo >= 55 ? 'var(--ink)' : 'var(--red)') + '">' + p.mojo + '</td>'
+                        + '</tr>';
+                    totals.min += p.min; totals.pts += p.pts; totals.reb += p.reb;
+                    totals.ast += p.ast; totals.stl += p.stl; totals.blk += p.blk;
+                    totals.fgm += p.fgm; totals.fga += p.fga;
+                    totals.tpm += p.tpm; totals.tpa += p.tpa;
+                    totals.ftm += p.ftm; totals.fta += p.fta;
+                });
+
+                boxHtml += '<tr class="sim-box-total">'
+                    + '<td>TOTAL</td>'
+                    + '<td>' + totals.min + '</td>'
+                    + '<td style="font-weight:800">' + totals.pts + '</td>'
+                    + '<td>' + totals.reb + '</td>'
+                    + '<td>' + totals.ast + '</td>'
+                    + '<td>' + totals.stl + '</td>'
+                    + '<td>' + totals.blk + '</td>'
+                    + '<td>' + totals.fgm + '-' + totals.fga + '</td>'
+                    + '<td>' + totals.tpm + '-' + totals.tpa + '</td>'
+                    + '<td>' + totals.ftm + '-' + totals.fta + '</td>'
+                    + '<td></td>'
+                    + '</tr>';
+
+                boxHtml += '</tbody></table></div>';
+            });
+
+            document.getElementById('simBoxScores').innerHTML = boxHtml;
+            document.getElementById('simResults').style.display = 'block';
+            document.getElementById('simResults').scrollIntoView({behavior:'smooth'});
+        }
+
+        function simResim() {
+            document.getElementById('simResults').style.display = 'none';
+            document.getElementById('simCourtWrapper').scrollIntoView({behavior:'smooth'});
+        }
 """
 
 
