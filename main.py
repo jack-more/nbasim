@@ -16,6 +16,7 @@ from collectors.lineups import LineupCollector
 from collectors.playtypes import PlayTypeCollector
 from collectors.boxscores import BoxScoreCollector
 from collectors.odds import OddsCollector
+from collectors.rapm import RAPMCollector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +66,10 @@ def run_collect(seasons: list[str], skip_boxscores: bool = False):
     else:
         logger.info("No ODDS_API_KEY set. Skipping odds collection.")
         logger.info("Sign up free at https://the-odds-api.com to get a key.")
+
+    # Step 7: RAPM data from nbarapm.com (no API key needed)
+    rapm_collector = RAPMCollector(DB_PATH)
+    rapm_collector.collect()
 
 
 def run_analyze(seasons: list[str]):
@@ -136,7 +141,7 @@ def show_status():
         "player_season_stats", "team_season_stats",
         "coaching_profiles", "player_archetypes",
         "player_value_scores", "pair_synergy",
-        "betting_lines", "predictions",
+        "betting_lines", "player_rapm", "predictions",
     ]
     print("\n=== Database Status ===")
     for table in tables:

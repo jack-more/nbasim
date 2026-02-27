@@ -19,8 +19,8 @@ from utils.stats_math import (
 logger = logging.getLogger(__name__)
 
 
-def _compute_ds(row) -> float:
-    """Compute Dynamic Score for a player row (same formula as generate_frontend.py)."""
+def _compute_mojo(row) -> float:
+    """Compute MOJO score for a player row (same formula as generate_frontend.py)."""
     pts = float(row.get("pts_pg", 0) or 0)
     ast = float(row.get("ast_pg", 0) or 0)
     reb = float(row.get("reb_pg", 0) or 0)
@@ -82,7 +82,7 @@ class ValueScoreCalculator:
         """Compute base DS for each player."""
         result = {}
         for _, row in players.iterrows():
-            result[int(row["player_id"])] = _compute_ds(row)
+            result[int(row["player_id"])] = _compute_mojo(row)
         return result
 
     def _compute_solo_impact(self, players: pd.DataFrame, season: str) -> dict:

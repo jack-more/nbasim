@@ -27,7 +27,7 @@ _VALUE_SCORES = {}
 
 
 def _load_value_scores():
-    """Load player_value_scores into memory for contextual DS blending."""
+    """Load player_value_scores into memory for contextual MOJO blending."""
     global _VALUE_SCORES
     df = read_query("""
         SELECT player_id, base_value, solo_impact, two_man_synergy,
@@ -53,6 +53,85 @@ def _load_value_scores():
 
 _load_value_scores()
 
+# ─── RAPM Data Cache ──────────────────────────────────────────────
+# Raw RAPM values from nbarapm.com (517 players, updated daily).
+# Defensive RAPM is used in the MOJO formula (38% weight via percentile rank).
+# Total RAPM displayed on cards for context.
+_RAPM_DATA = {}
+
+
+def _load_rapm_data():
+    """Load raw RAPM data from DB."""
+    global _RAPM_DATA
+    try:
+        df = read_query("""
+            SELECT player_id, player_name, team, rapm_total,
+                   rapm_offense, rapm_defense, rapm_rank
+            FROM player_rapm WHERE rapm_total IS NOT NULL
+        """, DB_PATH)
+    except Exception:
+        return  # Table may not exist yet
+
+    if df.empty:
+        return
+    for _, row in df.iterrows():
+        _RAPM_DATA[int(row["player_id"])] = {
+            "rapm": float(row["rapm_total"]),
+            "rapm_off": float(row["rapm_offense"] or 0),
+            "rapm_def": float(row["rapm_defense"] or 0),
+            "rapm_rank": float(row["rapm_rank"] or 999),
+        }
+
+
+_load_rapm_data()
+
+# ─── DRAPM Percentile Lookup ─────────────────────────────────────
+# Maps player_id → defense score (33-99) based on league-wide
+# defensive RAPM percentile rank. Used in MOJO formula at 38% weight.
+_DRAPM_PERCENTILES = {}
+
+
+def _build_drapm_percentiles():
+    """Rank all players by defensive RAPM, map to 33-99 scale."""
+    global _DRAPM_PERCENTILES
+    drapm_vals = [(pid, info["rapm_def"]) for pid, info in _RAPM_DATA.items()
+                  if info.get("rapm_def") is not None]
+    if not drapm_vals:
+        return
+    # Sort by DRAPM ascending (worst → best)
+    sorted_vals = sorted(drapm_vals, key=lambda x: x[1])
+    n = len(sorted_vals)
+    for rank, (pid, _) in enumerate(sorted_vals):
+        pct = rank / (n - 1) if n > 1 else 0.5
+        _DRAPM_PERCENTILES[pid] = int(33 + pct * 66)
+
+
+_build_drapm_percentiles()
+
+# ─── ORAPM Percentile Lookup ─────────────────────────────────────
+# Maps player_id → offense score (33-99) based on league-wide
+# offensive RAPM percentile rank. Used in MOJO formula at 75% of
+# the offensive component (counting stats fill the remaining 25%).
+_ORAPM_PERCENTILES = {}
+
+
+def _build_orapm_percentiles():
+    """Rank all players by offensive RAPM, map to 33-99 scale."""
+    global _ORAPM_PERCENTILES
+    orapm_vals = [(pid, info["rapm_off"]) for pid, info in _RAPM_DATA.items()
+                  if info.get("rapm_off") is not None]
+    if not orapm_vals:
+        return
+    # Sort by ORAPM ascending (worst → best)
+    sorted_vals = sorted(orapm_vals, key=lambda x: x[1])
+    n = len(sorted_vals)
+    for rank, (pid, _) in enumerate(sorted_vals):
+        pct = rank / (n - 1) if n > 1 else 0.5
+        _ORAPM_PERCENTILES[pid] = int(33 + pct * 66)
+
+
+_build_orapm_percentiles()
+
 # ─── Injury-Adjusted Value Scores Cache ──────────────────────────
 # Populated per-generation for tonight's playing teams only.
 # Maps player_id → adjusted composite (0-100) reflecting who's actually OUT.
@@ -69,7 +148,7 @@ def _build_injury_adjusted_cache(matchups):
 
     For each team playing tonight, removes pair/lineup data involving
     OUT players and recomposes the composite. Result stored in
-    _INJURY_ADJUSTED_VS so matchup-card DS reflects tonight's rotation.
+    _INJURY_ADJUSTED_VS so matchup-card MOJO reflects tonight's rotation.
     """
     global _INJURY_ADJUSTED_VS, _PLAYER_TOP_PAIRS, _PID_NAMES
     _INJURY_ADJUSTED_VS = {}
@@ -589,8 +668,8 @@ def fetch_odds_api_player_props(event_ids):
     return result
 
 
-def compute_dynamic_score(row, injury_adjusted_composite=None):
-    """Compute a context-aware Dynamic Score (33-99).
+def compute_mojo_score(row, injury_adjusted_composite=None):
+    """Compute a context-aware MOJO (33-99).
 
     Base layer: 75% offense / 25% defense + shared components from box score stats.
     Context layer: blended with composite_value from player_value_scores (WOWY,
@@ -600,7 +679,7 @@ def compute_dynamic_score(row, injury_adjusted_composite=None):
     replaces the season-long composite — reflecting tonight's actual rotation
     with OUT players removed from synergy calculations.
 
-    Final: 55% raw box score + 45% contextual value = DS that rewards players
+    Final: 55% raw box score + 45% contextual value = MOJO that rewards players
     who elevate their team, not just fill the stat sheet.
 
     Returns (score, breakdown_dict) for tooltip display.
@@ -627,6 +706,7 @@ def compute_dynamic_score(row, injury_adjusted_composite=None):
     off_score = min(99, max(0, off_raw / 0.85))
 
     # ── Defensive sub-score (0-99 scale) ──
+    # Old box-score defense — used as fallback for players without RAPM data
     stocks_c = stl * 8.0 + blk * 6.0
     drtg_c = max(0, (115 - drtg) * 2.5)  # 107 DRtg → 20pts, 112 → 7.5, 115+ → 0
     def_raw = stocks_c + drtg_c
@@ -638,26 +718,41 @@ def compute_dynamic_score(row, injury_adjusted_composite=None):
     minutes_c = mpg * 0.3
     shared_raw = rebounding_c + impact_c + minutes_c
 
-    # ── Raw DS from box score alone (33-99 scale) ──
-    blended = 0.75 * off_score + 0.25 * def_score + shared_raw
-    raw_ds = min(99, max(33, int(blended / 1.1)))
+    # ── Raw MOJO from RAPM-anchored blend (33-99 scale) ──
+    pid = int(row.get("player_id", 0) or 0)
+    orapm_pctl = _ORAPM_PERCENTILES.get(pid)
+    drapm_pctl = _DRAPM_PERCENTILES.get(pid)
+
+    # Offense: 75% ORAPM percentile + 25% counting stats
+    if orapm_pctl is not None:
+        offense_blended = 0.75 * orapm_pctl + 0.25 * off_score
+    else:
+        offense_blended = off_score  # fallback: pure counting stats
+
+    # Defense: 100% DRAPM percentile
+    if drapm_pctl is not None:
+        blended = 0.62 * offense_blended + 0.38 * drapm_pctl + shared_raw
+    else:
+        # Fallback: old box-score defense for players without RAPM
+        blended = 0.62 * offense_blended + 0.38 * def_score + shared_raw
+
+    raw_mojo = min(99, max(33, int(blended / 1.1)))
 
     # ── Context Adjustment: blend with value_scores composite ──
-    pid = int(row.get("player_id", 0) or 0)
     vs = _VALUE_SCORES.get(pid)
 
     if vs:
         # Use injury-adjusted composite if provided, otherwise season-long
         composite = injury_adjusted_composite if injury_adjusted_composite is not None else vs["composite"]
         # Scale composite_value (0-100) to 33-99 range
-        contextual_ds = int(33 + (composite / 100) * 66)
-        contextual_ds = min(99, max(33, contextual_ds))
+        contextual_mojo = int(33 + (composite / 100) * 66)
+        contextual_mojo = min(99, max(33, contextual_mojo))
         # 55% raw box score + 45% contextual (team-based contribution)
-        score = int(0.55 * raw_ds + 0.45 * contextual_ds)
+        score = int(0.55 * raw_mojo + 0.45 * contextual_mojo)
         score = min(99, max(33, score))
     else:
-        contextual_ds = raw_ds
-        score = raw_ds
+        contextual_mojo = raw_mojo
+        score = raw_mojo
 
     # Breakdown for tooltip — preserve existing keys for compatibility
     total_raw = off_raw + def_raw + shared_raw
@@ -677,34 +772,39 @@ def compute_dynamic_score(row, injury_adjusted_composite=None):
         "efficiency_c": round(efficiency_c / max(1, off_raw) * 100, 0) if off_raw else 0,
         "impact_c": round(impact_c / max(1, shared_raw) * 100, 0) if shared_raw else 0,
         # Context factors for bottom sheet
-        "raw_ds": raw_ds,
-        "contextual_ds": contextual_ds,
+        "raw_mojo": raw_mojo,
+        "contextual_mojo": contextual_mojo,
         "solo_impact": round(vs["solo"], 1) if vs else 50.0,
         "synergy_score": round(vs["two"], 1) if vs else 50.0,
         "fit_score": round(vs["fit"], 1) if vs else 50.0,
         "injury_adjusted": injury_adjusted_composite is not None,
+        # Raw RAPM from nbarapm.com (no formula integration — display only)
+        "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
+        "rapm_off": _RAPM_DATA.get(pid, {}).get("rapm_off"),
+        "rapm_def": _RAPM_DATA.get(pid, {}).get("rapm_def"),
+        "rapm_rank": _RAPM_DATA.get(pid, {}).get("rapm_rank"),
     }
     return score, breakdown
 
 
-def compute_ds_range(score, player_id=None):
-    """Generate a data-driven Dynamic Score range.
+def compute_mojo_range(score, player_id=None):
+    """Generate a data-driven MOJO range.
 
-    Floor = raw box score DS (what they'd be without team context).
+    Floor = raw box score MOJO (what they'd be without team context).
     Ceiling = best-case composite from solo impact + best synergy + archetype fit.
     Falls back to math formula when no value_scores data exists.
     """
     vs = _VALUE_SCORES.get(player_id) if player_id else None
 
     if vs:
-        # Floor = raw box score DS (base_value scaled to 33-99)
-        raw_ds = int(33 + (vs["base"] / 100) * 66)
+        # Floor = raw box score MOJO (base_value scaled to 33-99)
+        raw_mojo = int(33 + (vs["base"] / 100) * 66)
         # Ceiling = best-case: solo + best synergy component + fit
         best_synergy = max(vs["two"], vs["three"], vs["four"], vs["five"])
         ceiling_composite = 0.25 * vs["base"] + 0.30 * vs["solo"] + 0.30 * best_synergy + 0.15 * vs["fit"]
         ceiling_ds = int(33 + (ceiling_composite / 100) * 66)
 
-        low = max(33, min(raw_ds, score - 3))
+        low = max(33, min(raw_mojo, score - 3))
         high = min(99, max(ceiling_ds, score + 2))
     else:
         # Fallback to math formula (shifted to 33-99 scale)
@@ -753,24 +853,24 @@ def compute_spread_and_total(home_data, away_data):
 
 
 # ────────────────────────────────────────────────────────────────────
-# DSI SPREAD MODEL — Steps 1-8
+# MOJI SPREAD MODEL — Steps 1-8
 # ────────────────────────────────────────────────────────────────────
 
 # Model constants
-_DSI_CONSTANTS = {
-    "DS_SCALE":     1.0,    # 1pt DS gap → 1.0 points on spread scale
-    "DSI_WEIGHT":   0.45,   # DSI share in final blend (proven)
+_MOJI_CONSTANTS = {
+    "MOJO_SCALE":     1.0,    # 1pt MOJO gap → 1.0 points on spread scale
+    "MOJI_WEIGHT":   0.45,   # MOJI share in final blend (proven)
     "NRTG_WEIGHT":  0.35,   # adjusted net rating share in final blend (proven)
     "SYN_WEIGHT":   0.20,   # lineup synergy share in final blend (SYN v2, unproven — modifier only)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
     "HCA":          2.0,    # home court advantage added to home net rating (modern NBA)
     "B2B_HOME":     2.0,    # home back-to-back penalty (less severe — still at home)
     "B2B_ROAD":     2.5,    # road back-to-back penalty (travel + fatigue)
-    "USAGE_DECAY":      0.995,  # DS multiplier per 1% extra usage (efficiency tax)
+    "USAGE_DECAY":      0.995,  # MOJO multiplier per 1% extra usage (efficiency tax)
     "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
-    "STOCKS_PENALTY":   0.8,    # DSI points lost per lost stock (STL+BLK scaled by minutes)
+    "STOCKS_PENALTY":   0.8,    # MOJI points lost per lost stock (STL+BLK scaled by minutes)
     # SYN v2: lineup-simulation synergy
-    "SYN_DSI_BONUS":    0.15,   # NRtg bonus per DSI point above team avg in a lineup
+    "SYN_MOJI_BONUS":    0.15,   # NRtg bonus per MOJI point above team avg in a lineup
     "SYN_PAIR_TO_NRTG": 0.4,    # pair composite (0-100) → NRtg scale for synthetic lineups
     "SYN_NRTG_RANGE":   15.0,   # NRtg range for 0-100 mapping [-15, +15]
     "SYN_5MAN_PRIOR":   100,    # Bayesian prior possessions for 5-man NRtg shrinkage
@@ -1594,14 +1694,14 @@ def project_minutes(roster_df, out_player_ids):
     return projected
 
 
-def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
-    """Compute DSI: Dynamic Scores adjusted for who's actually playing.
+def compute_adjusted_mojo(roster_df, out_player_ids, projected_minutes):
+    """Compute MOJI: MOJOs adjusted for who's actually playing.
 
     Uses archetypes to route usage from missing players to remaining ones.
     Applies stocks loss penalty when high-STL/BLK players are OUT.
-    Returns (team_dsi, player_ds_dict, breakdown_notes).
+    Returns (team_moji, player_mojo_dict, breakdown_notes).
     """
-    K = _DSI_CONSTANTS
+    K = _MOJI_CONSTANTS
     available = roster_df[~roster_df["player_id"].isin(out_player_ids)]
     out_players = roster_df[roster_df["player_id"].isin(out_player_ids)]
 
@@ -1637,10 +1737,10 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
     missing_is_wing = any(p in _WING_POSITIONS for p in missing_positions)
     missing_is_bigpos = any(p in _BIG_POSITIONS for p in missing_positions)
 
-    # Compute adjusted DS for each available player
-    player_ds = {}
+    # Compute adjusted MOJO for each available player
+    player_mojo = {}
     notes = []
-    total_weighted_ds = 0
+    total_weighted_mojo = 0
     total_minutes = 0
 
     for _, row in available.iterrows():
@@ -1689,7 +1789,7 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
 
         adjusted_usg = base_usg + usage_boost
 
-        # Build a modified row for DS calculation
+        # Build a modified row for MOJO calculation
         modified_row = dict(row)
         modified_row["minutes_per_game"] = proj_min
 
@@ -1699,9 +1799,9 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
         else:
             modified_row["usg_pct"] = adjusted_usg
 
-        ds, _ = compute_dynamic_score(modified_row)
+        ds, _ = compute_mojo_score(modified_row)
 
-        # Efficiency penalty: more usage = DS decay
+        # Efficiency penalty: more usage = MOJO decay
         if usage_boost > 0:
             usage_increase_pct = (usage_boost / base_usg * 100) if base_usg > 0 else 0
             # Defensive archetypes suffer MORE from offensive usage absorption
@@ -1713,17 +1813,17 @@ def compute_adjusted_ds(roster_df, out_player_ids, projected_minutes):
             ds = int(ds * efficiency_penalty)
             ds = max(33, ds)
 
-        player_ds[pid] = ds
-        total_weighted_ds += ds * proj_min
+        player_mojo[pid] = ds
+        total_weighted_mojo += ds * proj_min
         total_minutes += proj_min
 
-    raw_team_dsi = total_weighted_ds / total_minutes if total_minutes > 0 else 50.0
+    raw_team_moji = total_weighted_mojo / total_minutes if total_minutes > 0 else 50.0
 
-    # Stocks loss penalty: team loses DSI for missing STL+BLK production
+    # Stocks loss penalty: team loses MOJI for missing STL+BLK production
     stocks_penalty = missing_stocks * K["STOCKS_PENALTY"]
-    team_dsi = max(33.0, raw_team_dsi - stocks_penalty)
+    team_moji = max(33.0, raw_team_moji - stocks_penalty)
 
-    return team_dsi, player_ds, notes
+    return team_moji, player_mojo, notes
 
 
 def compute_lineup_rating(team_abbr, available_player_ids, team_net_rating):
@@ -1866,7 +1966,7 @@ def _get_alive_lineups(lineup_df, avail_set, group_size):
 
 
 def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minutes,
-                              player_ds_dict, usg_min_rank):
+                              player_mojo_dict, usg_min_rank):
     """Build 5-man lineups by plugging missing players into a core (4/3/2-man combo).
 
     For each missing slot, score ALL available candidates by their WOWY pair
@@ -1922,9 +2022,9 @@ def _estimate_5man_from_core(core_lineup, avail_ids, pair_lookup, projected_minu
         wowy_amplifier = 1.0 + min(0.5, minutes_bump * 0.5)
         wowy_adj = ((wowy_with_core - 50.0) * 0.4) / 5.0 * wowy_amplifier
 
-        # Small DS kicker (raw player quality vs lineup avg)
-        ds = player_ds_dict.get(plug_pid, 50)
-        team_avg = sum(player_ds_dict.get(p, 50) for p in full_pids) / 5
+        # Small MOJO kicker (raw player quality vs lineup avg)
+        ds = player_mojo_dict.get(plug_pid, 50)
+        team_avg = sum(player_mojo_dict.get(p, 50) for p in full_pids) / 5
         ds_adj = (ds - team_avg) * 0.03 / 5.0
 
         return wowy_adj + ds_adj
@@ -2070,19 +2170,19 @@ def _compute_lineup_scheme_mult(player_ids, pair_lookup, scheme_type, quality_fa
     return sum(mults) / len(mults) if mults else 1.0
 
 
-def _compute_team_avg_dsi(projected_minutes, player_ds_dict):
-    """Minutes-weighted average DSI for the rotation."""
-    total_ds_min = 0.0
+def _compute_team_avg_moji(projected_minutes, player_mojo_dict):
+    """Minutes-weighted average MOJI for the rotation."""
+    total_mojo_min = 0.0
     total_min = 0.0
     for pid, mpg in projected_minutes.items():
-        ds = player_ds_dict.get(pid, 50)
-        total_ds_min += ds * mpg
+        ds = player_mojo_dict.get(pid, 50)
+        total_mojo_min += ds * mpg
         total_min += mpg
-    return total_ds_min / total_min if total_min > 0 else 50.0
+    return total_mojo_min / total_min if total_min > 0 else 50.0
 
 
 def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
-                                     projected_minutes=None, player_ds_dict=None,
+                                     projected_minutes=None, player_mojo_dict=None,
                                      season="2025-26"):
     """SYN v2: Lineup-simulation synergy model.
 
@@ -2095,15 +2195,15 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     """
     from config import SCHEME_QUALITY_FACTORS
 
-    K = _DSI_CONSTANTS
+    K = _MOJI_CONSTANTS
 
     if not avail_ids or len(avail_ids) < 2:
         return 50.0
 
     if projected_minutes is None:
         projected_minutes = {}
-    if player_ds_dict is None:
-        player_ds_dict = {}
+    if player_mojo_dict is None:
+        player_mojo_dict = {}
 
     avail_set = set(int(x) for x in avail_ids)
 
@@ -2117,7 +2217,7 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     # This is the priority order for plugging in missing players
     usg_min_rank = sorted(
         list(avail_set),
-        key=lambda p: (projected_minutes.get(p, 0) + player_ds_dict.get(p, 50) * 0.1),
+        key=lambda p: (projected_minutes.get(p, 0) + player_mojo_dict.get(p, 50) * 0.1),
         reverse=True
     )
 
@@ -2159,7 +2259,7 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         for core in alive_4[:20]:  # cap to avoid excessive iteration
             built = _estimate_5man_from_core(
                 core, list(avail_set), pair_lookup,
-                projected_minutes, player_ds_dict, usg_min_rank
+                projected_minutes, player_mojo_dict, usg_min_rank
             )
             for lu in built:
                 fs = frozenset(lu["player_ids"])
@@ -2174,7 +2274,7 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         for core in alive_3[:15]:
             built = _estimate_5man_from_core(
                 core, list(avail_set), pair_lookup,
-                projected_minutes, player_ds_dict, usg_min_rank
+                projected_minutes, player_mojo_dict, usg_min_rank
             )
             for lu in built:
                 fs = frozenset(lu["player_ids"])
@@ -2189,7 +2289,7 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         for core in alive_2[:10]:
             built = _estimate_5man_from_core(
                 core, list(avail_set), pair_lookup,
-                projected_minutes, player_ds_dict, usg_min_rank
+                projected_minutes, player_mojo_dict, usg_min_rank
             )
             for lu in built:
                 fs = frozenset(lu["player_ids"])
@@ -2204,7 +2304,7 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
 
     # ── Phase B: Assign minutes & score each lineup ──
     _assign_lineup_minutes(all_lineups, projected_minutes)
-    team_avg_dsi = _compute_team_avg_dsi(projected_minutes, player_ds_dict)
+    team_avg_moji = _compute_team_avg_moji(projected_minutes, player_mojo_dict)
 
     for lu in all_lineups:
         # Base quality: pair-level WOWY chemistry (NOT lineup NRtg — that's redundant with NRtg component)
@@ -2212,10 +2312,10 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         # This captures how well these specific players work TOGETHER, not just team quality
         lu["base_quality"] = _compute_pair_composite(lu["player_ids"], pair_lookup)
 
-        # DSI bonus: star lineups boosted, bench lineups penalized
-        lineup_dsi_vals = [player_ds_dict.get(p, 50) for p in lu["player_ids"]]
-        lineup_avg_dsi = sum(lineup_dsi_vals) / len(lineup_dsi_vals)
-        lu["dsi_bonus"] = (lineup_avg_dsi - team_avg_dsi) * K["SYN_DSI_BONUS"]
+        # MOJI bonus: star lineups boosted, bench lineups penalized
+        lineup_moji_vals = [player_mojo_dict.get(p, 50) for p in lu["player_ids"]]
+        lineup_avg_moji = sum(lineup_moji_vals) / len(lineup_moji_vals)
+        lu["moji_bonus"] = (lineup_avg_moji - team_avg_moji) * K["SYN_MOJI_BONUS"]
 
         # Scheme multiplier across all 10 pairs
         lu["scheme_mult"] = _compute_lineup_scheme_mult(
@@ -2223,9 +2323,9 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
         )
 
         # base_quality is 0-100 pair WOWY chemistry
-        # dsi_bonus is NRtg scale (±2ish) — convert to 0-100 scale: multiply by ~3.3
-        dsi_adj_100 = lu["dsi_bonus"] * (50.0 / K["SYN_NRTG_RANGE"])
-        lu["final_quality"] = (lu["base_quality"] + dsi_adj_100) * lu["scheme_mult"]
+        # moji_bonus is NRtg scale (±2ish) — convert to 0-100 scale: multiply by ~3.3
+        moji_adj_100 = lu["moji_bonus"] * (50.0 / K["SYN_NRTG_RANGE"])
+        lu["final_quality"] = (lu["base_quality"] + moji_adj_100) * lu["scheme_mult"]
 
     # ── Phase C: Minutes-weighted aggregate → 0-100 ──
     total_min = sum(lu["est_minutes"] for lu in all_lineups)
@@ -2284,21 +2384,21 @@ def compute_h2h(home_tid, away_tid, season="2025-26"):
     return avg_margin * dampening
 
 
-def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
-    """Full DSI spread model.
+def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
+    """Full MOJI spread model.
 
     Steps:
     1. Get starting lineups from RotoWire scrape
     2. Project minutes for available players
     3. Compute lineup quality rating
-    4. Compute adjusted Dynamic Scores (DSI) with archetype-aware usage redistribution
+    4. Compute adjusted MOJOs (MOJI) with archetype-aware usage redistribution
     5. Compare home net rating + HCA vs away net rating (with B2B penalties)
     6. Compute lineup synergy adjusted by opponent coaching scheme
-    7. Blend 45% SYN + 20% DSI + 15% adjusted NRtg + 20% H2H
+    7. Blend 45% SYN + 20% MOJI + 15% adjusted NRtg + 20% H2H
 
     Returns (spread, total, breakdown).
     """
-    K = _DSI_CONSTANTS
+    K = _MOJI_CONSTANTS
     home_abbr = home_data["abbreviation"]
     away_abbr = away_data["abbreviation"]
     home_tid = int(home_data["team_id"])
@@ -2345,9 +2445,9 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     home_proj_min = project_minutes(home_roster, home_out_ids)
     away_proj_min = project_minutes(away_roster, away_out_ids)
 
-    # ── Compute DSI ──
-    home_dsi, home_player_ds, _ = compute_adjusted_ds(home_roster, home_out_ids, home_proj_min)
-    away_dsi, away_player_ds, _ = compute_adjusted_ds(away_roster, away_out_ids, away_proj_min)
+    # ── Compute MOJI ──
+    home_moji, home_player_mojo, _ = compute_adjusted_mojo(home_roster, home_out_ids, home_proj_min)
+    away_moji, away_player_mojo, _ = compute_adjusted_mojo(away_roster, away_out_ids, away_proj_min)
 
     # ── Compute lineup quality (informational) ──
     home_avail_ids = [int(r["player_id"]) for _, r in home_roster.iterrows()
@@ -2389,20 +2489,20 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
     home_def_scheme = home_scheme_df.iloc[0]["def_scheme_label"] if not home_scheme_df.empty else None
 
     home_syn = compute_team_synergy_vs_opponent(
-        home_avail_ids, home_tid, away_def_scheme, home_proj_min, home_player_ds
+        home_avail_ids, home_tid, away_def_scheme, home_proj_min, home_player_mojo
     )
     away_syn = compute_team_synergy_vs_opponent(
-        away_avail_ids, away_tid, home_def_scheme, away_proj_min, away_player_ds
+        away_avail_ids, away_tid, home_def_scheme, away_proj_min, away_player_mojo
     )
 
     syn_diff = home_syn - away_syn
     synergy_as_points = syn_diff * K["SYN_SCALE"]
 
-    # ── Final blend: 45% DSI + 35% NRtg + 20% SYN ──
-    dsi_diff = home_dsi - away_dsi
-    dsi_as_points = dsi_diff * K["DS_SCALE"]
+    # ── Final blend: 45% MOJI + 35% NRtg + 20% SYN ──
+    moji_diff = home_moji - away_moji
+    moji_as_points = moji_diff * K["MOJO_SCALE"]
 
-    raw_power = (K["DSI_WEIGHT"] * dsi_as_points +
+    raw_power = (K["MOJI_WEIGHT"] * moji_as_points +
                  K["NRTG_WEIGHT"] * nrtg_diff +
                  K["SYN_WEIGHT"] * synergy_as_points)
 
@@ -2424,10 +2524,10 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
 
     # ── Breakdown for display ──
     breakdown = {
-        "home_dsi": round(home_dsi, 1),
-        "away_dsi": round(away_dsi, 1),
-        "dsi_diff": round(dsi_diff, 1),
-        "dsi_pts": round(dsi_as_points, 1),
+        "home_moji": round(home_moji, 1),
+        "away_moji": round(away_moji, 1),
+        "moji_diff": round(moji_diff, 1),
+        "moji_pts": round(moji_as_points, 1),
         "home_nrtg": round(home_adj_nrtg, 1),
         "away_nrtg": round(away_adj_nrtg, 1),
         "nrtg_diff": round(nrtg_diff, 1),
@@ -2444,7 +2544,7 @@ def compute_dsi_spread(home_data, away_data, rw_lineups, team_map):
         "raw_power": round(raw_power, 1),
     }
 
-    print(f"  [DSI] {away_abbr}@{home_abbr}: DSI {home_dsi:.1f}v{away_dsi:.1f} | "
+    print(f"  [MOJI] {away_abbr}@{home_abbr}: MOJI {home_moji:.1f}v{away_moji:.1f} | "
           f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
           f"SYN {home_syn:.1f}v{away_syn:.1f} | "
           f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
@@ -2782,30 +2882,30 @@ def get_player_context(player, opponent_abbr, team_map):
     return " // ".join(notes[:2]) if notes else f"{arch} averaging {pts:.0f}p/{ast:.0f}a"
 
 
-def get_team_ds_rankings():
-    """Rank all 30 teams by minutes-weighted average Dynamic Score across rotation."""
+def get_team_mojo_rankings():
+    """Rank all 30 teams by minutes-weighted average MOJO across rotation."""
     all_teams = read_query("""
         SELECT t.abbreviation FROM teams t
         JOIN team_season_stats ts ON t.team_id = ts.team_id
         WHERE ts.season_id = '2025-26'
     """, DB_PATH)
 
-    team_ds = []
+    team_mojo = []
     for _, row in all_teams.iterrows():
         abbr = row["abbreviation"]
         roster = get_team_roster(abbr, 10)  # top 10 by minutes
         total_weighted = 0
         total_minutes = 0
         for _, p in roster.iterrows():
-            ds, _ = compute_dynamic_score(p)
+            ds, _ = compute_mojo_score(p)
             mpg = p.get("minutes_per_game", 0) or 0
             total_weighted += ds * mpg
             total_minutes += mpg
-        avg_ds = total_weighted / total_minutes if total_minutes > 0 else 40
-        team_ds.append((abbr, round(avg_ds, 1)))
+        avg_mojo = total_weighted / total_minutes if total_minutes > 0 else 40
+        team_mojo.append((abbr, round(avg_mojo, 1)))
 
-    team_ds.sort(key=lambda x: x[1], reverse=True)
-    return {abbr: rank + 1 for rank, (abbr, _) in enumerate(team_ds)}
+    team_mojo.sort(key=lambda x: x[1], reverse=True)
+    return {abbr: rank + 1 for rank, (abbr, _) in enumerate(team_mojo)}
 
 
 def get_matchups():
@@ -2836,8 +2936,8 @@ def get_matchups():
     """, DB_PATH)
     record_map = {row["abbreviation"]: (int(row["wins"]), int(row["losses"])) for _, row in records.iterrows()}
 
-    # ── Get team DS rankings (1-30) ──
-    ds_rank_map = get_team_ds_rankings()
+    # ── Get team MOJO rankings (1-30) ──
+    mojo_rank_map = get_team_mojo_rankings()
 
     matchups = []
     team_map = {row["abbreviation"]: row for _, row in teams.iterrows()}
@@ -2906,7 +3006,7 @@ def get_matchups():
                     print(f"[Rollover] Basketball Monster has tomorrow's slate: {bm_date} ({len(bm_pairs)} games)")
                     matchup_pairs = bm_pairs
                     slate_date = bm_date
-                    rw_lineups = bm_lineups  # Use BM lineups for DSI model
+                    rw_lineups = bm_lineups  # Use BM lineups for MOJI model
                     real_lines = bm_lines
                     rw_game_times = bm_times
                     using_bm_fallback = True
@@ -2934,13 +3034,13 @@ def get_matchups():
             h = team_map[home_abbr]
             a = team_map[away_abbr]
 
-            # ── DSI Spread Model ──
-            proj_spread, proj_total, spread_breakdown = compute_dsi_spread(
+            # ── MOJI Spread Model ──
+            proj_spread, proj_total, spread_breakdown = compute_moji_spread(
                 h, a, rw_lineups, team_map
             )
 
             net_diff = (h["net_rating"] or 0) - (a["net_rating"] or 0)
-            raw_edge = -(proj_spread)  # positive = home favored (from DSI model)
+            raw_edge = -(proj_spread)  # positive = home favored (from MOJI model)
 
             # Check for real sportsbook lines
             real = real_lines.get((home_abbr, away_abbr), {})
@@ -3080,9 +3180,9 @@ def get_matchups():
             h_wins, h_losses = record_map.get(home_abbr, (0, 0))
             a_wins, a_losses = record_map.get(away_abbr, (0, 0))
 
-            # DS rankings (1-30)
-            h_ds_rank = ds_rank_map.get(home_abbr, 30)
-            a_ds_rank = ds_rank_map.get(away_abbr, 30)
+            # MOJO rankings (1-30)
+            h_mojo_rank = mojo_rank_map.get(home_abbr, 30)
+            a_mojo_rank = mojo_rank_map.get(away_abbr, 30)
 
             matchups.append({
                 "home": h, "away": a,
@@ -3108,7 +3208,7 @@ def get_matchups():
                 "ou_edge": round(ou_diff, 1),
                 "h_wins": h_wins, "h_losses": h_losses,
                 "a_wins": a_wins, "a_losses": a_losses,
-                "h_ds_rank": h_ds_rank, "a_ds_rank": a_ds_rank,
+                "h_mojo_rank": h_mojo_rank, "a_mojo_rank": a_mojo_rank,
                 "spread_breakdown": spread_breakdown,
                 "rw_lineups": rw_lineups,
             })
@@ -3169,12 +3269,12 @@ def get_top_combos():
 
             player_details = []
             for _, pl in players.iterrows():
-                ds, _ = compute_dynamic_score(pl)
+                ds, _ = compute_mojo_score(pl)
                 player_details.append({
                     "name": pl["full_name"],
                     "player_id": pl["player_id"],
                     "archetype": pl.get("archetype_label", "") or "Unclassified",
-                    "ds": ds,
+                    "mojo": ds,
                 })
 
             net = row["net_rating"]
@@ -3237,12 +3337,12 @@ def get_fade_combos():
 
             player_details = []
             for _, pl in players.iterrows():
-                ds, _ = compute_dynamic_score(pl)
+                ds, _ = compute_mojo_score(pl)
                 player_details.append({
                     "name": pl["full_name"],
                     "player_id": pl["player_id"],
                     "archetype": pl.get("archetype_label", "") or "Unclassified",
-                    "ds": ds,
+                    "mojo": ds,
                 })
 
             net = row["net_rating"]
@@ -3292,14 +3392,34 @@ def get_lab_data():
     rosters = {}
     for _, row in rosters_df.iterrows():
         team = row["team"]
-        ds, _ = compute_dynamic_score(row)
+        pid = int(row["player_id"])
+        ds, breakdown = compute_mojo_score(row)
+        low, high = compute_mojo_range(ds, pid)
+        vs = _VALUE_SCORES.get(pid, {})
+        arch = row.get("archetype_label") or "Unclassified"
+        icon = ARCHETYPE_ICONS.get(arch, "◆")
+        tid = TEAM_IDS.get(team, 0)
         if team not in rosters:
             rosters[team] = []
         rosters[team].append({
-            "id": int(row["player_id"]),
+            "id": pid,
             "name": row["full_name"],
-            "ds": ds,
-            "archetype": row.get("archetype_label") or "Unclassified",
+            "mojo": ds,
+            "floor": low,
+            "ceil": high,
+            "archetype": arch,
+            "arch_icon": icon,
+            "team_id": tid,
+            "pts": round(float(row.get("pts_pg") or 0), 1),
+            "ast": round(float(row.get("ast_pg") or 0), 1),
+            "reb": round(float(row.get("reb_pg") or 0), 1),
+            "stl": round(float(row.get("stl_pg") or 0), 1),
+            "blk": round(float(row.get("blk_pg") or 0), 1),
+            "mpg": round(float(row.get("minutes_per_game") or 0), 1),
+            "solo": round(float(vs.get("solo", 50)), 1),
+            "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
+            "rapm_off": _RAPM_DATA.get(pid, {}).get("rapm_off"),
+            "rapm_def": _RAPM_DATA.get(pid, {}).get("rapm_def"),
         })
 
     # Build PID → name lookup for all roster players
@@ -3345,6 +3465,34 @@ def get_lab_data():
                 "nrtg": nrtg_val, "min": min_val,
                 "poss": int(poss_val), "syn": syn_val,
             })
+
+    # ── Enrich rosters with best pair data ──
+    # Build pid → best partner (by NRtg, min 30 poss)
+    pid_best_pair = {}  # pid → {"name": str, "nrtg": float}
+    for _, row in pairs_df.iterrows():
+        a = int(row["player_a_id"])
+        b = int(row["player_b_id"])
+        nrtg = float(row["net_rating"] or 0)
+        poss = float(row["possessions"] or 0)
+        if poss < 30:
+            continue
+        for pid, partner_id in [(a, b), (b, a)]:
+            pname = pid_names.get(partner_id, f"#{partner_id}")
+            parts = pname.split()
+            short = f"{parts[0][0]}. {' '.join(parts[1:])}" if len(parts) > 1 else pname
+            if pid not in pid_best_pair or nrtg > pid_best_pair[pid]["nrtg"]:
+                pid_best_pair[pid] = {"name": short, "nrtg": round(nrtg, 1)}
+
+    # Inject best pair into roster entries
+    for team_players in rosters.values():
+        for p in team_players:
+            bp = pid_best_pair.get(p["id"])
+            if bp:
+                p["bp_name"] = bp["name"]
+                p["bp_nrtg"] = bp["nrtg"]
+            else:
+                p["bp_name"] = ""
+                p["bp_nrtg"] = 0
 
     # N-man combo data — 2, 3, 4, 5
     combos = {"2": {}, "3": {}, "4": {}, "5": {}}
@@ -3415,37 +3563,50 @@ def build_lab_html(lab_data):
                     {team_options}
                 </select>
             </div>
-            <div class="wowy-tabs" id="wowyTabs" style="display:none">
+        </div>
+
+        <!-- MOJO PLAYER CARDS GRID -->
+        <div id="mojoCardsSection" style="display:none">
+            <div class="mojo-sort-bar">
+                <button class="mojo-sort-btn active" data-sort="mojo" onclick="mojoSortCards('mojo')">MOJO</button>
+                <button class="mojo-sort-btn" data-sort="solo" onclick="mojoSortCards('solo')">SOLO IMPACT</button>
+                <button class="mojo-sort-btn" data-sort="mpg" onclick="mojoSortCards('mpg')">MINUTES</button>
+            </div>
+            <div class="mojo-card-grid" id="mojoCardGrid"></div>
+        </div>
+
+        <!-- LINEUP COMBOS SECTION -->
+        <div id="lineupCombosSection" style="display:none">
+            <div class="lineup-combos-header">LINEUP COMBOS</div>
+            <div class="wowy-tabs" id="wowyTabs">
                 <button class="wowy-tab active" data-n="2" onclick="wowySetTab(2)">2-MAN</button>
                 <button class="wowy-tab" data-n="3" onclick="wowySetTab(3)">3-MAN</button>
                 <button class="wowy-tab" data-n="4" onclick="wowySetTab(4)">4-MAN</button>
                 <button class="wowy-tab" data-n="5" onclick="wowySetTab(5)">5-MAN</button>
             </div>
-        </div>
-
-        <div class="wowy-filters" id="wowyFilters" style="display:none">
-            <div class="wowy-filter-label">FILTER BY PLAYER</div>
-            <div class="wowy-chips" id="wowyChips"></div>
-        </div>
-
-        <div class="wowy-table-wrap" id="wowyTableWrap" style="display:none">
-            <table class="wowy-table" id="wowyTable">
-                <thead>
-                    <tr>
-                        <th class="wowy-th-players" onclick="wowySort('players')">PLAYERS</th>
-                        <th class="wowy-th-nrtg wowy-sortable" onclick="wowySort('nrtg')">NRtg</th>
-                        <th class="wowy-th-min wowy-sortable active-sort" onclick="wowySort('min')">MIN ▼</th>
-                        <th class="wowy-th-poss wowy-sortable" onclick="wowySort('poss')">POSS</th>
-                        <th class="wowy-th-gp wowy-sortable" onclick="wowySort('gp')">GP</th>
-                    </tr>
-                </thead>
-                <tbody id="wowyBody"></tbody>
-            </table>
+            <div class="wowy-filters" id="wowyFilters">
+                <div class="wowy-filter-label">FILTER BY PLAYER</div>
+                <div class="wowy-chips" id="wowyChips"></div>
+            </div>
+            <div class="wowy-table-wrap" id="wowyTableWrap">
+                <table class="wowy-table" id="wowyTable">
+                    <thead>
+                        <tr>
+                            <th class="wowy-th-players" onclick="wowySort('players')">PLAYERS</th>
+                            <th class="wowy-th-nrtg wowy-sortable" onclick="wowySort('nrtg')">NRtg</th>
+                            <th class="wowy-th-min wowy-sortable active-sort" onclick="wowySort('min')">MIN ▼</th>
+                            <th class="wowy-th-poss wowy-sortable" onclick="wowySort('poss')">POSS</th>
+                            <th class="wowy-th-gp wowy-sortable" onclick="wowySort('gp')">GP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wowyBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <div class="wowy-empty" id="wowyEmpty">
             <div class="wowy-empty-icon">📊</div>
-            <div class="wowy-empty-text">Select a team to explore lineup combinations</div>
+            <div class="wowy-empty-text">Select a team to explore MOJO ratings and lineup combinations</div>
         </div>
     </div>
 
@@ -3457,21 +3618,21 @@ def build_lab_html(lab_data):
     let wowySortDir = -1; // -1 = desc
     let wowyActiveFilters = new Set();
 
+    let mojoCurrentSort = 'mojo';
+
     function wowyTeamChange() {{
         wowyCurrentTeam = document.getElementById('wowyTeamSelect').value;
         wowyActiveFilters.clear();
 
         if (!wowyCurrentTeam) {{
-            document.getElementById('wowyTabs').style.display = 'none';
-            document.getElementById('wowyFilters').style.display = 'none';
-            document.getElementById('wowyTableWrap').style.display = 'none';
+            document.getElementById('mojoCardsSection').style.display = 'none';
+            document.getElementById('lineupCombosSection').style.display = 'none';
             document.getElementById('wowyEmpty').style.display = 'block';
             return;
         }}
 
-        document.getElementById('wowyTabs').style.display = 'flex';
-        document.getElementById('wowyFilters').style.display = 'block';
-        document.getElementById('wowyTableWrap').style.display = 'block';
+        document.getElementById('mojoCardsSection').style.display = 'block';
+        document.getElementById('lineupCombosSection').style.display = 'block';
         document.getElementById('wowyEmpty').style.display = 'none';
 
         // Build player filter chips
@@ -3487,8 +3648,96 @@ def build_lab_html(lab_data):
             chipsDiv.appendChild(chip);
         }});
 
+        renderMojoCards();
         wowyRender();
     }}
+
+    function renderMojoCards() {{
+        const team = wowyCurrentTeam;
+        if (!team) return;
+        let roster = [...(WOWY_DATA.rosters[team] || [])];
+        const tc = TEAM_COLORS[team] || '#333';
+
+        // Sort roster
+        if (mojoCurrentSort === 'mojo') roster.sort((a, b) => b.mojo - a.mojo);
+        else if (mojoCurrentSort === 'solo') roster.sort((a, b) => b.solo - a.solo);
+        else if (mojoCurrentSort === 'mpg') roster.sort((a, b) => b.mpg - a.mpg);
+
+        const grid = document.getElementById('mojoCardGrid');
+        let html = '';
+        roster.forEach((p, i) => {{
+            const ds = p.mojo || 0;
+            const headshot = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + p.id + '.png';
+            const teamLogo = 'https://cdn.nba.com/logos/nba/' + (p.team_id || 0) + '/global/L/logo.svg';
+            const stk = ((p.stl || 0) + (p.blk || 0)).toFixed(1);
+
+            // Tier classes
+            let tier = 'role';
+            if (ds >= 90) tier = 'icon';
+            else if (ds >= 75) tier = 'elite';
+            else if (ds >= 60) tier = 'solid';
+
+            // Solo impact bar
+            const solo = p.solo || 50;
+            const soloOffset = Math.min(Math.max((solo - 20) / 80 * 100, 2), 98);
+            const soloColor = solo >= 60 ? '#00FF55' : solo >= 45 ? '#FFB300' : '#FF3333';
+            const soloLabel = solo >= 50 ? '+' + (solo - 50).toFixed(0) : (solo - 50).toFixed(0);
+
+            // Best pair
+            const bpName = p.bp_name || '';
+            const bpNrtg = p.bp_nrtg || 0;
+            const bpSign = bpNrtg >= 0 ? '+' : '';
+            const bpColor = bpNrtg >= 0 ? '#00FF55' : '#FF3333';
+
+            html += `
+            <div class="mojo-card mojo-${{tier}}" style="--tc:${{tc}}" onclick="openPlayerSheet(this)"
+                 data-name="${{p.name}}" data-arch="${{p.archetype}}" data-mojo="${{ds}}"
+                 data-range="${{p.floor || ds}}-${{p.ceil || ds}}"
+                 data-pts="${{p.pts || 0}}" data-ast="${{p.ast || 0}}" data-reb="${{p.reb || 0}}"
+                 data-stl="${{p.stl || 0}}" data-blk="${{p.blk || 0}}" data-ts="0"
+                 data-net="0" data-usg="0" data-mpg="${{p.mpg || 0}}"
+                 data-team="${{team}}" data-pid="${{p.id}}">
+                <div class="mc-frame">
+                    <div class="mc-score-area">
+                        <div class="mc-mojo-num">${{ds}}</div>
+                        <div class="mc-mojo-label">MOJO</div>
+                        <div class="mc-mojo-range">${{p.floor || ds}}-${{p.ceil || ds}}</div>
+                    </div>
+                    <div class="mc-team-badge">${{team}}</div>
+                    <div class="mc-portrait">
+                        <img src="${{teamLogo}}" class="mc-team-watermark" onerror="this.style.display='none'">
+                        <img src="${{headshot}}" class="mc-headshot" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'">
+                    </div>
+                    <div class="mc-player-name">${{p.name}}</div>
+                    <div class="mc-archetype">${{p.arch_icon || ''}} ${{p.archetype}}</div>
+                    <div class="mc-stat-row">
+                        <div class="mc-stat"><span class="mc-stat-num">${{(p.pts || 0).toFixed(1)}}</span><span class="mc-stat-lbl">PTS</span></div>
+                        <div class="mc-stat"><span class="mc-stat-num">${{(p.ast || 0).toFixed(1)}}</span><span class="mc-stat-lbl">AST</span></div>
+                        <div class="mc-stat"><span class="mc-stat-num">${{(p.reb || 0).toFixed(1)}}</span><span class="mc-stat-lbl">REB</span></div>
+                        <div class="mc-stat"><span class="mc-stat-num">${{stk}}</span><span class="mc-stat-lbl">STK</span></div>
+                    </div>
+                    <div class="mc-solo-row">
+                        <span class="mc-solo-label">SOLO</span>
+                        <div class="mc-solo-bar"><div class="mc-solo-fill" style="width:${{soloOffset}}%;background:${{soloColor}}"></div></div>
+                        <span class="mc-solo-val" style="color:${{soloColor}}">${{soloLabel}}</span>
+                    </div>
+                    ${{p.rapm != null ? '<div class="mc-rapm-row"><span class="mc-rapm-label">RAPM</span><span class="mc-rapm-val" style="color:' + (p.rapm >= 0 ? '#2e7d32' : '#c62828') + '">' + (p.rapm >= 0 ? '+' : '') + p.rapm.toFixed(1) + '</span></div>' : ''}}
+                    ${{bpName ? '<div class="mc-pair-row"><span class="mc-pair-label">w/ ' + bpName + '</span><span class="mc-pair-nrtg" style="color:' + bpColor + '">' + bpSign + bpNrtg.toFixed(1) + '</span></div>' : ''}}
+                </div>
+            </div>`;
+        }});
+        grid.innerHTML = html;
+    }}
+
+    function mojoSortCards(sortBy) {{
+        mojoCurrentSort = sortBy;
+        document.querySelectorAll('.mojo-sort-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.mojo-sort-btn[data-sort="' + sortBy + '"]').classList.add('active');
+        renderMojoCards();
+    }}
+
+    const TEAM_COLORS = {json.dumps({k: TEAM_COLORS.get(k, '#333') for k in lab_data["rosters"].keys()}, separators=(",", ":"))};
+
 
     function wowySetTab(n) {{
         wowyCurrentN = n;
@@ -3662,17 +3911,17 @@ def get_ceiling_floor_players():
             continue
 
         # Scale both to 33-99
-        raw_ds = int(33 + (vs["base"] / 100) * 66)
-        contextual_ds = int(33 + (vs["composite"] / 100) * 66)
-        delta = contextual_ds - raw_ds
+        raw_mojo = int(33 + (vs["base"] / 100) * 66)
+        contextual_mojo = int(33 + (vs["composite"] / 100) * 66)
+        delta = contextual_mojo - raw_mojo
 
         movers.append({
             "player_id": pid,
             "name": row["full_name"],
             "team": row["team"],
             "archetype": row.get("archetype_label") or "Unclassified",
-            "raw_ds": raw_ds,
-            "contextual_ds": contextual_ds,
+            "raw_mojo": raw_mojo,
+            "contextual_mojo": contextual_mojo,
             "delta": delta,
             "solo": round(vs["solo"], 1),
             "synergy": round(vs["two"], 1),
@@ -3753,7 +4002,7 @@ def round_to_half(val):
     return round(val * 2) / 2
 
 def get_player_spotlights(matchups, team_map, real_player_props=None):
-    """Generate top player stat spotlights ranked by DS + matchup advantage.
+    """Generate top player stat spotlights ranked by MOJO + matchup advantage.
 
     Pure research view — no OVER/UNDER picks, no confidence pills.
     Shows stat lines, sportsbook lines (for context), and matchup data.
@@ -3786,7 +4035,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
             for _, p in roster.iterrows():
                 _pid = int(p.get("player_id", 0) or 0)
                 _adj = _INJURY_ADJUSTED_VS.get(_pid)
-                ds, breakdown = compute_dynamic_score(p, injury_adjusted_composite=_adj)
+                ds, breakdown = compute_mojo_score(p, injury_adjusted_composite=_adj)
                 if ds < 40:
                     continue
 
@@ -3834,7 +4083,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
                 # Build note with matchup context
                 note = f"Avg {pts:.1f} pts // {ts*100:.0f}% TS vs {opp_drtg:.0f} DRTG{trend_note}"
 
-                # Matchup advantage score: DS + matchup signal (for ranking)
+                # Matchup advantage score: MOJO + matchup signal (for ranking)
                 matchup_advantage = ds * 0.6 + max(0, matchup_signal) * 4.0
 
                 # Edge vs line (informational, not a pick)
@@ -3842,7 +4091,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
                 if primary_line is not None:
                     edge = primary_avg - float(primary_line)
 
-                low, high = compute_ds_range(ds, player_id)
+                low, high = compute_mojo_range(ds, player_id)
 
                 # Get last 5 games for PTS (primary stat)
                 last5 = get_last5_prop_stats(player_id, "PTS") if pts >= 15 else []
@@ -3876,7 +4125,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
                     "player_id": player_id,
                     "team": abbr,
                     "opponent": opponent,
-                    "ds": ds,
+                    "mojo": ds,
                     "ds_range": f"{low}-{high}",
                     "archetype": arch,
                     "stat_line": stat_line,
@@ -3899,7 +4148,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
 
 
 def get_top_50_ds():
-    """Get top 50 players league-wide ranked by Dynamic Score."""
+    """Get top 50 players league-wide ranked by MOJO."""
     players = read_query("""
         SELECT p.player_id, p.full_name, t.abbreviation,
                ps.pts_pg, ps.ast_pg, ps.reb_pg,
@@ -3915,10 +4164,10 @@ def get_top_50_ds():
         LIMIT 300
     """, DB_PATH)
 
-    # Compute DS for each player, then sort by DS and take top 50
+    # Compute MOJO for each player, then sort by MOJO and take top 50
     all_scored = []
     for _, p in players.iterrows():
-        ds, breakdown = compute_dynamic_score(p)
+        ds, breakdown = compute_mojo_score(p)
         all_scored.append((p, ds, breakdown))
     all_scored.sort(key=lambda x: x[1], reverse=True)
     all_scored = all_scored[:50]
@@ -3926,13 +4175,13 @@ def get_top_50_ds():
     ranked = []
     for p, ds, breakdown in all_scored:
         pid = int(p.get("player_id", 0) or 0)
-        low, high = compute_ds_range(ds, pid)
+        low, high = compute_mojo_range(ds, pid)
         ranked.append({
             "rank": len(ranked) + 1,
             "name": p["full_name"],
             "player_id": p["player_id"],
             "team": p["abbreviation"],
-            "ds": ds,
+            "mojo": ds,
             "low": low, "high": high,
             "pts": round(p.get("pts_pg", 0) or 0, 1),
             "ast": round(p.get("ast_pg", 0) or 0, 1),
@@ -4019,7 +4268,7 @@ def generate_html():
     matchups, team_map, slate_date, event_ids = get_matchups()
     slate_date = slate_date or "TODAY"
 
-    # Build injury-adjusted DS cache for tonight's matchup cards
+    # Build injury-adjusted MOJO cache for tonight's matchup cards
     _build_injury_adjusted_cache(matchups)
     combos = get_top_combos()
     fades = get_fade_combos()
@@ -4124,9 +4373,9 @@ def generate_html():
             <div class="trend-info">
                 <span class="trend-name">{p['name']}</span>
                 <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
-                <span class="trend-stats">Raw: {p['raw_ds']} → Context: {p['contextual_ds']}</span>
+                <span class="trend-stats">Raw: {p['raw_mojo']} → Context: {p['contextual_mojo']}</span>
             </div>
-            <div class="trend-delta trend-pos">+{p['delta']} DS</div>
+            <div class="trend-delta trend-pos">+{p['delta']} MOJO</div>
         </div>"""
 
     floor_cards = ""
@@ -4139,26 +4388,26 @@ def generate_html():
             <div class="trend-info">
                 <span class="trend-name">{p['name']}</span>
                 <span class="trend-meta">{p['team']} // {icon} {p['archetype']}</span>
-                <span class="trend-stats">Raw: {p['raw_ds']} → Context: {p['contextual_ds']}</span>
+                <span class="trend-stats">Raw: {p['raw_mojo']} → Context: {p['contextual_mojo']}</span>
             </div>
-            <div class="trend-delta trend-neg">{p['delta']} DS</div>
+            <div class="trend-delta trend-neg">{p['delta']} MOJO</div>
         </div>"""
 
     # ── Lock picks removed (user request) ──
     lock_cards = ""
 
-    # ── Build Top 50 DS Rankings ──
+    # ── Build Top 50 MOJO Rankings ──
     top50_rows = ""
     for p in top50:
-        ds = p["ds"]
+        ds = p["mojo"]
         if ds >= 83:
-            ds_cls = "ds-elite"
+            ds_cls = "mojo-elite"
         elif ds >= 67:
-            ds_cls = "ds-good"
+            ds_cls = "mojo-good"
         elif ds >= 52:
-            ds_cls = "ds-avg"
+            ds_cls = "mojo-avg"
         else:
-            ds_cls = "ds-low"
+            ds_cls = "mojo-low"
         icon = ARCHETYPE_ICONS.get(p["archetype"], "◆")
         headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p['player_id']}.png"
         net_color = "#00CC44" if p["net"] >= 0 else "#FF3333"
@@ -4168,7 +4417,7 @@ def generate_html():
         bd = p["breakdown"]
         top50_rows += f"""
         <div class="rank-row" onclick="openPlayerSheet(this)"
-             data-name="{p['name']}" data-arch="{p['archetype']}" data-ds="{ds}" data-range="{p['low']}-{p['high']}"
+             data-name="{p['name']}" data-arch="{p['archetype']}" data-mojo="{ds}" data-range="{p['low']}-{p['high']}"
              data-pts="{p['pts']}" data-ast="{p['ast']}" data-reb="{p['reb']}"
              data-stl="{p['stl']}" data-blk="{p['blk']}" data-ts="{p['ts']}"
              data-net="{p['net']}" data-usg="{bd.get('usg_pct', 0)}" data-mpg="{p['mpg']}"
@@ -4176,7 +4425,7 @@ def generate_html():
              data-scoring-pct="{bd.get('scoring_c', 0)}" data-playmaking-pct="{bd.get('playmaking_c', 0)}"
              data-defense-pct="{bd.get('defense_c', 0)}" data-efficiency-pct="{bd.get('efficiency_c', 0)}"
              data-impact-pct="{bd.get('impact_c', 0)}"
-             data-raw-ds="{bd.get('raw_ds', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
+             data-raw-mojo="{bd.get('raw_mojo', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
              data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}">
             <span class="rank-num">#{p['rank']}</span>
             <img src="{headshot}" class="rank-face" onerror="this.style.display='none'">
@@ -4189,9 +4438,9 @@ def generate_html():
                 <span>{p['pts']}p {p['ast']}a {p['reb']}r</span>
                 <span style="color:{net_color}">{net_sign}{p['net']}</span>
             </div>
-            <div class="rank-ds {ds_cls}">
-                <span class="rank-ds-num">{ds}</span>
-                <span class="rank-ds-range">{p['low']}-{p['high']}</span>
+            <div class="rank-mojo {ds_cls}">
+                <span class="rank-mojo-num">{ds}</span>
+                <span class="rank-mojo-range">{p['low']}-{p['high']}</span>
             </div>
         </div>"""
 
@@ -4312,6 +4561,7 @@ def generate_html():
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://morellosims.com/morello-auth.css">
     <style>
 {generate_css()}
     </style>
@@ -4368,7 +4618,7 @@ def generate_html():
         <div class="tab-content" id="tab-props">
             <div class="section-header">
                 <h2>PLAYER STATS</h2>
-                <span class="section-sub">Top 20 matchup spotlights ranked by DS + matchup advantage</span>
+                <span class="section-sub">Top 20 matchup spotlights ranked by MOJO + matchup advantage</span>
             </div>
             <div class="props-list">
                 {props_cards}
@@ -4386,12 +4636,12 @@ def generate_html():
                 {proj_lines_html}
             </div>
 
-            <!-- Top 50 DS Rankings — collapsible (moved from Trends) -->
+            <!-- Top 50 MOJO Rankings — collapsible -->
             <div class="rankings-section" style="margin-top:32px">
                 <div class="rankings-header" onclick="toggleRankings()">
                     <div>
-                        <h2 class="rankings-title">TOP 50 DYNAMIC SCORE</h2>
-                        <span class="section-sub">League-wide player rankings by DS</span>
+                        <h2 class="rankings-title">TOP 50 MOJO</h2>
+                        <span class="section-sub">League-wide player rankings by MOJO</span>
                     </div>
                     <span class="rankings-toggle" id="rankingsToggle">▼</span>
                 </div>
@@ -4400,7 +4650,7 @@ def generate_html():
                         <span class="rch-rank">#</span>
                         <span class="rch-player">PLAYER</span>
                         <span class="rch-stats">STATS</span>
-                        <span class="rch-ds">DS</span>
+                        <span class="rch-mojo">MOJO</span>
                     </div>
                     {top50_rows}
                 </div>
@@ -4412,7 +4662,7 @@ def generate_html():
             {trending_html}
 
             <div class="section-header" style="margin-top:24px">
-                <h2>DS RANGE MOVERS</h2>
+                <h2>MOJO RANGE MOVERS</h2>
                 <span class="section-sub">Players most elevated or suppressed by team context</span>
             </div>
             <div class="trends-grid">
@@ -4507,6 +4757,12 @@ def generate_html():
     <script>
 {generate_js()}
     </script>
+
+    <!-- Firebase SDK + Morello Auth -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://morellosims.com/morello-auth.js" data-ma-theme="nba"></script>
 </body>
 </html>"""
 
@@ -4574,24 +4830,24 @@ def render_matchup_card(m, idx, team_map):
     else:
         sim_proj_html = ""
 
-    # Tug of war bar — use full rotation for DSI tug-of-war (injury-adjusted)
-    home_ds_sum = 0
-    away_ds_sum = 0
+    # Tug of war bar — use full rotation for MOJI tug-of-war (injury-adjusted)
+    home_mojo_sum = 0
+    away_mojo_sum = 0
     home_roster = get_team_roster(ha, 15)
     away_roster = get_team_roster(aa, 15)
     for _, r in home_roster.head(5).iterrows():
         _pid = int(r.get("player_id", 0) or 0)
         _adj = _INJURY_ADJUSTED_VS.get(_pid)
-        ds, _ = compute_dynamic_score(r, injury_adjusted_composite=_adj)
-        home_ds_sum += ds
+        ds, _ = compute_mojo_score(r, injury_adjusted_composite=_adj)
+        home_mojo_sum += ds
     for _, r in away_roster.head(5).iterrows():
         _pid = int(r.get("player_id", 0) or 0)
         _adj = _INJURY_ADJUSTED_VS.get(_pid)
-        ds, _ = compute_dynamic_score(r, injury_adjusted_composite=_adj)
-        away_ds_sum += ds
+        ds, _ = compute_mojo_score(r, injury_adjusted_composite=_adj)
+        away_mojo_sum += ds
 
-    total_ds = home_ds_sum + away_ds_sum
-    home_pct = (home_ds_sum / total_ds * 100) if total_ds > 0 else 50
+    total_ds = home_mojo_sum + away_mojo_sum
+    home_pct = (home_mojo_sum / total_ds * 100) if total_ds > 0 else 50
 
     # Coaching schemes
     h_off = h.get("off_scheme_label", "") or ""
@@ -4717,12 +4973,12 @@ def render_matchup_card(m, idx, team_map):
     else:
         ou_color = "#FF8C00"
 
-    # ── DSI Breakdown ──
+    # ── MOJI Breakdown ──
     bd = m.get("spread_breakdown", {})
-    home_dsi = bd.get("home_dsi", 0)
-    away_dsi = bd.get("away_dsi", 0)
-    dsi_diff = bd.get("dsi_diff", 0)
-    dsi_pts = bd.get("dsi_pts", 0)
+    home_moji = bd.get("home_moji", 0)
+    away_moji = bd.get("away_moji", 0)
+    moji_diff = bd.get("moji_diff", 0)
+    moji_pts = bd.get("moji_pts", 0)
     home_nrtg = bd.get("home_nrtg", 0)
     away_nrtg = bd.get("away_nrtg", 0)
     nrtg_diff = bd.get("nrtg_diff", 0)
@@ -4752,20 +5008,20 @@ def render_matchup_card(m, idx, team_map):
     if away_out_n > 0:
         out_badges += f'<span class="out-badge">{aa}: {away_out_n} OUT</span>'
 
-    # DSI bar visualization
-    dsi_total = home_dsi + away_dsi
-    dsi_home_pct = (home_dsi / dsi_total * 100) if dsi_total > 0 else 50
+    # MOJI bar visualization
+    moji_total = home_moji + away_moji
+    moji_home_pct = (home_moji / moji_total * 100) if moji_total > 0 else 50
 
-    # Which team DSI favors
-    if dsi_diff > 0:
-        dsi_fav = ha
-        dsi_fav_val = f"+{abs(dsi_diff):.1f}"
-    elif dsi_diff < 0:
-        dsi_fav = aa
-        dsi_fav_val = f"+{abs(dsi_diff):.1f}"
+    # Which team MOJI favors
+    if moji_diff > 0:
+        moji_fav = ha
+        moji_fav_val = f"+{abs(moji_diff):.1f}"
+    elif moji_diff < 0:
+        moji_fav = aa
+        moji_fav_val = f"+{abs(moji_diff):.1f}"
     else:
-        dsi_fav = "EVEN"
-        dsi_fav_val = ""
+        moji_fav = "EVEN"
+        moji_fav_val = ""
 
     # Which team NRtg favors
     if nrtg_diff > 0:
@@ -4779,7 +5035,7 @@ def render_matchup_card(m, idx, team_map):
         nrtg_fav_val = ""
 
     # Model weighting computations
-    dsi_weighted = 0.45 * dsi_pts
+    moji_weighted = 0.45 * moji_pts
     nrtg_weighted = 0.35 * nrtg_diff
     syn_weighted = 0.20 * syn_pts
     proj_spread_val = m.get("proj_spread", 0)
@@ -4796,36 +5052,36 @@ def render_matchup_card(m, idx, team_map):
         syn_fav_val = ""
 
     breakdown_html = f"""
-        <div class="dsi-breakdown">
-            <div class="dsi-row">
-                <span class="dsi-label">DSI</span>
-                <span class="dsi-val">{aa} {away_dsi:.1f}</span>
-                <div class="dsi-bar-mini">
-                    <div class="dsi-bar-away" style="width:{100-dsi_home_pct:.0f}%; background:{ac};"></div>
-                    <div class="dsi-bar-home" style="width:{dsi_home_pct:.0f}%; background:{hc};"></div>
+        <div class="moji-breakdown">
+            <div class="moji-row">
+                <span class="moji-label">MOJI</span>
+                <span class="moji-val">{aa} {away_moji:.1f}</span>
+                <div class="moji-bar-mini">
+                    <div class="moji-bar-away" style="width:{100-moji_home_pct:.0f}%; background:{ac};"></div>
+                    <div class="moji-bar-home" style="width:{moji_home_pct:.0f}%; background:{hc};"></div>
                 </div>
-                <span class="dsi-val">{ha} {home_dsi:.1f}</span>
-                <span class="dsi-edge-sm">{dsi_fav} {dsi_fav_val}</span>
+                <span class="moji-val">{ha} {home_moji:.1f}</span>
+                <span class="moji-edge-sm">{moji_fav} {moji_fav_val}</span>
             </div>
-            <div class="dsi-row">
-                <span class="dsi-label">NRtg</span>
-                <span class="dsi-val">{aa} {away_nrtg:+.1f}</span>
-                <div class="dsi-mid-spacer"></div>
-                <span class="dsi-val">{ha} {home_nrtg:+.1f}</span>
-                <span class="dsi-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
+            <div class="moji-row">
+                <span class="moji-label">NRtg</span>
+                <span class="moji-val">{aa} {away_nrtg:+.1f}</span>
+                <div class="moji-mid-spacer"></div>
+                <span class="moji-val">{ha} {home_nrtg:+.1f}</span>
+                <span class="moji-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
             </div>
-            <div class="dsi-row">
-                <span class="dsi-label">SYN</span>
-                <span class="dsi-val">{aa} {away_syn:.1f}</span>
-                <div class="dsi-mid-spacer"></div>
-                <span class="dsi-val">{ha} {home_syn:.1f}</span>
-                <span class="dsi-edge-sm">{syn_fav} {syn_fav_val}</span>
+            <div class="moji-row">
+                <span class="moji-label">SYN</span>
+                <span class="moji-val">{aa} {away_syn:.1f}</span>
+                <div class="moji-mid-spacer"></div>
+                <span class="moji-val">{ha} {home_syn:.1f}</span>
+                <span class="moji-edge-sm">{syn_fav} {syn_fav_val}</span>
             </div>
-            <div class="dsi-row dsi-model-row ma-premium">
-                <span class="dsi-label">MODEL</span>
-                <span class="dsi-model-formula">45% DSI ({dsi_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
+            <div class="moji-row moji-model-row ma-premium">
+                <span class="moji-label">MODEL</span>
+                <span class="moji-model-formula">45% MOJI ({moji_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
-            <div class="dsi-row dsi-tags">
+            <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA \u25B22 {ha}</span>
                 {b2b_badges}
                 {out_badges}
@@ -4839,7 +5095,7 @@ def render_matchup_card(m, idx, team_map):
                 <img src="{a_logo}" class="mc-logo" alt="{aa}" onerror="this.style.display='none'">
                 <div class="mc-team-info">
                     <span class="mc-abbr">{aa}</span>
-                    <span class="mc-ds-rank">DS #{m['a_ds_rank']}</span>
+                    <span class="mc-mojo-rank">MOJO #{m['a_mojo_rank']}</span>
                     <span class="mc-record">{m['a_wins']}-{m['a_losses']}</span>
                 </div>
             </div>
@@ -4853,7 +5109,7 @@ def render_matchup_card(m, idx, team_map):
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
                     <span class="mc-abbr">{ha}</span>
-                    <span class="mc-ds-rank">DS #{m['h_ds_rank']}</span>
+                    <span class="mc-mojo-rank">MOJO #{m['h_mojo_rank']}</span>
                     <span class="mc-record">{m['h_wins']}-{m['h_losses']}</span>
                 </div>
                 <img src="{h_logo}" class="mc-logo" alt="{ha}" onerror="this.style.display='none'">
@@ -4867,8 +5123,8 @@ def render_matchup_card(m, idx, team_map):
             <div class="tow-mid"></div>
         </div>
         <div class="tow-labels">
-            <span>{aa} DS {away_ds_sum}</span>
-            <span>{ha} DS {home_ds_sum}</span>
+            <span>{aa} MOJO {away_mojo_sum}</span>
+            <span>{ha} MOJO {home_mojo_sum}</span>
         </div>
 
         <!-- Schemes row -->
@@ -4880,7 +5136,7 @@ def render_matchup_card(m, idx, team_map):
             <div class="scheme-tag" style="background:{hc}; color:{TEAM_SECONDARY.get(ha, '#fff')}">{h_def}</div>
         </div>
 
-        <!-- DSI Breakdown -->
+        <!-- MOJI Breakdown -->
         {breakdown_html}
 
         <!-- Expand button -->
@@ -4903,18 +5159,18 @@ def render_matchup_card(m, idx, team_map):
 
 
 def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="IN"):
-    """Render a player row inside a matchup card with DS, archetype, context."""
+    """Render a player row inside a matchup card with MOJO, archetype, context."""
     pid = int(player.get("player_id", 0) or 0)
     adj = _INJURY_ADJUSTED_VS.get(pid)
-    ds, breakdown = compute_dynamic_score(player, injury_adjusted_composite=adj)
+    ds, breakdown = compute_mojo_score(player, injury_adjusted_composite=adj)
 
     # Compute injury delta for badge display
     inj_delta = 0
     if adj is not None:
-        season_ds, _ = compute_dynamic_score(player)  # un-adjusted
-        inj_delta = ds - season_ds
+        season_mojo, _ = compute_mojo_score(player)  # un-adjusted
+        inj_delta = ds - season_mojo
 
-    low, high = compute_ds_range(ds, pid)
+    low, high = compute_mojo_range(ds, pid)
     arch = player.get("archetype_label", "") or "Unclassified"
     icon = ARCHETYPE_ICONS.get(arch, "◆")
     name = player["full_name"]
@@ -4930,13 +5186,13 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
     headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{player_id}.png"
 
     if ds >= 83:
-        ds_class = "ds-elite"
+        ds_class = "mojo-elite"
     elif ds >= 67:
-        ds_class = "ds-good"
+        ds_class = "mojo-good"
     elif ds >= 52:
-        ds_class = "ds-avg"
+        ds_class = "mojo-avg"
     else:
-        ds_class = "ds-low"
+        ds_class = "mojo-low"
 
     starter_class = "starter" if is_starter else "bench"
     bd = breakdown
@@ -4957,7 +5213,7 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
 
     return f"""
     <div class="player-row {starter_class} {status_class}" onclick="openPlayerSheet(this)"
-         data-name="{name}" data-arch="{arch}" data-ds="{ds}" data-range="{low}-{high}"
+         data-name="{name}" data-arch="{arch}" data-mojo="{ds}" data-range="{low}-{high}"
          data-pts="{bd['pts']}" data-ast="{bd['ast']}" data-reb="{bd['reb']}"
          data-stl="{bd['stl']}" data-blk="{bd['blk']}" data-ts="{bd['ts_pct']}"
          data-net="{bd['net_rating']}" data-usg="{bd['usg_pct']}" data-mpg="{bd['mpg']}"
@@ -4965,7 +5221,7 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
          data-scoring-pct="{bd['scoring_c']}" data-playmaking-pct="{bd['playmaking_c']}"
          data-defense-pct="{bd['defense_c']}" data-efficiency-pct="{bd['efficiency_c']}"
          data-impact-pct="{bd['impact_c']}"
-         data-raw-ds="{bd.get('raw_ds', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
+         data-raw-mojo="{bd.get('raw_mojo', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
          data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
          data-inj-delta="{inj_delta}"
          data-top-pairs="{top_pairs_json}">
@@ -4978,9 +5234,9 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
             <span>{pts:.0f}p {ast:.0f}a {reb:.0f}r</span>
             <span>{mpg:.0f} mpg</span>
         </div>
-        <div class="pr-ds {ds_class}">
-            <span class="pr-ds-num">{ds}</span>{'<span class="pr-inj-delta ' + ('inj-up' if inj_delta > 0 else 'inj-down') + '">' + ('+' if inj_delta > 0 else '') + str(inj_delta) + '</span>' if inj_delta != 0 else ''}
-            <span class="pr-ds-range">{low}-{high}</span>
+        <div class="pr-mojo {ds_class}">
+            <span class="pr-mojo-num">{ds}</span>{'<span class="pr-inj-delta ' + ('inj-up' if inj_delta > 0 else 'inj-down') + '">' + ('+' if inj_delta > 0 else '') + str(inj_delta) + '</span>' if inj_delta != 0 else ''}
+            <span class="pr-mojo-range">{low}-{high}</span>
         </div>
     </div>"""
 
@@ -4991,8 +5247,8 @@ def render_stat_card(prop, rank):
     headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{prop['player_id']}.png"
     tc = TEAM_COLORS.get(prop["team"], "#333")
 
-    # DS badge color
-    ds = prop["ds"]
+    # MOJO badge color
+    ds = prop["mojo"]
     if ds >= 83:
         ds_color = "var(--green)"
         ds_bg = "rgba(0,255,85,0.12)"
@@ -5063,7 +5319,7 @@ def render_stat_card(prop, rank):
                     <span class="prop-name">{prop['player']}</span>
                     <span class="prop-team-opp">{prop['team']} vs {prop['opponent']}</span>
                 </div>
-                <div class="prop-meta">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} · <span style="color:{ds_color}">DS {ds}</span></div>
+                <div class="prop-meta">{ARCHETYPE_ICONS.get(prop['archetype'], '◆')} {prop['archetype']} · <span style="color:{ds_color}">MOJO {ds}</span></div>
             </div>
             <div class="stat-summary-box">
                 <span class="stat-summary-line">{prop.get('stat_line', '')}</span>
@@ -5090,25 +5346,25 @@ def render_combo_card(combo, is_fade=False):
 
     players_html = ""
     for pl in combo["players"]:
-        ds = pl["ds"]
+        ds = pl["mojo"]
         arch = pl["archetype"]
         icon = ARCHETYPE_ICONS.get(arch, "◆")
         pid = pl["player_id"]
         headshot = f"https://cdn.nba.com/headshots/nba/latest/260x190/{pid}.png"
-        low, high = compute_ds_range(ds, int(pid))
+        low, high = compute_mojo_range(ds, int(pid))
 
         if ds >= 83:
-            ds_cls = "ds-elite"
+            ds_cls = "mojo-elite"
         elif ds >= 67:
-            ds_cls = "ds-good"
+            ds_cls = "mojo-good"
         elif ds >= 52:
-            ds_cls = "ds-avg"
+            ds_cls = "mojo-avg"
         else:
-            ds_cls = "ds-low"
+            ds_cls = "mojo-low"
 
         players_html += f"""
         <div class="combo-player" onclick="openPlayerSheet(this)"
-             data-name="{pl['name']}" data-arch="{arch}" data-ds="{ds}" data-range="{low}-{high}"
+             data-name="{pl['name']}" data-arch="{arch}" data-mojo="{ds}" data-range="{low}-{high}"
              data-pid="{pid}" data-team="{combo['team']}">
             <img src="{headshot}" class="combo-face" onerror="this.style.display='none'">
             <span class="combo-pname">{pl['name']}</span>
@@ -5156,7 +5412,7 @@ def render_lock_card(pick):
 
 
 def render_info_page():
-    """Render the full INFO page with methodology, archetypes, DS guide, coaching."""
+    """Render the full INFO page with methodology, archetypes, MOJO guide, coaching."""
     # Build archetype cards
     arch_cards = ""
     for arch, desc in sorted(ARCHETYPE_DESCRIPTIONS.items()):
@@ -5180,10 +5436,10 @@ def render_info_page():
         </div>
 
         <div class="info-section">
-            <h2 class="info-title">DYNAMIC SCORE (DS) — 40 TO 99</h2>
+            <h2 class="info-title">MOJO (Morello's Optimized Joint Output) — 33 TO 99</h2>
             <p class="info-text">
-                Every player gets a Dynamic Score from 40-99 using a <strong>75% offense / 25% defense</strong>
-                split plus shared impact components.
+                Every player gets a MOJO score from 33-99 using a <strong>75% offense / 25% defense</strong>
+                split plus shared impact components, blended with team synergy context.
             </p>
             <div class="info-formula">
                 <div class="formula-row" style="color:rgba(0,0,0,0.7)"><span><strong>OFFENSE (75%)</strong></span><span></span></div>
@@ -5201,22 +5457,22 @@ def render_info_page():
             </div>
             <p class="info-text">
                 <strong>Defensive Rating (DRtg)</strong> matters: a player with 107 DRtg earns ~20 defensive points,
-                while 112 DRtg earns only ~7.5. Elite defenders and rim protectors get a meaningful DS boost.
+                while 112 DRtg earns only ~7.5. Elite defenders and rim protectors get a meaningful MOJO boost.
             </p>
-            <div class="ds-tiers">
-                <div class="ds-tier"><span class="ds-elite">83-99</span><span>Elite / All-Star caliber</span></div>
-                <div class="ds-tier"><span class="ds-good">67-82</span><span>Strong Starter</span></div>
-                <div class="ds-tier"><span class="ds-avg">52-66</span><span>Rotation Player</span></div>
-                <div class="ds-tier"><span class="ds-low">40-51</span><span>Limited Role</span></div>
-                <div class="ds-tier"><span class="ds-low">33-39</span><span>Fringe / Minimal Impact</span></div>
+            <div class="mojo-tiers">
+                <div class="mojo-tier"><span class="mojo-elite">83-99</span><span>Elite / All-Star caliber</span></div>
+                <div class="mojo-tier"><span class="mojo-good">67-82</span><span>Strong Starter</span></div>
+                <div class="mojo-tier"><span class="mojo-avg">52-66</span><span>Rotation Player</span></div>
+                <div class="mojo-tier"><span class="mojo-low">40-51</span><span>Limited Role</span></div>
+                <div class="mojo-tier"><span class="mojo-low">33-39</span><span>Fringe / Minimal Impact</span></div>
             </div>
             <p class="info-text">
-                <strong>Dynamic Range</strong> shows the expected floor-to-ceiling for each player based on
-                their score volatility. Elite players (DS 83+) have tighter ranges, while mid-tier players
+                <strong>MOJO Range</strong> shows the expected floor-to-ceiling for each player based on
+                their score volatility. Elite players (MOJO 83+) have tighter ranges, while mid-tier players
                 have wider variance.
             </p>
             <p class="info-text">
-                <strong>Team DS Ranking (1-30)</strong> is the minutes-weighted average Dynamic Score across
+                <strong>Team MOJO Ranking (1-30)</strong> is the minutes-weighted average MOJO score across
                 each team's top 10 rotation players, weighted by minutes per game.
             </p>
         </div>
@@ -5266,7 +5522,7 @@ def render_info_page():
         </div>
 
         <div class="info-section">
-            <h2 class="info-title">DSI SPREAD MODEL — 10-STEP PIPELINE</h2>
+            <h2 class="info-title">MOJI SPREAD MODEL — 10-STEP PIPELINE</h2>
             <p class="info-text">
                 The SIM runs a 10-step pipeline to produce projected spreads and totals for every game.
                 <strong>Real lines</strong> from sportsbooks replace projections when available via The Odds API.
@@ -5276,15 +5532,15 @@ def render_info_page():
                 <div class="formula-row"><span>Step 1</span><span>Get starting lineups from RotoWire</span></div>
                 <div class="formula-row"><span>Step 2</span><span>Project minutes for available players</span></div>
                 <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
-                <div class="formula-row"><span>Step 4</span><span>Compute adjusted DSI with archetype-aware usage redistribution</span></div>
+                <div class="formula-row"><span>Step 4</span><span>Compute adjusted MOJI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
                 <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + 2.0 HCA, with B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
-                <div class="formula-row"><span>Step 8</span><span>Blend: 45% SYN + 20% DSI + 15% Adjusted NRtg + 20% H2H = raw power</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Blend: 45% SYN + 20% MOJI + 15% Adjusted NRtg + 20% H2H = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">
-                <div class="formula-row"><span>Stocks Penalty</span><span>0.8 DSI pts per lost stock (STL+BLK × min share)</span></div>
+                <div class="formula-row"><span>Stocks Penalty</span><span>0.8 MOJI pts per lost stock (STL+BLK × min share)</span></div>
                 <div class="formula-row"><span>Home Court Adv.</span><span>+2.0 added to home net rating</span></div>
                 <div class="formula-row"><span>B2B Penalty</span><span>−2.0 home / −2.5 road for back-to-back teams</span></div>
                 <div class="formula-row"><span>Proj. Total</span><span>((ORtg+DRtg)/2 × Matchup Pace/100) × 2</span></div>
@@ -5596,7 +5852,7 @@ def generate_css():
             font-size: 24px;
             letter-spacing: 1px;
         }
-        .mc-ds-rank {
+        .mc-mojo-rank {
             font-family: var(--font-mono);
             font-size: 10px;
             font-weight: 700;
@@ -5745,15 +6001,15 @@ def generate_css():
             color: rgba(0,0,0,0.3);
         }
 
-        /* DSI Breakdown */
-        .dsi-breakdown {
+        /* MOJI Breakdown */
+        .moji-breakdown {
             margin: 4px 12px 6px;
             padding: 8px 10px;
             background: rgba(0,0,0,0.03);
             border-radius: 8px;
             border: 1px solid rgba(0,0,0,0.06);
         }
-        .dsi-row {
+        .moji-row {
             display: flex;
             align-items: center;
             gap: 6px;
@@ -5761,8 +6017,8 @@ def generate_css():
             font-family: var(--font-mono);
             font-size: 10px;
         }
-        .dsi-row:last-child { margin-bottom: 0; }
-        .dsi-label {
+        .moji-row:last-child { margin-bottom: 0; }
+        .moji-label {
             font-weight: 700;
             color: rgba(0,0,0,0.45);
             min-width: 30px;
@@ -5770,14 +6026,14 @@ def generate_css():
             font-size: 9px;
             letter-spacing: 0.5px;
         }
-        .dsi-val {
+        .moji-val {
             font-weight: 600;
             color: rgba(0,0,0,0.7);
             min-width: 55px;
             text-align: center;
             font-size: 10px;
         }
-        .dsi-bar-mini {
+        .moji-bar-mini {
             flex: 1;
             height: 8px;
             display: flex;
@@ -5785,26 +6041,26 @@ def generate_css():
             overflow: hidden;
             border: 1px solid rgba(0,0,0,0.15);
         }
-        .dsi-bar-away, .dsi-bar-home {
+        .moji-bar-away, .moji-bar-home {
             height: 100%;
             transition: width 0.5s ease;
         }
-        .dsi-mid-spacer {
+        .moji-mid-spacer {
             flex: 1;
         }
-        .dsi-edge-sm {
+        .moji-edge-sm {
             font-weight: 700;
             color: rgba(0,0,0,0.55);
             font-size: 9px;
             min-width: 50px;
             text-align: right;
         }
-        .dsi-model-row {
+        .moji-model-row {
             margin-top: 4px;
             padding-top: 5px;
             border-top: 1px dashed rgba(0,0,0,0.10);
         }
-        .dsi-model-formula {
+        .moji-model-formula {
             font-family: var(--font-mono);
             font-size: 9px;
             font-weight: 600;
@@ -5812,11 +6068,11 @@ def generate_css():
             flex: 1;
             text-align: center;
         }
-        .dsi-model-formula strong {
+        .moji-model-formula strong {
             color: rgba(0,0,0,0.85);
             font-size: 10px;
         }
-        .dsi-tags {
+        .moji-tags {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
@@ -5978,26 +6234,26 @@ def generate_css():
             color: rgba(0,0,0,0.5);
             flex-shrink: 0;
         }
-        .pr-ds {
+        .pr-mojo {
             display: flex;
             flex-direction: column;
             align-items: center;
             flex-shrink: 0;
             width: 40px;
         }
-        .pr-ds-num {
+        .pr-mojo-num {
             font-family: var(--font-display);
             font-size: 20px;
         }
-        .pr-ds-range {
+        .pr-mojo-range {
             font-family: var(--font-mono);
             font-size: 9px;
             color: rgba(0,0,0,0.4);
         }
-        .ds-elite .pr-ds-num { color: #00CC44; }
-        .ds-good .pr-ds-num { color: #0a0a0a; }
-        .ds-avg .pr-ds-num { color: #888; }
-        .ds-low .pr-ds-num { color: #FF3333; }
+        .mojo-elite .pr-mojo-num { color: #00CC44; }
+        .mojo-good .pr-mojo-num { color: #0a0a0a; }
+        .mojo-avg .pr-mojo-num { color: #888; }
+        .mojo-low .pr-mojo-num { color: #FF3333; }
 
         /* Injury delta badge */
         .pr-inj-delta {
@@ -6377,10 +6633,10 @@ def generate_css():
             width: 30px;
             text-align: center;
         }
-        .combo-pds.ds-elite { color: #00CC44; }
-        .combo-pds.ds-good { color: #0a0a0a; }
-        .combo-pds.ds-avg { color: #888; }
-        .combo-pds.ds-low { color: #FF3333; }
+        .combo-pds.mojo-elite { color: #00CC44; }
+        .combo-pds.mojo-good { color: #0a0a0a; }
+        .combo-pds.mojo-avg { color: #888; }
+        .combo-pds.mojo-low { color: #FF3333; }
 
         .combo-stats {
             display: flex;
@@ -6413,6 +6669,251 @@ def generate_css():
         }
 
         /* ─── WOWY EXPLORER ─── */
+        /* ─── MOJO PLAYER CARDS ─── */
+        .mojo-sort-bar {
+            display: flex; gap: 0; border-radius: 8px; overflow: hidden;
+            border: 2px solid rgba(0,0,0,0.1); margin-bottom: 16px;
+        }
+        .mojo-sort-btn {
+            flex: 1; padding: 8px 12px; border: none; background: #f0f0f0;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+            letter-spacing: 1px; cursor: pointer; color: rgba(0,0,0,0.5);
+            transition: all 0.15s; text-transform: uppercase;
+        }
+        .mojo-sort-btn.active { background: var(--ink); color: var(--green); }
+        .mojo-sort-btn:hover:not(.active) { background: #e4e4e4; }
+
+        .mojo-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+        @media (min-width: 480px) { .mojo-card-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; } }
+        @media (min-width: 768px) { .mojo-card-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; } }
+
+        .mojo-card {
+            border-radius: 12px; overflow: hidden; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            position: relative;
+        }
+        .mojo-card:active { transform: scale(0.97); }
+
+        .mc-frame {
+            background: linear-gradient(165deg, #f5f5f5 0%, #e8e8e8 100%);
+            padding: 12px 10px 10px; position: relative;
+            border-radius: 12px; overflow: hidden;
+        }
+
+        /* ── Refractor animation engine ── */
+        @property --holo-angle {
+            syntax: '<angle>'; initial-value: 0deg; inherits: false;
+        }
+        @keyframes holoRotate { to { --holo-angle: 360deg; } }
+        @keyframes shimmerSweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        /* ── TIER: ICON (90+) — Gold Holographic Refractor ── */
+        .mojo-icon .mc-frame {
+            background: linear-gradient(165deg, #fff8e1 0%, #f5ecd0 100%);
+            border: 2.5px solid #D4A017;
+            box-shadow: 0 0 25px rgba(212,160,23,0.35), 0 0 60px rgba(255,215,0,0.1);
+        }
+        .mojo-icon .mc-frame::before {
+            content: ''; position: absolute; inset: 0; z-index: 3;
+            background: conic-gradient(
+                from var(--holo-angle),
+                rgba(255,0,0,0.07), rgba(255,165,0,0.07), rgba(255,255,0,0.07),
+                rgba(0,200,0,0.07), rgba(0,100,255,0.07), rgba(128,0,255,0.07),
+                rgba(255,0,0,0.07)
+            );
+            mix-blend-mode: color-dodge;
+            animation: holoRotate 6s linear infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .mojo-icon .mc-frame::after {
+            content: ''; position: absolute; inset: 0; z-index: 4;
+            background:
+                repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,215,0,0.05) 3px, rgba(255,215,0,0.05) 5px),
+                linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.18) 47%, rgba(255,240,180,0.25) 50%, rgba(255,215,0,0.18) 53%, transparent 60%);
+            background-size: 100% 100%, 200% 100%;
+            animation: shimmerSweep 3s ease-in-out infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .mojo-icon .mc-mojo-num { color: #B8860B; text-shadow: 0 0 10px rgba(184,134,11,0.4); }
+        .mojo-icon .mc-player-name { color: #8B6914; }
+
+        /* ── TIER: ELITE (75-89) — Silver Chrome Refractor ── */
+        .mojo-elite .mc-frame {
+            background: linear-gradient(165deg, #f8f8fa 0%, #e4e4e8 100%);
+            border: 2.5px solid #B0B0B8;
+            box-shadow: 0 0 18px rgba(176,176,184,0.3), 0 0 40px rgba(200,200,220,0.08);
+        }
+        .mojo-elite .mc-frame::before {
+            content: ''; position: absolute; inset: 0; z-index: 3;
+            background: conic-gradient(
+                from var(--holo-angle),
+                rgba(180,200,255,0.05), rgba(255,180,200,0.05),
+                rgba(200,255,200,0.05), rgba(180,200,255,0.05)
+            );
+            mix-blend-mode: color-dodge;
+            animation: holoRotate 8s linear infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .mojo-elite .mc-frame::after {
+            content: ''; position: absolute; inset: 0; z-index: 4;
+            background:
+                repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(180,180,200,0.06) 3px, rgba(180,180,200,0.06) 5px),
+                linear-gradient(105deg, transparent 40%, rgba(200,200,220,0.15) 47%, rgba(230,230,250,0.2) 50%, rgba(200,200,220,0.15) 53%, transparent 60%);
+            background-size: 100% 100%, 200% 100%;
+            animation: shimmerSweep 4s ease-in-out infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .mojo-elite .mc-mojo-num { color: #5a5a6e; text-shadow: 0 0 6px rgba(176,176,184,0.3); }
+        .mojo-elite .mc-player-name { color: #3a3a4a; }
+
+        /* ── TIER: SOLID (60-74) — Bronze Metallic ── */
+        .mojo-solid .mc-frame {
+            background: linear-gradient(165deg, #f5ede4 0%, #e8ddd0 100%);
+            border: 2px solid #C19A6B;
+            box-shadow: 0 0 10px rgba(193,154,107,0.15);
+        }
+        .mojo-solid .mc-frame::before {
+            content: ''; position: absolute; inset: 0; z-index: 3;
+            background: linear-gradient(105deg,
+                transparent 40%, rgba(193,154,107,0.12) 47%,
+                rgba(210,170,120,0.2) 50%, rgba(193,154,107,0.12) 53%, transparent 60%);
+            background-size: 200% 100%;
+            animation: shimmerSweep 5s ease-in-out infinite;
+            border-radius: inherit; pointer-events: none;
+        }
+        .mojo-solid .mc-mojo-num { color: #8B6914; }
+        .mojo-solid .mc-player-name { color: #6B4E2A; }
+
+        /* ── TIER: ROLE (below 60) — Base Card (Matte) ── */
+        .mojo-role .mc-frame {
+            background: linear-gradient(165deg, #ececec 0%, #e0e0e0 100%);
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .mojo-role .mc-mojo-num { color: #888; }
+        .mojo-role .mc-player-name { color: #999; }
+
+        /* ── Card internals ── */
+        .mc-score-area {
+            position: absolute; top: 8px; left: 10px; z-index: 2;
+        }
+        .mc-mojo-num {
+            font-family: var(--font-display); font-size: 32px; line-height: 1;
+            font-weight: 400;
+        }
+        .mc-mojo-label {
+            font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+            color: rgba(0,0,0,0.35); letter-spacing: 2px; margin-top: -2px;
+        }
+        .mc-mojo-range {
+            font-family: var(--font-mono); font-size: 9px;
+            color: rgba(0,0,0,0.25); margin-top: 1px;
+        }
+        .mc-team-badge {
+            position: absolute; top: 10px; right: 10px;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+            color: rgba(0,0,0,0.25); letter-spacing: 1px;
+        }
+
+        .mc-portrait {
+            position: relative; width: 100%; aspect-ratio: 1.35;
+            display: flex; align-items: flex-end; justify-content: center;
+            overflow: hidden; margin-top: 8px;
+        }
+        .mc-team-watermark {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 80%; object-fit: contain;
+            opacity: 0.08; pointer-events: none;
+        }
+        .mc-headshot {
+            position: relative; z-index: 1; width: 85%; height: auto;
+            object-fit: contain; object-position: bottom;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+        }
+
+        .mc-player-name {
+            font-family: var(--font-display); font-size: 13px;
+            text-transform: uppercase; text-align: center;
+            line-height: 1.1; margin-top: 6px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mc-archetype {
+            font-family: var(--font-mono); font-size: 9px;
+            color: rgba(0,0,0,0.4); text-align: center;
+            letter-spacing: 0.5px; margin-top: 2px;
+        }
+        .mc-stat-row {
+            display: flex; justify-content: space-around;
+            margin-top: 8px; padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+        }
+        .mc-stat { text-align: center; }
+        .mc-stat-num {
+            display: block; font-family: var(--font-mono); font-size: 11px;
+            color: rgba(0,0,0,0.8); font-weight: 700;
+        }
+        .mc-stat-lbl {
+            display: block; font-family: var(--font-mono); font-size: 7px;
+            color: rgba(0,0,0,0.35); letter-spacing: 1px; margin-top: 1px;
+        }
+        .mc-solo-row {
+            display: flex; align-items: center; gap: 6px;
+            margin-top: 6px; padding: 0 2px;
+        }
+        .mc-solo-label {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 700;
+            color: rgba(0,0,0,0.35); letter-spacing: 1px; flex-shrink: 0;
+        }
+        .mc-solo-bar {
+            flex: 1; height: 4px; background: rgba(0,0,0,0.08);
+            border-radius: 2px; overflow: hidden;
+        }
+        .mc-solo-fill {
+            height: 100%; border-radius: 2px;
+            transition: width 0.3s;
+        }
+        .mc-solo-val {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+            flex-shrink: 0; min-width: 20px; text-align: right;
+        }
+        .mc-rapm-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 2px 2px 0; margin-top: 3px;
+        }
+        .mc-rapm-label {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 700;
+            color: rgba(0,0,0,0.35); letter-spacing: 1px;
+        }
+        .mc-rapm-val {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+        }
+        .mc-pair-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 4px; padding: 0 2px;
+        }
+        .mc-pair-label {
+            font-family: var(--font-mono); font-size: 8px;
+            color: rgba(0,0,0,0.35); letter-spacing: 0.3px;
+        }
+        .mc-pair-nrtg {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+        }
+
+        .lineup-combos-header {
+            font-family: var(--font-display); font-size: 18px;
+            color: var(--ink); letter-spacing: 1px;
+            margin-bottom: 12px; padding-bottom: 8px;
+            border-bottom: 2px solid rgba(0,0,0,0.08);
+        }
+
         .wowy-container { padding: 0 4px; }
         .wowy-controls {
             display: flex; align-items: flex-end; gap: 12px;
@@ -6573,13 +7074,13 @@ def generate_css():
         }
         .sheet-name { font-family: var(--font-display); font-size: 24px; }
         .sheet-meta { font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.4); }
-        .sheet-ds {
+        .sheet-mojo {
             font-family: var(--font-display);
             font-size: 40px;
             color: var(--green);
             margin-left: auto;
         }
-        .sheet-ds-range {
+        .sheet-mojo-range {
             font-family: var(--font-mono);
             font-size: 11px;
             color: rgba(255,255,255,0.4);
@@ -6638,7 +7139,7 @@ def generate_css():
             color: rgba(255,255,255,0.35);
             margin-top: 4px;
         }
-        .sheet-ds-label {
+        .sheet-mojo-label {
             font-family: var(--font-mono);
             font-size: 9px;
             letter-spacing: 2px;
@@ -6782,18 +7283,18 @@ def generate_css():
             font-family: var(--font-mono);
             font-size: 12px;
         }
-        .ds-tiers { margin: 12px 0; }
-        .ds-tiers .ds-tier {
+        .mojo-tiers { margin: 12px 0; }
+        .mojo-tiers .mojo-tier {
             display: flex;
             gap: 12px;
             padding: 6px 0;
             font-size: 13px;
             align-items: center;
         }
-        .ds-tiers .ds-elite { color: #00CC44; font-family: var(--font-display); font-size: 16px; width: 60px; }
-        .ds-tiers .ds-good { color: #0a0a0a; font-family: var(--font-display); font-size: 16px; width: 60px; }
-        .ds-tiers .ds-avg { color: #888; font-family: var(--font-display); font-size: 16px; width: 60px; }
-        .ds-tiers .ds-low { color: #FF3333; font-family: var(--font-display); font-size: 16px; width: 60px; }
+        .mojo-tiers .mojo-elite { color: #00CC44; font-family: var(--font-display); font-size: 16px; width: 60px; }
+        .mojo-tiers .mojo-good { color: #0a0a0a; font-family: var(--font-display); font-size: 16px; width: 60px; }
+        .mojo-tiers .mojo-avg { color: #888; font-family: var(--font-display); font-size: 16px; width: 60px; }
+        .mojo-tiers .mojo-low { color: #FF3333; font-family: var(--font-display); font-size: 16px; width: 60px; }
 
         .info-arch-grid {
             display: grid;
@@ -6895,7 +7396,7 @@ def generate_css():
         .rch-rank { width: 30px; }
         .rch-player { flex: 1; }
         .rch-stats { width: 120px; text-align: right; }
-        .rch-ds { width: 50px; text-align: center; }
+        .rch-mojo { width: 50px; text-align: center; }
         .rank-row {
             display: flex;
             align-items: center;
@@ -6938,20 +7439,20 @@ def generate_css():
             display: flex; flex-direction: column; align-items: flex-end;
             gap: 1px; flex-shrink: 0; color: rgba(0,0,0,0.5);
         }
-        .rank-ds {
+        .rank-mojo {
             display: flex; flex-direction: column; align-items: center;
             flex-shrink: 0; width: 44px;
         }
-        .rank-ds-num {
+        .rank-mojo-num {
             font-family: var(--font-display); font-size: 22px;
         }
-        .rank-ds-range {
+        .rank-mojo-range {
             font-family: var(--font-mono); font-size: 9px; color: rgba(0,0,0,0.35);
         }
-        .rank-ds.ds-elite .rank-ds-num { color: #00CC44; }
-        .rank-ds.ds-good .rank-ds-num { color: #0a0a0a; }
-        .rank-ds.ds-avg .rank-ds-num { color: #888; }
-        .rank-ds.ds-low .rank-ds-num { color: #FF3333; }
+        .rank-mojo.mojo-elite .rank-mojo-num { color: #00CC44; }
+        .rank-mojo.mojo-good .rank-mojo-num { color: #0a0a0a; }
+        .rank-mojo.mojo-avg .rank-mojo-num { color: #888; }
+        .rank-mojo.mojo-low .rank-mojo-num { color: #FF3333; }
 
         /* ─── PROJECTED PLAYER LINES ─── */
         .proj-disclaimer {
@@ -7195,7 +7696,7 @@ def generate_js():
             const netVal = parseFloat(d.net || 0);
             const netColor = netVal >= 0 ? '#00FF55' : '#FF3333';
             const netSign = netVal >= 0 ? '+' : '';
-            const dsVal = parseInt(d.ds || 50);
+            const dsVal = parseInt(d.mojo || 50);
             const dsColor = dsVal >= 83 ? '#00FF55' : dsVal >= 67 ? '#4CAF50' : dsVal >= 52 ? '#FF9800' : '#FF3333';
 
             // Team color lookup
@@ -7222,7 +7723,7 @@ def generate_js():
             const injDelta = parseInt(d.injDelta || 0);
             const roleContext = injDelta !== 0
                 ? '<div class="sheet-role-badge" style="background:' + (injDelta > 0 ? 'rgba(0,204,68,0.15);color:#00CC44' : 'rgba(255,51,51,0.15);color:#FF3333') + '">'
-                  + (injDelta > 0 ? '▲ ELEVATED' : '▼ REDUCED') + ' ROLE (' + (injDelta > 0 ? '+' : '') + injDelta + ' DS)</div>'
+                  + (injDelta > 0 ? '▲ ELEVATED' : '▼ REDUCED') + ' ROLE (' + (injDelta > 0 ? '+' : '') + injDelta + ' MOJO)</div>'
                 : '<div class="sheet-role-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4)">STANDARD ROLE</div>';
 
             sheetContent.innerHTML = `
@@ -7231,18 +7732,18 @@ def generate_js():
                     <div>
                         <div class="sheet-name">${d.name || '—'}</div>
                         <div class="sheet-arch-badge" style="border-color:${tc};color:${tc}">${d.arch || '—'}</div>
-                        <div class="sheet-meta-sub">${d.team || '—'} · ${d.mpg || '—'} MPG · DS Range ${d.range || '—'}</div>
+                        <div class="sheet-meta-sub">${d.team || '—'} · ${d.mpg || '—'} MPG · MOJO Range ${d.range || '—'}</div>
                     </div>
                     <div style="margin-left:auto;text-align:center">
-                        <div class="sheet-ds" style="color:${dsColor}">${d.ds || '—'}</div>
-                        <div class="sheet-ds-label">DS</div>
+                        <div class="sheet-mojo" style="color:${dsColor}">${d.mojo || '—'}</div>
+                        <div class="sheet-mojo-label">MOJO</div>
                     </div>
                 </div>
 
                 ${roleContext}
 
                 <div class="sheet-radar-section">
-                    <div class="sheet-section">DS BREAKDOWN</div>
+                    <div class="sheet-section">MOJO BREAKDOWN</div>
                     ${radarSVG}
                 </div>
 

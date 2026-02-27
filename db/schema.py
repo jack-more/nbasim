@@ -342,6 +342,30 @@ CREATE TABLE IF NOT EXISTS betting_lines (
 CREATE INDEX IF NOT EXISTS idx_betting_game ON betting_lines(game_id);
 
 -- ============================================================
+-- RAPM (Regularized Adjusted Plus-Minus) from nbarapm.com
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS player_rapm (
+    player_id       INTEGER NOT NULL,
+    player_name     TEXT,
+    team            TEXT,
+    position        TEXT,
+    rapm_total      REAL,
+    rapm_offense    REAL,
+    rapm_defense    REAL,
+    rapm_rank       REAL,
+    lebron_total    REAL,
+    lebron_offense  REAL,
+    lebron_defense  REAL,
+    darko_dpm       REAL,
+    rapm_2yr        REAL,
+    rapm_3yr        REAL,
+    rapm_4yr        REAL,
+    rapm_5yr        REAL,
+    PRIMARY KEY (player_id)
+);
+
+-- ============================================================
 -- MODEL PREDICTIONS
 -- ============================================================
 
