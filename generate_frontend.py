@@ -869,6 +869,7 @@ _MOJI_CONSTANTS = {
     "USAGE_DECAY":      0.995,  # MOJO multiplier per 1% extra usage (efficiency tax)
     "USAGE_DECAY_DEF":  0.985,  # steeper decay for defensive archetypes absorbing offense
     "STOCKS_PENALTY":   0.8,    # MOJI points lost per lost stock (STL+BLK scaled by minutes)
+    "NRTG_MOJO_ATTRITION": 0.3, # NRtg points lost per 1-point MOJI drop from injuries
     # SYN v2: lineup-simulation synergy
     "SYN_MOJI_BONUS":    0.15,   # NRtg bonus per MOJI point above team avg in a lineup
     "SYN_PAIR_TO_NRTG": 0.4,    # pair composite (0-100) → NRtg scale for synthetic lineups
@@ -2384,6 +2385,18 @@ def compute_h2h(home_tid, away_tid, season="2025-26"):
     return avg_margin * dampening
 
 
+def _compute_full_strength_moji(roster_df):
+    """Minutes-weighted avg MOJO for the full roster (no injuries)."""
+    total = 0.0
+    total_min = 0.0
+    for _, row in roster_df.iterrows():
+        ds, _ = compute_mojo_score(row)
+        mpg = row.get("minutes_per_game", 0) or 0
+        total += ds * mpg
+        total_min += mpg
+    return total / total_min if total_min > 0 else 50.0
+
+
 def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     """Full MOJI spread model.
 
@@ -2449,6 +2462,10 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     home_moji, home_player_mojo, _ = compute_adjusted_mojo(home_roster, home_out_ids, home_proj_min)
     away_moji, away_player_mojo, _ = compute_adjusted_mojo(away_roster, away_out_ids, away_proj_min)
 
+    # ── Full-strength MOJI for NRtg attrition ──
+    home_full_moji = _compute_full_strength_moji(home_roster)
+    away_full_moji = _compute_full_strength_moji(away_roster)
+
     # ── Compute lineup quality (informational) ──
     home_avail_ids = [int(r["player_id"]) for _, r in home_roster.iterrows()
                       if r["player_id"] not in home_out_ids]
@@ -2458,12 +2475,18 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     home_lineup_q = compute_lineup_rating(home_abbr, home_avail_ids, h_net)
     away_lineup_q = compute_lineup_rating(away_abbr, away_avail_ids, a_net)
 
-    # ── Adjusted net rating: home + HCA vs away, with split B2B penalties ──
+    # ── Adjusted net rating: home + HCA vs away, with injury attrition + B2B ──
     home_b2b = is_back_to_back(home_abbr)
     away_b2b = is_back_to_back(away_abbr)
 
-    home_adj_nrtg = h_net + K["HCA"]
-    away_adj_nrtg = a_net
+    # NRtg injury attrition: MOJO drop from injuries → NRtg penalty
+    home_mojo_drop = max(0, home_full_moji - home_moji)
+    away_mojo_drop = max(0, away_full_moji - away_moji)
+    home_nrtg_attrition = home_mojo_drop * K["NRTG_MOJO_ATTRITION"]
+    away_nrtg_attrition = away_mojo_drop * K["NRTG_MOJO_ATTRITION"]
+
+    home_adj_nrtg = h_net + K["HCA"] - home_nrtg_attrition
+    away_adj_nrtg = a_net - away_nrtg_attrition
 
     if home_b2b:
         home_adj_nrtg -= K["B2B_HOME"]
@@ -2530,6 +2553,8 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         "moji_pts": round(moji_as_points, 1),
         "home_nrtg": round(home_adj_nrtg, 1),
         "away_nrtg": round(away_adj_nrtg, 1),
+        "home_nrtg_attrition": round(home_nrtg_attrition, 1),
+        "away_nrtg_attrition": round(away_nrtg_attrition, 1),
         "nrtg_diff": round(nrtg_diff, 1),
         "home_syn": round(home_syn, 1),
         "away_syn": round(away_syn, 1),
