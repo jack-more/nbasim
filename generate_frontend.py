@@ -4652,6 +4652,8 @@ def generate_html():
     sim_data_json = json.dumps({
         "rosters": lab_data["rosters"],
         "pairs": lab_data.get("pairs", {}),
+        "combos_3": lab_data.get("combos_3", {}),
+        "combos_5": lab_data.get("combos_5", {}),
         "team_stats": lab_data.get("team_stats", {}),
         "team_hca": TEAM_HCA,
         "team_colors": TEAM_COLORS,
@@ -4841,11 +4843,15 @@ def generate_html():
         <!-- SIM TAB -->
         <div class="tab-content active" id="tab-sim">
             <div class="sim-container">
-                <!-- TEAM SELECTORS (top bar) -->
+                <!-- TEAM SELECTORS (logo grid) -->
                 <div class="sim-team-bar">
                     <div class="sim-team-picker home">
                         <label class="sim-label" style="color:var(--green)">HOME</label>
-                        <select id="simHomeTeam" class="sim-select" onchange="simTeamChange('home')">
+                        <div class="sim-team-btn" id="simHomeBtnDisplay" onclick="simOpenTeamGrid('home')">
+                            <img id="simHomeBtnLogo" class="sim-team-btn-logo" src="" style="display:none" alt="">
+                            <span id="simHomeBtnText">Select team...</span>
+                        </div>
+                        <select id="simHomeTeam" class="sim-select" onchange="simTeamChange('home')" style="display:none">
                             <option value="">Select team...</option>
                             {sim_team_options}
                         </select>
@@ -4853,21 +4859,32 @@ def generate_html():
                     <div class="sim-vs-badge">VS</div>
                     <div class="sim-team-picker away">
                         <label class="sim-label" style="color:#CE1141">AWAY</label>
-                        <select id="simAwayTeam" class="sim-select" onchange="simTeamChange('away')">
+                        <div class="sim-team-btn" id="simAwayBtnDisplay" onclick="simOpenTeamGrid('away')">
+                            <img id="simAwayBtnLogo" class="sim-team-btn-logo" src="" style="display:none" alt="">
+                            <span id="simAwayBtnText">Select team...</span>
+                        </div>
+                        <select id="simAwayTeam" class="sim-select" onchange="simTeamChange('away')" style="display:none">
                             <option value="">Select team...</option>
                             {sim_team_options}
                         </select>
                     </div>
                 </div>
+                <!-- TEAM LOGO GRID (overlay) -->
+                <div class="sim-team-grid-overlay" id="simTeamGridOverlay" style="display:none" onclick="if(event.target===this)simCloseTeamGrid()">
+                    <div class="sim-team-grid-panel">
+                        <div class="sim-team-grid-title" id="simTeamGridTitle">SELECT HOME TEAM</div>
+                        <div class="sim-team-grid" id="simTeamGrid"></div>
+                    </div>
+                </div>
 
-                <!-- THREE-COLUMN LAYOUT -->
-                <div class="sim-three-col" id="simThreeCol" style="display:none">
+                <!-- THREE-COLUMN LAYOUT (always visible) -->
+                <div class="sim-three-col" id="simThreeCol">
                     <!-- LEFT: HOME PANEL -->
                     <div class="sim-panel home" id="simPanelHome">
                         <div class="sim-panel-header" id="simHomeHeader">
                             <img id="simHomeLogo" class="sim-panel-logo" src="" alt="">
                             <span id="simHomeLabel">HOME</span>
-                            <span class="sim-moji-badge home" id="simHomeMojiBadge">MOJI —</span>
+                            <span class="sim-moji-badge home" id="simHomeMojiBadge">MOJI —<span class="sim-moji-info">i</span><div class="sim-moji-tooltip"><strong>MOJI</strong> — Minutes-weighted Offensive Lineup Index<br><br>Lineup quality rating (0–99):<br>• Player MOJO scores weighted by minutes<br>• Usage redistribution from DNP players<br>• Fatigue penalty for overplayed minutes<br>• Archetype decay for extra usage load</div></span>
                         </div>
                         <!-- HALF-COURT with position slots -->
                         <div class="sim-court" id="simHomeCourt">
@@ -4878,11 +4895,13 @@ def generate_html():
                                 <path d="M 30 320 Q 30 100 200 20 Q 370 100 370 320" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-dasharray="6,4"/>
                                 <line x1="0" y1="320" x2="400" y2="320" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
                             </svg>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="home" style="top:5%;left:30%"
+                            <svg class="sim-link-overlay" id="simHomeLinkOverlay"></svg>
+                            <div class="sim-link-tooltip" id="simHomeLinkTooltip"></div>
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="home" style="top:5%;left:15%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="home" style="top:5%;right:30%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="home" style="top:5%;right:15%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
@@ -4950,6 +4969,29 @@ def generate_html():
                                 </label>
                             </div>
                         </div>
+                        <!-- LINK MODE TOGGLE -->
+                        <div class="sim-center-section">
+                            <div class="sim-link-toggle" id="simLinkToggle" onclick="simToggleLinkMode()">
+                                <span class="sim-link-toggle-dot"></span>
+                                LINK MODE
+                            </div>
+                        </div>
+                        <!-- ROTATION EDITOR -->
+                        <div class="sim-center-section" id="simRotationSection" style="display:none">
+                            <div class="sim-center-label">ROTATION</div>
+                            <div class="sim-rotation-tabs">
+                                <div class="sim-rotation-tab active" id="simRotTabHome" onclick="simSwitchRotTab('home')">HOME</div>
+                                <div class="sim-rotation-tab" id="simRotTabAway" onclick="simSwitchRotTab('away')">AWAY</div>
+                            </div>
+                            <div class="sim-rotation-wrap" id="simRotationContent"></div>
+                        </div>
+                        <!-- COMBO INSPECTOR -->
+                        <div class="sim-combo-inspector" id="simComboInspector" style="display:none">
+                            <div class="sim-combo-title">COMBO INSPECTOR</div>
+                            <div id="simComboContent">
+                                <div class="sim-combo-empty">Toggle LINK MODE &amp; click connections to inspect combos</div>
+                            </div>
+                        </div>
                         <button class="sim-run-btn" id="simRunBtn" onclick="simRunGame()" disabled>
                             &#9654; RUN SIMULATION
                         </button>
@@ -4970,7 +5012,7 @@ def generate_html():
                         <div class="sim-panel-header" id="simAwayHeader">
                             <img id="simAwayLogo" class="sim-panel-logo" src="" alt="">
                             <span id="simAwayLabel">AWAY</span>
-                            <span class="sim-moji-badge away" id="simAwayMojiBadge">MOJI —</span>
+                            <span class="sim-moji-badge away" id="simAwayMojiBadge">MOJI —<span class="sim-moji-info">i</span><div class="sim-moji-tooltip"><strong>MOJI</strong> — Minutes-weighted Offensive Lineup Index<br><br>Lineup quality rating (0–99):<br>• Player MOJO scores weighted by minutes<br>• Usage redistribution from DNP players<br>• Fatigue penalty for overplayed minutes<br>• Archetype decay for extra usage load</div></span>
                         </div>
                         <!-- HALF-COURT with position slots -->
                         <div class="sim-court" id="simAwayCourt">
@@ -4981,11 +5023,13 @@ def generate_html():
                                 <path d="M 30 320 Q 30 100 200 20 Q 370 100 370 320" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-dasharray="6,4"/>
                                 <line x1="0" y1="320" x2="400" y2="320" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
                             </svg>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="away" style="top:5%;left:30%"
+                            <svg class="sim-link-overlay" id="simAwayLinkOverlay"></svg>
+                            <div class="sim-link-tooltip" id="simAwayLinkTooltip"></div>
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="away" style="top:5%;left:15%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="away" style="top:5%;right:30%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="away" style="top:5%;right:15%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
@@ -5027,12 +5071,7 @@ def generate_html():
                 <!-- FULL-WIDTH BOX SCORES (below three-col) -->
                 <div class="sim-boxscore-full" id="simBoxScores" style="display:none"></div>
 
-                <!-- EMPTY STATE -->
-                <div class="sim-empty" id="simEmpty">
-                    <div class="sim-empty-icon">🏀</div>
-                    <div class="sim-empty-text">BUILD YOUR LINEUP</div>
-                    <div class="sim-empty-sub">Select two teams, drag players onto the court, set custom minutes per player, and run a full simulation.</div>
-                </div>
+                <!-- (empty state removed — courts always visible) -->
             </div>
 
             <script>
@@ -7876,6 +7915,53 @@ def generate_css():
             background-repeat: no-repeat; background-position: right 12px center;
         }
         .sim-select:focus { outline: none; border-color: var(--green); }
+        /* Team selector button (replaces dropdown visually) */
+        .sim-team-btn {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border: var(--border-thin); border-radius: 8px;
+            background: #fff; cursor: pointer; transition: all 0.15s;
+            font-family: var(--font-body); font-size: 14px; font-weight: 600;
+            color: rgba(0,0,0,0.45);
+        }
+        .sim-team-btn:hover { border-color: var(--green); box-shadow: 0 0 0 2px rgba(0,255,85,0.15); }
+        .sim-team-btn.selected { color: var(--ink); border-color: var(--green); }
+        .sim-team-btn-logo { width: 28px; height: 28px; object-fit: contain; }
+
+        /* Team logo grid overlay */
+        .sim-team-grid-overlay {
+            position: fixed; inset: 0; z-index: 500;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .sim-team-grid-panel {
+            background: var(--surface); border-radius: 16px;
+            padding: 20px; max-width: 520px; width: 90%;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.4); border: 2px solid var(--green);
+        }
+        .sim-team-grid-title {
+            font-family: var(--font-display); font-size: 18px; letter-spacing: 2px;
+            text-align: center; margin-bottom: 16px; color: var(--ink);
+        }
+        .sim-team-grid {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+        }
+        .sim-team-grid-item {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 4px; padding: 8px 4px; border-radius: 10px; cursor: pointer;
+            transition: all 0.15s; border: 2px solid transparent;
+        }
+        .sim-team-grid-item:hover {
+            background: rgba(0,255,85,0.08); border-color: var(--green);
+            transform: scale(1.05);
+        }
+        .sim-team-grid-item img {
+            width: 40px; height: 40px; object-fit: contain;
+        }
+        .sim-team-grid-item span {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+            color: rgba(0,0,0,0.5); letter-spacing: 0.5px;
+        }
+
         .sim-vs-badge {
             font-family: var(--font-display); font-size: 24px; color: var(--ink);
             padding: 0 8px;
@@ -7910,9 +7996,9 @@ def generate_css():
 
         /* HALF-COURT */
         .sim-court {
-            position: relative; width: 100%; padding-bottom: 80%;
+            position: relative; width: 100%; padding-bottom: 100%;
             background: linear-gradient(180deg, rgba(30,30,30,1) 0%, rgba(40,40,40,1) 100%);
-            overflow: hidden;
+            overflow: visible;
         }
         .sim-court-lines {
             position: absolute; inset: 0; width: 100%; height: 100%;
@@ -7920,7 +8006,7 @@ def generate_css():
 
         /* POSITION SLOTS */
         .sim-pos-slot {
-            position: absolute; width: 100px; min-height: 90px;
+            position: absolute; width: 140px; min-height: 110px;
             border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px;
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; transition: all 0.2s;
@@ -7937,80 +8023,85 @@ def generate_css():
         }
         .sim-pos-slot.filled .sim-pos-label { display: none; }
 
-        /* PLAYER CARDS (MOJO-tiered) */
+        /* PLAYER CARDS — FUT-style (MOJO-tiered) */
         .sim-card {
-            width: 96px; cursor: grab; user-select: none; position: relative;
-            border-radius: 8px; overflow: hidden; transition: transform 0.15s;
+            width: 132px; cursor: grab; user-select: none; position: relative;
+            border-radius: 10px; overflow: hidden; transition: transform 0.15s;
         }
-        .sim-card:active { cursor: grabbing; transform: scale(1.06); }
+        .sim-card:active { cursor: grabbing; transform: scale(1.05); }
         .sim-card.dragging { opacity: 0.3; }
         .sim-card-inner {
-            padding: 6px; text-align: center; border-radius: 8px;
-            border: 2px solid rgba(255,255,255,0.15);
+            padding: 6px 6px 5px; text-align: center; border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.15); position: relative;
         }
         /* Tier: Gold (MOJO >= 80) */
         .sim-card.tier-gold .sim-card-inner {
-            background: linear-gradient(135deg, #B8860B 0%, #FFD700 40%, #DAA520 70%, #B8860B 100%);
-            border-color: #FFD700;
+            background: linear-gradient(150deg, #B8860B 0%, #FFD700 30%, #FFF8DC 50%, #DAA520 70%, #B8860B 100%);
+            border-color: #FFD700; box-shadow: inset 0 0 20px rgba(255,215,0,0.15);
         }
         /* Tier: Silver (MOJO >= 60) */
         .sim-card.tier-silver .sim-card-inner {
-            background: linear-gradient(135deg, #71706e 0%, #c0c0c0 40%, #a8a8a8 70%, #71706e 100%);
-            border-color: #c0c0c0;
+            background: linear-gradient(150deg, #71706e 0%, #c0c0c0 30%, #e8e8e8 50%, #a8a8a8 70%, #71706e 100%);
+            border-color: #c0c0c0; box-shadow: inset 0 0 20px rgba(192,192,192,0.15);
         }
         /* Tier: Bronze (MOJO >= 40) */
         .sim-card.tier-bronze .sim-card-inner {
-            background: linear-gradient(135deg, #8B4513 0%, #CD7F32 40%, #a0522d 70%, #8B4513 100%);
-            border-color: #CD7F32;
+            background: linear-gradient(150deg, #6B3410 0%, #CD7F32 30%, #E8A862 50%, #a0522d 70%, #6B3410 100%);
+            border-color: #CD7F32; box-shadow: inset 0 0 20px rgba(205,127,50,0.15);
         }
         /* Tier: Base (MOJO < 40) */
         .sim-card.tier-base .sim-card-inner {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 40%, #1a1a1a 100%);
+            background: linear-gradient(150deg, #1a1a1a 0%, #2d2d2d 30%, #3a3a3a 50%, #2d2d2d 70%, #1a1a1a 100%);
             border-color: rgba(255,255,255,0.1);
         }
-        .sim-card-pos {
-            position: absolute; top: 4px; right: 4px; font-family: var(--font-mono);
-            font-size: 9px; font-weight: 700; background: rgba(0,0,0,0.6);
-            color: #fff; padding: 1px 4px; border-radius: 3px; z-index: 2;
+        /* Card header row: MOJO left, POS right */
+        .sim-card-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 2px;
         }
         .sim-card-mojo {
-            font-family: var(--font-display); font-size: 26px; color: #fff;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); line-height: 1;
+            font-family: var(--font-display); font-size: 32px; color: #fff;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.6); line-height: 1;
         }
+        .sim-card-pos {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 800;
+            background: rgba(0,0,0,0.5); color: #fff; padding: 2px 5px;
+            border-radius: 4px; letter-spacing: 0.5px; margin-top: 2px;
+        }
+        /* Headshot — rectangular portrait, not circular */
         .sim-card-face {
-            width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
-            margin: 4px auto; border: 2px solid rgba(255,255,255,0.3);
-            background: rgba(0,0,0,0.3);
+            width: 72px; height: 72px; border-radius: 8px; object-fit: cover;
+            margin: 4px auto; border: 2px solid rgba(255,255,255,0.25);
+            background: rgba(0,0,0,0.25);
         }
         .sim-card-name {
-            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-            color: #fff; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+            font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+            color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            margin-top: 2px;
+            margin-top: 3px; letter-spacing: 0.5px;
         }
-        .sim-card-team-label {
-            font-family: var(--font-mono); font-size: 8px; color: rgba(255,255,255,0.5);
+        /* Archetype label */
+        .sim-card-arch {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 600;
+            color: rgba(255,255,255,0.55); margin-top: 1px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        /* MPG slider on card */
-        .sim-card-mpg {
-            display: flex; align-items: center; gap: 3px; margin-top: 4px;
-            background: rgba(0,0,0,0.4); border-radius: 4px; padding: 2px 4px;
+        /* Stat row: PTS | AST | REB */
+        .sim-card-stats {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px;
+            margin-top: 4px; padding-top: 4px;
+            border-top: 1px solid rgba(255,255,255,0.12);
         }
-        .sim-card-mpg label {
-            font-family: var(--font-mono); font-size: 8px; color: rgba(255,255,255,0.5);
-            letter-spacing: 0.5px;
+        .sim-card-stat {
+            text-align: center;
         }
-        .sim-card-mpg input[type="range"] {
-            flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
-            background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer;
+        .sim-card-stat-label {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 600;
+            color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
         }
-        .sim-card-mpg input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 10px; height: 10px;
-            background: var(--green); border-radius: 50%; cursor: pointer;
-        }
-        .sim-card-mpg .mpg-val {
-            font-family: var(--font-mono); font-size: 9px; font-weight: 800;
-            color: var(--green); min-width: 18px; text-align: right;
+        .sim-card-stat-val {
+            font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+            color: #fff;
         }
 
         /* BENCH STRIP */
@@ -8037,9 +8128,11 @@ def generate_css():
             align-self: center; width: 100%; text-align: center;
         }
         /* Bench card (smaller) */
-        .sim-bench-zone .sim-card { width: 76px; }
-        .sim-bench-zone .sim-card-mojo { font-size: 18px; }
-        .sim-bench-zone .sim-card-face { width: 28px; height: 28px; }
+        .sim-bench-zone .sim-card { width: 100px; }
+        .sim-bench-zone .sim-card-mojo { font-size: 20px; }
+        .sim-bench-zone .sim-card-face { width: 44px; height: 44px; }
+        .sim-bench-zone .sim-card-arch { display: none; }
+        .sim-bench-zone .sim-card-stats { display: none; }
 
         /* LOCKER ROOM (collapsible) */
         .sim-locker-wrap {
@@ -8069,10 +8162,11 @@ def generate_css():
         .sim-locker-zone.drag-over {
             border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04);
         }
-        .sim-locker-zone .sim-card { width: 60px; opacity: 0.5; }
-        .sim-locker-zone .sim-card-mojo { font-size: 14px; }
-        .sim-locker-zone .sim-card-face { width: 22px; height: 22px; }
-        .sim-locker-zone .sim-card-mpg { display: none; }
+        .sim-locker-zone .sim-card { width: 72px; opacity: 0.5; }
+        .sim-locker-zone .sim-card-mojo { font-size: 16px; }
+        .sim-locker-zone .sim-card-face { width: 32px; height: 32px; }
+        .sim-locker-zone .sim-card-arch { display: none; }
+        .sim-locker-zone .sim-card-stats { display: none; }
 
         /* CENTER COLUMN */
         .sim-center-col {
@@ -8226,6 +8320,172 @@ def generate_css():
         .sim-empty-sub {
             font-size: 13px; color: rgba(0,0,0,0.5); max-width: 420px; margin: 0 auto;
             line-height: 1.5;
+        }
+
+        /* SYNERGY LINK OVERLAY on court */
+        .sim-link-overlay {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            z-index: 3; pointer-events: none;
+        }
+        .sim-link-overlay line {
+            pointer-events: stroke; cursor: pointer;
+            stroke-width: 2; opacity: 0.4; transition: all 0.2s;
+        }
+        .sim-link-overlay line:hover {
+            stroke-width: 4; opacity: 1; filter: drop-shadow(0 0 4px currentColor);
+        }
+        .sim-link-overlay line.link-selected {
+            stroke-width: 4; opacity: 1; filter: drop-shadow(0 0 6px currentColor);
+        }
+        .sim-link-overlay line.link-low-sample {
+            stroke-dasharray: 6,4;
+        }
+        /* Link mode toggle */
+        .sim-link-toggle {
+            display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+            background: var(--surface-dark); border-radius: 6px; cursor: pointer;
+            border: 1px solid rgba(0,255,85,0.2); transition: all 0.2s;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+            color: rgba(255,255,255,0.6); letter-spacing: 0.5px;
+        }
+        .sim-link-toggle.active {
+            background: rgba(0,255,85,0.15); border-color: var(--green);
+            color: var(--green);
+        }
+        .sim-link-toggle-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255,255,255,0.3); transition: all 0.2s;
+        }
+        .sim-link-toggle.active .sim-link-toggle-dot {
+            background: var(--green); box-shadow: 0 0 6px rgba(0,255,85,0.5);
+        }
+
+        /* ROTATION EDITOR in center hub */
+        .sim-rotation-wrap {
+            max-height: 320px; overflow-y: auto; margin-top: 6px;
+        }
+        .sim-rotation-tabs {
+            display: flex; gap: 0; margin-bottom: 6px;
+        }
+        .sim-rotation-tab {
+            flex: 1; padding: 5px 8px; text-align: center; cursor: pointer;
+            font-family: var(--font-display); font-size: 10px; letter-spacing: 1px;
+            color: rgba(0,0,0,0.35); border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .sim-rotation-tab.active {
+            color: var(--green-dark); border-bottom-color: var(--green);
+        }
+        .sim-rot-row {
+            display: grid; grid-template-columns: 24px 1fr 36px 38px 80px 28px;
+            gap: 4px; align-items: center; padding: 3px 4px;
+            border-bottom: 1px solid rgba(0,0,0,0.04); font-family: var(--font-mono);
+        }
+        .sim-rot-row:hover { background: rgba(0,255,85,0.04); }
+        .sim-rot-face {
+            width: 22px; height: 22px; border-radius: 50%; object-fit: cover;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .sim-rot-name {
+            font-size: 10px; font-weight: 700; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .sim-rot-pos {
+            font-size: 8px; font-weight: 700; color: rgba(0,0,0,0.4);
+            text-align: center;
+        }
+        .sim-rot-mojo {
+            font-size: 10px; font-weight: 800; text-align: center;
+        }
+        .sim-rot-slider {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+            background: rgba(0,0,0,0.1); border-radius: 2px; cursor: pointer;
+        }
+        .sim-rot-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 12px;
+            background: var(--green); border-radius: 50%; cursor: pointer;
+        }
+        .sim-rot-val {
+            font-size: 10px; font-weight: 800; color: var(--green-dark);
+            text-align: right;
+        }
+        .sim-rot-group-label {
+            font-family: var(--font-display); font-size: 9px; letter-spacing: 1px;
+            color: rgba(0,0,0,0.3); padding: 4px 4px 2px; margin-top: 4px;
+        }
+        .sim-rot-total {
+            display: flex; justify-content: space-between; padding: 6px 4px;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+            border-top: 2px solid rgba(0,0,0,0.08); margin-top: 4px;
+        }
+        .sim-rot-total.warn { color: #FF4444; }
+
+        /* COMBO INSPECTOR in center hub */
+        .sim-combo-inspector {
+            padding: 8px; background: var(--surface-dark); border-radius: 8px;
+            margin-top: 8px;
+        }
+        .sim-combo-title {
+            font-family: var(--font-display); font-size: 10px; letter-spacing: 1px;
+            color: rgba(255,255,255,0.5); margin-bottom: 6px;
+        }
+        .sim-combo-empty {
+            font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.25);
+            text-align: center; padding: 10px;
+        }
+        .sim-combo-players {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
+        }
+        .sim-combo-player-chip {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+            padding: 2px 6px; border-radius: 4px;
+            background: rgba(0,255,85,0.15); color: var(--green);
+        }
+        .sim-combo-stat-row {
+            display: flex; justify-content: space-between; padding: 3px 0;
+            font-family: var(--font-mono); font-size: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sim-combo-stat-label { color: rgba(255,255,255,0.5); }
+        .sim-combo-stat-val { font-weight: 800; color: #fff; }
+        .sim-combo-stat-val.pos { color: var(--green); }
+        .sim-combo-stat-val.neg { color: #FF4444; }
+
+        /* Link tooltip */
+        .sim-link-tooltip {
+            position: absolute; display: none; z-index: 200;
+            background: rgba(0,0,0,0.9); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; padding: 6px 10px; pointer-events: none;
+            font-family: var(--font-mono); font-size: 10px; color: #fff;
+            white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        /* MOJI TOOLTIP */
+        .sim-moji-badge {
+            position: relative; cursor: help;
+        }
+        .sim-moji-info {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 14px; height: 14px; font-size: 9px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);
+            margin-left: 4px; cursor: help; vertical-align: middle;
+        }
+        .sim-moji-tooltip {
+            display: none; position: absolute; left: 0; top: 100%;
+            margin-top: 6px; z-index: 200; width: 220px;
+            background: rgba(0,0,0,0.95); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 10px; font-family: var(--font-mono);
+            font-size: 9px; color: rgba(255,255,255,0.8); line-height: 1.5;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        .sim-moji-tooltip strong { color: var(--green); font-weight: 800; }
+        .sim-moji-badge:hover .sim-moji-tooltip,
+        .sim-moji-info:hover + .sim-moji-tooltip { display: block; }
+
+        /* COACH SCHEME styling */
+        .sim-scheme-coach {
+            font-family: var(--font-body); font-size: 10px; font-weight: 700;
+            color: #fff; margin-right: 3px;
         }
 
         /* ─── RESPONSIVE ─── */
@@ -8536,6 +8796,57 @@ def generate_js():
             return 'https://cdn.nba.com/logos/nba/' + tid + '/global/L/logo.svg';
         }
 
+        // ─── TEAM LOGO GRID SELECTOR ───
+        let simGridSide = null;
+        function simOpenTeamGrid(side) {
+            simGridSide = side;
+            const overlay = document.getElementById('simTeamGridOverlay');
+            const title = document.getElementById('simTeamGridTitle');
+            const grid = document.getElementById('simTeamGrid');
+            title.textContent = 'SELECT ' + side.toUpperCase() + ' TEAM';
+
+            // Build grid items from all teams
+            const teams = Object.keys(SIM_DATA.rosters || {}).sort();
+            let html = '';
+            teams.forEach(abbr => {
+                const logo = simGetTeamLogo(abbr);
+                html += '<div class="sim-team-grid-item" onclick="simPickTeam(\\'' + abbr + '\\')">' +
+                    '<img src="' + logo + '" alt="' + abbr + '">' +
+                    '<span>' + abbr + '</span></div>';
+            });
+            grid.innerHTML = html;
+            overlay.style.display = 'flex';
+        }
+        function simCloseTeamGrid() {
+            document.getElementById('simTeamGridOverlay').style.display = 'none';
+            simGridSide = null;
+        }
+        function simPickTeam(abbr) {
+            if (!simGridSide) return;
+            const side = simGridSide;
+            // Set the hidden select and trigger change
+            const sel = document.getElementById(side === 'home' ? 'simHomeTeam' : 'simAwayTeam');
+            sel.value = abbr;
+            sel.dispatchEvent(new Event('change'));
+            simCloseTeamGrid();
+        }
+        function simUpdateTeamBtn(side) {
+            const abbr = simState[side].team;
+            const btn = document.getElementById(side === 'home' ? 'simHomeBtnDisplay' : 'simAwayBtnDisplay');
+            const logo = document.getElementById(side === 'home' ? 'simHomeBtnLogo' : 'simAwayBtnLogo');
+            const text = document.getElementById(side === 'home' ? 'simHomeBtnText' : 'simAwayBtnText');
+            if (abbr) {
+                logo.src = simGetTeamLogo(abbr);
+                logo.style.display = 'block';
+                text.textContent = abbr + ' — ' + (SIM_DATA.team_names[abbr] || abbr);
+                btn.classList.add('selected');
+            } else {
+                logo.style.display = 'none';
+                text.textContent = 'Select team...';
+                btn.classList.remove('selected');
+            }
+        }
+
         function simGetPlayerById(pid) {
             for (const team in SIM_DATA.rosters) {
                 for (const p of SIM_DATA.rosters[team]) {
@@ -8565,32 +8876,46 @@ def generate_js():
             if (!p) return '';
             const mojo = simAdjustedMojo[pid] !== undefined ? simAdjustedMojo[pid] : p.mojo;
             const tier = simCardTier(mojo);
-            const tid = p.team_id || 0;
             const headshot = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + pid + '.png';
-            const mpg = simPlayerMinutes[pid] !== undefined ? simPlayerMinutes[pid] : Math.round(p.mpg);
+            const lastName = p.name.split(' ').pop();
+            const archLabel = (p.arch_icon || '') + ' ' + (p.archetype || '');
             return '<div class="sim-card ' + tier + '" draggable="true" data-pid="' + pid + '" data-side="' + side + '"' +
                 ' ontouchstart="simTouchStart(event)" ontouchmove="simTouchMove(event)" ontouchend="simTouchEnd(event)">' +
                 '<div class="sim-card-inner">' +
-                '<span class="sim-card-pos">' + (p.pos || 'SF') + '</span>' +
+                '<div class="sim-card-header">' +
                 '<div class="sim-card-mojo">' + Math.round(mojo) + '</div>' +
+                '<span class="sim-card-pos">' + (p.pos || 'WING') + '</span>' +
+                '</div>' +
                 '<img class="sim-card-face" src="' + headshot + '" onerror="this.style.display=\\\'none\\\'" alt="">' +
-                '<div class="sim-card-name">' + p.name.split(' ').pop() + '</div>' +
-                '<div class="sim-card-mpg">' +
-                '<label>MPG</label>' +
-                '<input type="range" min="0" max="48" value="' + mpg + '" oninput="simMpgChange(' + pid + ',this.value,\\\''+side+'\\\')" onclick="event.stopPropagation()">' +
-                '<span class="mpg-val">' + mpg + '</span>' +
+                '<div class="sim-card-name">' + lastName + '</div>' +
+                '<div class="sim-card-arch">' + archLabel.trim() + '</div>' +
+                '<div class="sim-card-stats">' +
+                '<div class="sim-card-stat"><div class="sim-card-stat-label">PTS</div><div class="sim-card-stat-val">' + (p.pts || 0) + '</div></div>' +
+                '<div class="sim-card-stat"><div class="sim-card-stat-label">AST</div><div class="sim-card-stat-val">' + (p.ast || 0) + '</div></div>' +
+                '<div class="sim-card-stat"><div class="sim-card-stat-label">REB</div><div class="sim-card-stat-val">' + (p.reb || 0) + '</div></div>' +
                 '</div></div></div>';
         }
 
         function simMpgChange(pid, val, side) {
             simPlayerMinutes[pid] = parseInt(val);
-            // Update the displayed value
+            // Update the rotation editor val display (slider is in center hub now)
+            const rotRows = document.querySelectorAll('.sim-rot-row');
+            rotRows.forEach(r => {
+                const slider = r.querySelector('input[type="range"]');
+                if (slider && slider.oninput && slider.oninput.toString().includes(pid)) {
+                    const valSpan = r.querySelector('.sim-rot-val');
+                    if (valSpan) valSpan.textContent = val;
+                }
+            });
+            // Also update any mpg-val elements (legacy)
             const cards = document.querySelectorAll('.sim-card[data-pid="'+pid+'"]');
             cards.forEach(c => {
                 const v = c.querySelector('.mpg-val');
                 if (v) v.textContent = val;
             });
             simRecalc();
+            // Re-render rotation editor to update totals
+            simRenderRotationEditor();
         }
 
         function simTeamChange(side) {
@@ -8651,27 +8976,297 @@ def generate_js():
 
             // Show schemes in center column
             simUpdateSchemes(side);
-            // Show/hide three-col
-            const bothReady = simState.home.team && simState.away.team;
-            document.getElementById('simThreeCol').style.display = bothReady ? 'grid' : 'none';
-            document.getElementById('simEmpty').style.display = bothReady ? 'none' : 'block';
             // Update HCA badge
             simUpdateHca();
+            // Update the team button display
+            simUpdateTeamBtn(side);
 
             simRenderAll(side);
             simRecalc();
             simCheckReady();
         }
 
+        // ─── COACHES DICT ───
+        const SIM_COACHES = {
+            ATL:"Snyder", BOS:"Mazzulla", BKN:"Fernandez",
+            CHA:"Lee", CHI:"Donovan", CLE:"Atkinson",
+            DAL:"Kidd", DEN:"Malone", DET:"Bickerstaff",
+            GSW:"Kerr", HOU:"Udoka", IND:"Carlisle",
+            LAC:"Lue", LAL:"Redick", MEM:"Jenkins",
+            MIA:"Spoelstra", MIL:"Rivers", MIN:"Finch",
+            NOP:"Green", NYK:"Thibodeau", OKC:"Daigneault",
+            ORL:"Mosley", PHI:"Nurse", PHX:"Budenholzer",
+            POR:"Billups", SAC:"Brown", SAS:"Popovich",
+            TOR:"Rajakovic", UTA:"Hardy", WAS:"Keefe"
+        };
+
         function simUpdateSchemes(side) {
             const abbr = simState[side].team;
             const el = document.getElementById(side === 'home' ? 'simHomeSchemes' : 'simAwaySchemes');
             if (!abbr || !SIM_DATA.team_stats[abbr]) { el.innerHTML = ''; return; }
             const ts = SIM_DATA.team_stats[abbr];
+            const coach = SIM_COACHES[abbr] || '';
+            const coachHtml = coach ? '<span class="sim-scheme-coach">' + coach + ':</span> ' : '';
             const off = ts.off_scheme || 'Balanced';
             const def = ts.def_scheme || 'Standard';
-            el.innerHTML = '<span class="sim-scheme-pill">' + off.toUpperCase() + '</span>' +
-                           '<span class="sim-scheme-pill">' + def.toUpperCase() + '</span>';
+            el.innerHTML = '<span class="sim-scheme-pill">' + coachHtml + off.toUpperCase() + '</span>' +
+                           '<span class="sim-scheme-pill">' + coachHtml + def.toUpperCase() + '</span>';
+        }
+
+        // ─── LINK MODE ───
+        let simLinkModeActive = false;
+        let simSelectedLinks = new Set();
+        let simActiveRotTab = 'home';
+
+        function simToggleLinkMode() {
+            simLinkModeActive = !simLinkModeActive;
+            const btn = document.getElementById('simLinkToggle');
+            btn.classList.toggle('active', simLinkModeActive);
+            const inspector = document.getElementById('simComboInspector');
+            inspector.style.display = simLinkModeActive ? 'block' : 'none';
+            if (simLinkModeActive) {
+                simRenderLinks('home');
+                simRenderLinks('away');
+            } else {
+                simSelectedLinks.clear();
+                document.getElementById('simHomeLinkOverlay').innerHTML = '';
+                document.getElementById('simAwayLinkOverlay').innerHTML = '';
+                simUpdateComboInspector();
+            }
+        }
+
+        function simGetSlotCenter(side, pos, slot) {
+            const court = document.getElementById(side === 'home' ? 'simHomeCourt' : 'simAwayCourt');
+            const el = court.querySelector('.sim-pos-slot[data-pos="'+pos+'"][data-slot="'+slot+'"]');
+            if (!el || !court) return null;
+            const cr = court.getBoundingClientRect();
+            const sr = el.getBoundingClientRect();
+            return {
+                x: (sr.left + sr.width/2 - cr.left) / cr.width * 100,
+                y: (sr.top + sr.height/2 - cr.top) / cr.height * 100
+            };
+        }
+
+        function simRenderLinks(side) {
+            if (!simLinkModeActive) return;
+            const overlay = document.getElementById(side === 'home' ? 'simHomeLinkOverlay' : 'simAwayLinkOverlay');
+            const pids = simState[side].court;
+            if (pids.length < 2) { overlay.innerHTML = ''; return; }
+            const pairs = SIM_DATA.pairs || {};
+
+            // Map pid → slot position for line coordinates
+            const slots = document.querySelectorAll('.sim-pos-slot[data-side="'+side+'"]');
+            const pidSlots = {};
+            slots.forEach(s => {
+                const card = s.querySelector('.sim-card');
+                if (card) {
+                    const pid = parseInt(card.dataset.pid);
+                    const court = s.closest('.sim-court');
+                    const cr = court.getBoundingClientRect();
+                    const sr = s.getBoundingClientRect();
+                    pidSlots[pid] = {
+                        x: ((sr.left + sr.width/2 - cr.left) / cr.width * 100).toFixed(1),
+                        y: ((sr.top + sr.height/2 - cr.top) / cr.height * 100).toFixed(1)
+                    };
+                }
+            });
+
+            let svg = '';
+            for (let i = 0; i < pids.length; i++) {
+                for (let j = i + 1; j < pids.length; j++) {
+                    const a = pids[i], b = pids[j];
+                    const pa = pidSlots[a], pb = pidSlots[b];
+                    if (!pa || !pb) continue;
+                    const key1 = a + '-' + b, key2 = b + '-' + a;
+                    const pairData = pairs[key1] || pairs[key2];
+                    const nrtg = pairData ? pairData.nrtg : 0;
+                    const poss = pairData ? (pairData.poss || 0) : 0;
+
+                    let color = '#FFD700'; // yellow default
+                    if (nrtg > 3) color = '#00FF55';
+                    else if (nrtg < -1) color = '#FF4444';
+
+                    const pairKey = Math.min(a,b) + '-' + Math.max(a,b);
+                    const selected = simSelectedLinks.has(pairKey);
+                    const lowSample = poss < 50;
+
+                    svg += '<line x1="' + pa.x + '%" y1="' + pa.y + '%" x2="' + pb.x + '%" y2="' + pb.y + '%"' +
+                        ' stroke="' + color + '"' +
+                        ' class="' + (selected ? 'link-selected' : '') + (lowSample ? ' link-low-sample' : '') + '"' +
+                        ' data-pair="' + pairKey + '" data-side="' + side + '"' +
+                        ' data-nrtg="' + nrtg + '" data-poss="' + poss + '"' +
+                        ' data-pida="' + a + '" data-pidb="' + b + '"' +
+                        ' onclick="simLinkClick(\\'' + pairKey + '\\')" />';
+                }
+            }
+            overlay.innerHTML = svg;
+
+            // Add hover handlers for tooltips
+            overlay.querySelectorAll('line').forEach(line => {
+                line.addEventListener('mouseenter', function(e) {
+                    const tooltip = document.getElementById(side === 'home' ? 'simHomeLinkTooltip' : 'simAwayLinkTooltip');
+                    const pA = simGetPlayerById(parseInt(this.dataset.pida));
+                    const pB = simGetPlayerById(parseInt(this.dataset.pidb));
+                    const nrtg = parseFloat(this.dataset.nrtg);
+                    const poss = parseInt(this.dataset.poss);
+                    const sign = nrtg >= 0 ? '+' : '';
+                    tooltip.innerHTML = (pA ? pA.name.split(' ').pop() : '?') + ' + ' +
+                        (pB ? pB.name.split(' ').pop() : '?') + ': ' +
+                        '<strong style="color:' + (nrtg >= 0 ? '#00FF55' : '#FF4444') + '">' + sign + nrtg.toFixed(1) + ' NRtg</strong>' +
+                        ' <span style="opacity:0.5">(' + poss + ' poss)</span>';
+                    tooltip.style.display = 'block';
+                    const court = tooltip.closest('.sim-court');
+                    const cr = court.getBoundingClientRect();
+                    tooltip.style.left = (e.clientX - cr.left + 10) + 'px';
+                    tooltip.style.top = (e.clientY - cr.top - 30) + 'px';
+                });
+                line.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById(side === 'home' ? 'simHomeLinkTooltip' : 'simAwayLinkTooltip');
+                    tooltip.style.display = 'none';
+                });
+            });
+        }
+
+        function simLinkClick(pairKey) {
+            if (simSelectedLinks.has(pairKey)) {
+                simSelectedLinks.delete(pairKey);
+            } else {
+                simSelectedLinks.add(pairKey);
+            }
+            simRenderLinks('home');
+            simRenderLinks('away');
+            simUpdateComboInspector();
+        }
+
+        function simUpdateComboInspector() {
+            const content = document.getElementById('simComboContent');
+            if (simSelectedLinks.size === 0) {
+                content.innerHTML = '<div class="sim-combo-empty">Click links on court to inspect combos</div>';
+                return;
+            }
+            // Gather unique player IDs from selected links
+            const pidSet = new Set();
+            simSelectedLinks.forEach(key => {
+                const [a, b] = key.split('-').map(Number);
+                pidSet.add(a); pidSet.add(b);
+            });
+            const pids = [...pidSet].sort((a,b) => a - b);
+
+            // Player chips
+            let chipsHtml = '<div class="sim-combo-players">';
+            pids.forEach(pid => {
+                const p = simGetPlayerById(pid);
+                chipsHtml += '<span class="sim-combo-player-chip">' + (p ? p.name.split(' ').pop() : '#' + pid) + '</span>';
+            });
+            chipsHtml += '</div>';
+
+            // Try to find combo data
+            let comboHtml = '';
+            const comboKey = pids.join('-');
+            const pairs = SIM_DATA.pairs || {};
+
+            if (pids.length === 2) {
+                const key1 = pids[0] + '-' + pids[1], key2 = pids[1] + '-' + pids[0];
+                const pd = pairs[key1] || pairs[key2];
+                if (pd) {
+                    const nrtgClass = pd.nrtg >= 0 ? 'pos' : 'neg';
+                    const sign = pd.nrtg >= 0 ? '+' : '';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + pd.nrtg.toFixed(1) + '</span></div>';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes Together</span><span class="sim-combo-stat-val">' + pd.min + '</span></div>';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Possessions</span><span class="sim-combo-stat-val">' + pd.poss + '</span></div>';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Synergy Score</span><span class="sim-combo-stat-val">' + pd.syn + '</span></div>';
+                    // RAPM on/off for each player
+                    pids.forEach(pid => {
+                        const p = simGetPlayerById(pid);
+                        if (p && p.rapm !== null && p.rapm !== undefined) {
+                            const sign2 = p.rapm >= 0 ? '+' : '';
+                            const cls2 = p.rapm >= 0 ? 'pos' : 'neg';
+                            comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">' + (p.name.split(' ').pop()) + ' RAPM</span><span class="sim-combo-stat-val ' + cls2 + '">' + sign2 + p.rapm.toFixed(1) + '</span></div>';
+                        }
+                    });
+                } else {
+                    comboHtml = '<div class="sim-combo-empty">No pair data available</div>';
+                }
+            } else if (pids.length >= 3 && pids.length <= 5) {
+                const combos = pids.length === 3 ? (SIM_DATA.combos_3 || {}) :
+                               pids.length === 5 ? (SIM_DATA.combos_5 || {}) : {};
+                const cd = combos[comboKey];
+                if (cd) {
+                    const nrtgClass = cd.nrtg >= 0 ? 'pos' : 'neg';
+                    const sign = cd.nrtg >= 0 ? '+' : '';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">' + pids.length + '-Man Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + cd.nrtg + '</span></div>';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes</span><span class="sim-combo-stat-val">' + cd.min + '</span></div>';
+                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Games</span><span class="sim-combo-stat-val">' + cd.gp + '</span></div>';
+                } else {
+                    comboHtml = '<div class="sim-combo-empty">No ' + pids.length + '-man combo data</div>';
+                }
+            }
+
+            content.innerHTML = chipsHtml + comboHtml;
+        }
+
+        // ─── ROTATION EDITOR ───
+        function simSwitchRotTab(side) {
+            simActiveRotTab = side;
+            document.getElementById('simRotTabHome').classList.toggle('active', side === 'home');
+            document.getElementById('simRotTabAway').classList.toggle('active', side === 'away');
+            simRenderRotationEditor();
+        }
+
+        function simRenderRotationEditor() {
+            const section = document.getElementById('simRotationSection');
+            const content = document.getElementById('simRotationContent');
+            const hasBoth = simState.home.team && simState.away.team;
+            section.style.display = hasBoth ? 'block' : 'none';
+            if (!hasBoth) return;
+
+            const side = simActiveRotTab;
+            const abbr = simState[side].team;
+            if (!abbr) { content.innerHTML = ''; return; }
+
+            let html = '';
+            let totalMin = 0;
+
+            // Starters
+            if (simState[side].court.length > 0) {
+                html += '<div class="sim-rot-group-label">STARTERS</div>';
+                simState[side].court.forEach(pid => {
+                    html += simBuildRotRow(pid, side);
+                    totalMin += (simPlayerMinutes[pid] || 0);
+                });
+            }
+            // Bench
+            if (simState[side].bench.length > 0) {
+                html += '<div class="sim-rot-group-label">BENCH</div>';
+                simState[side].bench.forEach(pid => {
+                    html += simBuildRotRow(pid, side);
+                    totalMin += (simPlayerMinutes[pid] || 0);
+                });
+            }
+
+            // Total minutes
+            const warn = totalMin > 250 || totalMin < 200;
+            html += '<div class="sim-rot-total' + (warn ? ' warn' : '') + '">' +
+                '<span>TOTAL</span><span>' + totalMin + ' / 240</span></div>';
+
+            content.innerHTML = html;
+        }
+
+        function simBuildRotRow(pid, side) {
+            const p = simGetPlayerById(pid);
+            if (!p) return '';
+            const mojo = simAdjustedMojo[pid] !== undefined ? simAdjustedMojo[pid] : p.mojo;
+            const mpg = simPlayerMinutes[pid] !== undefined ? simPlayerMinutes[pid] : Math.round(p.mpg);
+            const headshot = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + pid + '.png';
+            const mojoColor = mojo >= 80 ? '#FFD700' : mojo >= 60 ? '#c0c0c0' : mojo >= 40 ? '#CD7F32' : 'rgba(0,0,0,0.3)';
+            return '<div class="sim-rot-row">' +
+                '<img class="sim-rot-face" src="' + headshot + '" onerror="this.style.display=\\\'none\\\'" alt="">' +
+                '<span class="sim-rot-name">' + p.name.split(' ').pop() + '</span>' +
+                '<span class="sim-rot-pos">' + (p.pos || 'W') + '</span>' +
+                '<span class="sim-rot-mojo" style="color:' + mojoColor + '">' + Math.round(mojo) + '</span>' +
+                '<input type="range" class="sim-rot-slider" min="0" max="48" value="' + mpg + '" oninput="simMpgChange(' + pid + ',this.value,\\\''+side+'\\\')">' +
+                '<span class="sim-rot-val">' + mpg + '</span>' +
+                '</div>';
         }
 
         function simUpdateHca() {
@@ -8701,7 +9296,14 @@ def generate_js():
                     card.addEventListener('dragstart', simDragStart);
                     card.addEventListener('dragend', simDragEnd);
                 });
+                // Re-render links after DOM settles
+                if (simLinkModeActive) {
+                    simRenderLinks('home');
+                    simRenderLinks('away');
+                }
             }, 50);
+            // Update rotation editor
+            simRenderRotationEditor();
         }
 
         function simRenderCourt(side) {
@@ -8976,7 +9578,11 @@ def generate_js():
             ['home','away'].forEach(side => {
                 const moji = simComputeMoji(side);
                 const badge = document.getElementById(side === 'home' ? 'simHomeMojiBadge' : 'simAwayMojiBadge');
-                badge.textContent = 'MOJI ' + (moji > 0 ? moji.toFixed(1) : '—');
+                // Preserve the tooltip children — only update the text node
+                const textVal = 'MOJI ' + (moji > 0 ? moji.toFixed(1) : '—');
+                const firstText = badge.childNodes[0];
+                if (firstText && firstText.nodeType === 3) { firstText.textContent = textVal; }
+                else { badge.insertBefore(document.createTextNode(textVal), badge.firstChild); }
             });
             // Update card MOJO badges to show adjusted values
             document.querySelectorAll('.sim-card').forEach(card => {
@@ -9024,15 +9630,14 @@ def generate_js():
         function simComputePairSynergy(side) {
             const pids = simState[side].court;
             if (pids.length < 2) return 50;
-            const abbr = simState[side].team;
-            const pairs = SIM_DATA.pairs[abbr] || {};
+            const pairs = SIM_DATA.pairs || {};
             let total = 0, count = 0;
             for (let i = 0; i < pids.length; i++) {
                 for (let j = i + 1; j < pids.length; j++) {
-                    const key1 = pids[i] + '_' + pids[j];
-                    const key2 = pids[j] + '_' + pids[i];
+                    const key1 = pids[i] + '-' + pids[j];
+                    const key2 = pids[j] + '-' + pids[i];
                     const syn = pairs[key1] || pairs[key2];
-                    if (syn && syn.score !== undefined) { total += syn.score; count++; }
+                    if (syn && syn.syn !== undefined) { total += syn.syn; count++; }
                 }
             }
             return count > 0 ? total / count : 50;
