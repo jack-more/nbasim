@@ -2117,10 +2117,10 @@
             background: rgba(0,0,0,0.5); color: #fff; padding: 2px 5px;
             border-radius: 4px; letter-spacing: 0.5px; margin-top: 2px;
         }
-        /* Headshot — rectangular portrait, not circular */
+        /* Headshot — large portrait filling most of card */
         .sim-card-face {
-            width: 90px; height: 90px; border-radius: 8px; object-fit: cover;
-            margin: 4px auto; border: 2px solid rgba(255,255,255,0.25);
+            width: 130px; height: 130px; border-radius: 8px; object-fit: cover;
+            margin: 2px auto; border: 2px solid rgba(255,255,255,0.25);
             background: rgba(0,0,0,0.25);
         }
         .sim-card-name {
@@ -2179,7 +2179,7 @@
         /* Bench card (smaller) */
         .sim-bench-zone .sim-card { width: 120px; }
         .sim-bench-zone .sim-card-mojo { font-size: 24px; }
-        .sim-bench-zone .sim-card-face { width: 54px; height: 54px; }
+        .sim-bench-zone .sim-card-face { width: 90px; height: 90px; }
         .sim-bench-zone .sim-card-arch { display: none; }
         .sim-bench-zone .sim-card-stats { display: none; }
 
@@ -2742,7 +2742,7 @@
             <div class="lineup-half">
                 <div class="lineup-team-header" style="border-color:#0E2240">DEN Nuggets</div>
                 
-    <div class="player-row starter player-gtd" onclick="openPlayerSheet(this)"
+    <div class="player-row starter " onclick="openPlayerSheet(this)"
          data-name="Jamal Murray" data-arch="Scoring Guard" data-mojo="73" data-range="70-82"
          data-pts="25.5" data-ast="7.5" data-reb="4.4"
          data-stl="1.0" data-blk="0.4" data-ts="61.5"
@@ -2757,7 +2757,7 @@
          data-top-pairs="[&quot;A. Gordon (+84.0 SYN, 47 poss)&quot;, &quot;C. Johnson (+77.4 SYN, 42 poss)&quot;, &quot;N. Joki\u0107 (+74.4 SYN, 55 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1627750.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Murray <span class="rw-status-badge rw-gtd">GTD</span></span>
+            <span class="pr-name">J. Murray </span>
             <span class="pr-meta">G ⚡ Scoring Guard</span>
         </div>
         <div class="pr-stats">
@@ -2932,6 +2932,60 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
+         data-name="Spencer Jones" data-arch="Stretch Forward" data-mojo="48" data-range="42-65"
+         data-pts="5.9" data-ast="0.9" data-reb="3.2"
+         data-stl="0.9" data-blk="0.4" data-ts="63.5"
+         data-net="1.2" data-usg="9.8" data-mpg="23.4"
+         data-team="DEN" data-pid="1642461"
+         data-scoring-pct="20.0" data-playmaking-pct="5.0"
+         data-defense-pct="19.0" data-efficiency-pct="71.0"
+         data-impact-pct="9.0"
+         data-raw-mojo="39" data-solo-impact="51.1"
+         data-syn-score="56.5" data-fit-score="56.6"
+         data-inj-delta="-2"
+         data-top-pairs="[&quot;C. Johnson (+74.9 SYN, 32 poss)&quot;, &quot;N. Joki\u0107 (+73.1 SYN, 35 poss)&quot;, &quot;A. Gordon (+63.7 SYN, 23 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642461.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">S. Jones </span>
+            <span class="pr-meta">F 📐 Stretch Forward</span>
+        </div>
+        <div class="pr-stats">
+            <span>6p 1a 3r</span>
+            <span>23 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-low">
+            <span class="pr-mojo-num">48</span><span class="pr-inj-delta inj-down">-2</span>
+            <span class="pr-mojo-range">42-65</span>
+        </div>
+    </div>
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
+         data-name="Jalen Pickett" data-arch="Slasher" data-mojo="43" data-range="36-60"
+         data-pts="5.4" data-ast="2.5" data-reb="2.6"
+         data-stl="0.3" data-blk="0.1" data-ts="53.0"
+         data-net="-1.9" data-usg="14.5" data-mpg="17.7"
+         data-team="DEN" data-pid="1629618"
+         data-scoring-pct="19.0" data-playmaking-pct="13.0"
+         data-defense-pct="14.0" data-efficiency-pct="62.0"
+         data-impact-pct="-26.0"
+         data-raw-mojo="33" data-solo-impact="48.3"
+         data-syn-score="48.9" data-fit-score="48.9"
+         data-inj-delta="-1"
+         data-top-pairs="[&quot;C. Johnson (+68.0 SYN, 19 poss)&quot;, &quot;A. Gordon (+67.1 SYN, 31 poss)&quot;, &quot;J. Murray (+51.5 SYN, 23 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629618.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">J. Pickett </span>
+            <span class="pr-meta">G ⚔️ Slasher</span>
+        </div>
+        <div class="pr-stats">
+            <span>5p 2a 3r</span>
+            <span>18 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-low">
+            <span class="pr-mojo-num">43</span><span class="pr-inj-delta inj-down">-1</span>
+            <span class="pr-mojo-range">36-60</span>
+        </div>
+    </div>
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="KJ Simpson" data-arch="nan" data-mojo="46" data-range="43-67"
          data-pts="5.8" data-ast="2.6" data-reb="2.0"
          data-stl="1.0" data-blk="0" data-ts="44.0"
@@ -3037,60 +3091,6 @@
         <div class="pr-mojo mojo-low">
             <span class="pr-mojo-num">46</span><span class="pr-inj-delta inj-up">+4</span>
             <span class="pr-mojo-range">43-66</span>
-        </div>
-    </div>
-    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
-         data-name="Spencer Jones" data-arch="Stretch Forward" data-mojo="48" data-range="42-65"
-         data-pts="5.9" data-ast="0.9" data-reb="3.2"
-         data-stl="0.9" data-blk="0.4" data-ts="63.5"
-         data-net="1.2" data-usg="9.8" data-mpg="23.4"
-         data-team="DEN" data-pid="1642461"
-         data-scoring-pct="20.0" data-playmaking-pct="5.0"
-         data-defense-pct="19.0" data-efficiency-pct="71.0"
-         data-impact-pct="9.0"
-         data-raw-mojo="39" data-solo-impact="51.1"
-         data-syn-score="56.5" data-fit-score="56.6"
-         data-inj-delta="-2"
-         data-top-pairs="[&quot;C. Johnson (+74.9 SYN, 32 poss)&quot;, &quot;N. Joki\u0107 (+73.1 SYN, 35 poss)&quot;, &quot;A. Gordon (+63.7 SYN, 23 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642461.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">S. Jones <span class="rw-status-badge rw-gtd">GTD</span></span>
-            <span class="pr-meta">F 📐 Stretch Forward</span>
-        </div>
-        <div class="pr-stats">
-            <span>6p 1a 3r</span>
-            <span>23 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">48</span><span class="pr-inj-delta inj-down">-2</span>
-            <span class="pr-mojo-range">42-65</span>
-        </div>
-    </div>
-    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
-         data-name="Jalen Pickett" data-arch="Slasher" data-mojo="43" data-range="36-60"
-         data-pts="5.4" data-ast="2.5" data-reb="2.6"
-         data-stl="0.3" data-blk="0.1" data-ts="53.0"
-         data-net="-1.9" data-usg="14.5" data-mpg="17.7"
-         data-team="DEN" data-pid="1629618"
-         data-scoring-pct="19.0" data-playmaking-pct="13.0"
-         data-defense-pct="14.0" data-efficiency-pct="62.0"
-         data-impact-pct="-26.0"
-         data-raw-mojo="33" data-solo-impact="48.3"
-         data-syn-score="48.9" data-fit-score="48.9"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;C. Johnson (+68.0 SYN, 19 poss)&quot;, &quot;A. Gordon (+67.1 SYN, 31 poss)&quot;, &quot;J. Murray (+51.5 SYN, 23 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629618.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Pickett <span class="rw-status-badge rw-gtd">GTD</span></span>
-            <span class="pr-meta">G ⚔️ Slasher</span>
-        </div>
-        <div class="pr-stats">
-            <span>5p 2a 3r</span>
-            <span>18 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">43</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">36-60</span>
         </div>
     </div>
     <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
@@ -8463,9 +8463,12 @@
         }
 
         function simLinkClick(pairKey) {
-            if (simSelectedLinks.has(pairKey)) {
-                simSelectedLinks.delete(pairKey);
+            if (simSelectedLinks.has(pairKey) && simSelectedLinks.size === 1) {
+                // Clicking the already-selected link deselects it
+                simSelectedLinks.clear();
             } else {
+                // Clear previous selection, select only this pair
+                simSelectedLinks.clear();
                 simSelectedLinks.add(pairKey);
             }
             simRenderLinks('home');

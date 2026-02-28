@@ -8078,10 +8078,10 @@ def generate_css():
             background: rgba(0,0,0,0.5); color: #fff; padding: 2px 5px;
             border-radius: 4px; letter-spacing: 0.5px; margin-top: 2px;
         }
-        /* Headshot — rectangular portrait, not circular */
+        /* Headshot — large portrait filling most of card */
         .sim-card-face {
-            width: 90px; height: 90px; border-radius: 8px; object-fit: cover;
-            margin: 4px auto; border: 2px solid rgba(255,255,255,0.25);
+            width: 130px; height: 130px; border-radius: 8px; object-fit: cover;
+            margin: 2px auto; border: 2px solid rgba(255,255,255,0.25);
             background: rgba(0,0,0,0.25);
         }
         .sim-card-name {
@@ -8140,7 +8140,7 @@ def generate_css():
         /* Bench card (smaller) */
         .sim-bench-zone .sim-card { width: 120px; }
         .sim-bench-zone .sim-card-mojo { font-size: 24px; }
-        .sim-bench-zone .sim-card-face { width: 54px; height: 54px; }
+        .sim-bench-zone .sim-card-face { width: 90px; height: 90px; }
         .sim-bench-zone .sim-card-arch { display: none; }
         .sim-bench-zone .sim-card-stats { display: none; }
 
@@ -9186,9 +9186,12 @@ def generate_js():
         }
 
         function simLinkClick(pairKey) {
-            if (simSelectedLinks.has(pairKey)) {
-                simSelectedLinks.delete(pairKey);
+            if (simSelectedLinks.has(pairKey) && simSelectedLinks.size === 1) {
+                // Clicking the already-selected link deselects it
+                simSelectedLinks.clear();
             } else {
+                // Clear previous selection, select only this pair
+                simSelectedLinks.clear();
                 simSelectedLinks.add(pairKey);
             }
             simRenderLinks('home');
