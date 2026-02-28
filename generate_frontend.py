@@ -4897,19 +4897,19 @@ def generate_html():
                             </svg>
                             <svg class="sim-link-overlay" id="simHomeLinkOverlay"></svg>
                             <div class="sim-link-tooltip" id="simHomeLinkTooltip"></div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="home" style="top:5%;left:15%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="home" style="top:5%;left:10%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="home" style="top:5%;right:15%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="home" style="top:5%;right:10%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="WING" data-slot="1" data-side="home" style="top:35%;left:8%"
+                            <div class="sim-pos-slot" data-pos="WING" data-slot="1" data-side="home" style="top:35%;left:5%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">W</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="WING" data-slot="2" data-side="home" style="top:35%;right:8%"
+                            <div class="sim-pos-slot" data-pos="WING" data-slot="2" data-side="home" style="top:35%;right:5%"
                                  ondrop="simDrop(event,'home','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">W</span>
                             </div>
@@ -4939,74 +4939,6 @@ def generate_html():
                         </div>
                     </div>
 
-                    <!-- CENTER: CONTROLS + RESULTS -->
-                    <div class="sim-center-col" id="simCenterCol">
-                        <div class="sim-center-section">
-                            <div class="sim-center-label">VENUE</div>
-                            <div class="sim-venue-row">
-                                <select id="simVenue" class="sim-select-sm">
-                                    <option value="home">Home Court</option>
-                                    <option value="neutral">Neutral</option>
-                                </select>
-                                <span class="sim-hca-badge" id="simHcaBadge"></span>
-                            </div>
-                        </div>
-                        <div class="sim-center-section">
-                            <div class="sim-center-label">HOME SCHEME</div>
-                            <div class="sim-scheme-pills" id="simHomeSchemes"></div>
-                        </div>
-                        <div class="sim-center-section">
-                            <div class="sim-center-label">AWAY SCHEME</div>
-                            <div class="sim-scheme-pills" id="simAwaySchemes"></div>
-                        </div>
-                        <div class="sim-center-section">
-                            <div class="sim-b2b-row">
-                                <label class="sim-b2b-label">
-                                    <input type="checkbox" id="simHomeB2B"> HOME B2B
-                                </label>
-                                <label class="sim-b2b-label">
-                                    <input type="checkbox" id="simAwayB2B"> AWAY B2B
-                                </label>
-                            </div>
-                        </div>
-                        <!-- LINK MODE TOGGLE -->
-                        <div class="sim-center-section">
-                            <div class="sim-link-toggle" id="simLinkToggle" onclick="simToggleLinkMode()">
-                                <span class="sim-link-toggle-dot"></span>
-                                LINK MODE
-                            </div>
-                        </div>
-                        <!-- ROTATION EDITOR -->
-                        <div class="sim-center-section" id="simRotationSection" style="display:none">
-                            <div class="sim-center-label">ROTATION</div>
-                            <div class="sim-rotation-tabs">
-                                <div class="sim-rotation-tab active" id="simRotTabHome" onclick="simSwitchRotTab('home')">HOME</div>
-                                <div class="sim-rotation-tab" id="simRotTabAway" onclick="simSwitchRotTab('away')">AWAY</div>
-                            </div>
-                            <div class="sim-rotation-wrap" id="simRotationContent"></div>
-                        </div>
-                        <!-- COMBO INSPECTOR -->
-                        <div class="sim-combo-inspector" id="simComboInspector" style="display:none">
-                            <div class="sim-combo-title">COMBO INSPECTOR</div>
-                            <div id="simComboContent">
-                                <div class="sim-combo-empty">Toggle LINK MODE &amp; click connections to inspect combos</div>
-                            </div>
-                        </div>
-                        <button class="sim-run-btn" id="simRunBtn" onclick="simRunGame()" disabled>
-                            &#9654; RUN SIMULATION
-                        </button>
-                        <div class="sim-action-info" id="simActionInfo">Select 5 per team</div>
-                        <!-- INLINE RESULTS -->
-                        <div class="sim-center-results" id="simCenterResults" style="display:none">
-                            <div class="sim-score-display" id="simScoreDisplay"></div>
-                            <div class="sim-winprob-bar" id="simWinProbBar"></div>
-                            <div class="sim-resim-btns">
-                                <button class="sim-resim-btn" onclick="simResim()">EDIT LINEUP</button>
-                                <button class="sim-resim-btn accent" onclick="simRunGame()">RE-SIM</button>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- RIGHT: AWAY PANEL -->
                     <div class="sim-panel away" id="simPanelAway">
                         <div class="sim-panel-header" id="simAwayHeader">
@@ -5025,19 +4957,19 @@ def generate_html():
                             </svg>
                             <svg class="sim-link-overlay" id="simAwayLinkOverlay"></svg>
                             <div class="sim-link-tooltip" id="simAwayLinkTooltip"></div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="away" style="top:5%;left:15%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="1" data-side="away" style="top:5%;left:10%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="away" style="top:5%;right:15%"
+                            <div class="sim-pos-slot" data-pos="GUARD" data-slot="2" data-side="away" style="top:5%;right:10%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">G</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="WING" data-slot="1" data-side="away" style="top:35%;left:8%"
+                            <div class="sim-pos-slot" data-pos="WING" data-slot="1" data-side="away" style="top:35%;left:5%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">W</span>
                             </div>
-                            <div class="sim-pos-slot" data-pos="WING" data-slot="2" data-side="away" style="top:35%;right:8%"
+                            <div class="sim-pos-slot" data-pos="WING" data-slot="2" data-side="away" style="top:35%;right:5%"
                                  ondrop="simDrop(event,'away','court')" ondragover="simAllowDrop(event)">
                                 <span class="sim-pos-label">W</span>
                             </div>
@@ -5063,6 +4995,84 @@ def generate_html():
                             </div>
                             <div class="sim-locker-zone" id="simAwayLockerZone" style="display:none"
                                  ondrop="simDrop(event,'away','locker')" ondragover="simAllowDrop(event)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CENTER HUB: CONTROLS (full-width below courts) -->
+                    <div class="sim-center-col" id="simCenterCol">
+                        <div class="sim-center-top">
+                            <!-- BLOCK 1: Schemes + Venue -->
+                            <div class="sim-center-block">
+                                <div class="sim-center-section">
+                                    <div class="sim-center-label">VENUE</div>
+                                    <div class="sim-venue-row">
+                                        <select id="simVenue" class="sim-select-sm">
+                                            <option value="home">Home Court</option>
+                                            <option value="neutral">Neutral</option>
+                                        </select>
+                                        <span class="sim-hca-badge" id="simHcaBadge"></span>
+                                    </div>
+                                </div>
+                                <div class="sim-center-section">
+                                    <div class="sim-center-label">HOME SCHEME</div>
+                                    <div class="sim-scheme-pills" id="simHomeSchemes"></div>
+                                </div>
+                                <div class="sim-center-section">
+                                    <div class="sim-center-label">AWAY SCHEME</div>
+                                    <div class="sim-scheme-pills" id="simAwaySchemes"></div>
+                                </div>
+                                <div class="sim-center-section">
+                                    <div class="sim-b2b-row">
+                                        <label class="sim-b2b-label">
+                                            <input type="checkbox" id="simHomeB2B"> HOME B2B
+                                        </label>
+                                        <label class="sim-b2b-label">
+                                            <input type="checkbox" id="simAwayB2B"> AWAY B2B
+                                        </label>
+                                    </div>
+                                </div>
+                                <!-- LINK MODE TOGGLE -->
+                                <div class="sim-center-section">
+                                    <div class="sim-link-toggle active" id="simLinkToggle" onclick="simToggleLinkMode()">
+                                        <span class="sim-link-toggle-dot"></span>
+                                        LINK MODE
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- BLOCK 2: Rotation Editor -->
+                            <div class="sim-center-block">
+                                <div class="sim-center-section" id="simRotationSection" style="display:none">
+                                    <div class="sim-center-label">ROTATION</div>
+                                    <div class="sim-rotation-tabs">
+                                        <div class="sim-rotation-tab active" id="simRotTabHome" onclick="simSwitchRotTab('home')">HOME</div>
+                                        <div class="sim-rotation-tab" id="simRotTabAway" onclick="simSwitchRotTab('away')">AWAY</div>
+                                    </div>
+                                    <div class="sim-rotation-wrap" id="simRotationContent"></div>
+                                </div>
+                            </div>
+                            <!-- BLOCK 3: Run Button -->
+                            <div class="sim-center-block" style="max-width: 260px;">
+                                <button class="sim-run-btn" id="simRunBtn" onclick="simRunGame()" disabled>
+                                    &#9654; RUN SIMULATION
+                                </button>
+                                <div class="sim-action-info" id="simActionInfo">Select 5 per team</div>
+                                <!-- INLINE RESULTS -->
+                                <div class="sim-center-results" id="simCenterResults" style="display:none">
+                                    <div class="sim-score-display" id="simScoreDisplay"></div>
+                                    <div class="sim-winprob-bar" id="simWinProbBar"></div>
+                                    <div class="sim-resim-btns">
+                                        <button class="sim-resim-btn" onclick="simResim()">EDIT LINEUP</button>
+                                        <button class="sim-resim-btn accent" onclick="simRunGame()">RE-SIM</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- COMBO INSPECTOR (full width below) -->
+                        <div class="sim-combo-inspector" id="simComboInspector" style="display:block">
+                            <div class="sim-combo-title">COMBO INSPECTOR</div>
+                            <div id="simComboContent">
+                                <div class="sim-combo-empty">Click synergy links on the court to inspect player combos</div>
                             </div>
                         </div>
                     </div>
@@ -7967,9 +7977,9 @@ def generate_css():
             padding: 0 8px;
         }
 
-        /* THREE-COLUMN LAYOUT */
+        /* TWO-COLUMN LAYOUT (courts side by side, center hub below) */
         .sim-three-col {
-            display: grid; grid-template-columns: 1fr 260px 1fr; gap: 12px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
             align-items: start;
         }
 
@@ -7996,7 +8006,7 @@ def generate_css():
 
         /* HALF-COURT */
         .sim-court {
-            position: relative; width: 100%; padding-bottom: 100%;
+            position: relative; width: 100%; padding-bottom: 120%;
             background: linear-gradient(180deg, rgba(30,30,30,1) 0%, rgba(40,40,40,1) 100%);
             overflow: visible;
         }
@@ -8006,7 +8016,7 @@ def generate_css():
 
         /* POSITION SLOTS */
         .sim-pos-slot {
-            position: absolute; width: 140px; min-height: 110px;
+            position: absolute; width: 170px; min-height: 140px;
             border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px;
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; transition: all 0.2s;
@@ -8025,7 +8035,7 @@ def generate_css():
 
         /* PLAYER CARDS — FUT-style (MOJO-tiered) */
         .sim-card {
-            width: 132px; cursor: grab; user-select: none; position: relative;
+            width: 160px; cursor: grab; user-select: none; position: relative;
             border-radius: 10px; overflow: hidden; transition: transform 0.15s;
         }
         .sim-card:active { cursor: grabbing; transform: scale(1.05); }
@@ -8060,7 +8070,7 @@ def generate_css():
             margin-bottom: 2px;
         }
         .sim-card-mojo {
-            font-family: var(--font-display); font-size: 32px; color: #fff;
+            font-family: var(--font-display); font-size: 38px; color: #fff;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.6); line-height: 1;
         }
         .sim-card-pos {
@@ -8070,12 +8080,12 @@ def generate_css():
         }
         /* Headshot — rectangular portrait, not circular */
         .sim-card-face {
-            width: 72px; height: 72px; border-radius: 8px; object-fit: cover;
+            width: 90px; height: 90px; border-radius: 8px; object-fit: cover;
             margin: 4px auto; border: 2px solid rgba(255,255,255,0.25);
             background: rgba(0,0,0,0.25);
         }
         .sim-card-name {
-            font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+            font-family: var(--font-mono); font-size: 13px; font-weight: 800;
             color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             margin-top: 3px; letter-spacing: 0.5px;
@@ -8100,7 +8110,7 @@ def generate_css():
             color: rgba(255,255,255,0.4); letter-spacing: 0.5px;
         }
         .sim-card-stat-val {
-            font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+            font-family: var(--font-mono); font-size: 12px; font-weight: 800;
             color: #fff;
         }
 
@@ -8128,9 +8138,9 @@ def generate_css():
             align-self: center; width: 100%; text-align: center;
         }
         /* Bench card (smaller) */
-        .sim-bench-zone .sim-card { width: 100px; }
-        .sim-bench-zone .sim-card-mojo { font-size: 20px; }
-        .sim-bench-zone .sim-card-face { width: 44px; height: 44px; }
+        .sim-bench-zone .sim-card { width: 120px; }
+        .sim-bench-zone .sim-card-mojo { font-size: 24px; }
+        .sim-bench-zone .sim-card-face { width: 54px; height: 54px; }
         .sim-bench-zone .sim-card-arch { display: none; }
         .sim-bench-zone .sim-card-stats { display: none; }
 
@@ -8168,10 +8178,17 @@ def generate_css():
         .sim-locker-zone .sim-card-arch { display: none; }
         .sim-locker-zone .sim-card-stats { display: none; }
 
-        /* CENTER COLUMN */
+        /* CENTER HUB (full-width below courts) */
         .sim-center-col {
+            grid-column: 1 / -1;
             background: var(--surface); border: var(--border); border-radius: var(--radius);
-            box-shadow: var(--shadow); padding: 14px; position: sticky; top: 100px;
+            box-shadow: var(--shadow); padding: 16px;
+        }
+        .sim-center-top {
+            display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
+        }
+        .sim-center-block {
+            flex: 1; min-width: 180px;
         }
         .sim-center-section { margin-bottom: 14px; }
         .sim-center-label {
@@ -8322,23 +8339,38 @@ def generate_css():
             line-height: 1.5;
         }
 
+        /* When link mode active, cards pass through clicks to the overlay */
+        .sim-court.link-mode-active .sim-pos-slot {
+            pointer-events: none;
+        }
+        .sim-court.link-mode-active .sim-pos-slot .sim-card {
+            pointer-events: none;
+        }
+
         /* SYNERGY LINK OVERLAY on court */
         .sim-link-overlay {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 3; pointer-events: none;
+            z-index: 10; pointer-events: none;
         }
-        .sim-link-overlay line {
-            pointer-events: stroke; cursor: pointer;
-            stroke-width: 2; opacity: 0.4; transition: all 0.2s;
+        /* Hit-area lines (invisible fat targets for clicking) */
+        .sim-link-overlay line.link-hitarea {
+            pointer-events: all; cursor: pointer;
+            stroke-width: 28; opacity: 0;
         }
-        .sim-link-overlay line:hover {
-            stroke-width: 4; opacity: 1; filter: drop-shadow(0 0 4px currentColor);
+        /* Visual lines (the visible colored lines) */
+        .sim-link-overlay line.link-visual {
+            pointer-events: none;
+            stroke-width: 6; opacity: 0.75; transition: all 0.2s;
         }
-        .sim-link-overlay line.link-selected {
-            stroke-width: 4; opacity: 1; filter: drop-shadow(0 0 6px currentColor);
+        .sim-link-overlay line.link-visual.link-hover,
+        .sim-link-overlay line.link-visual:hover {
+            stroke-width: 10; opacity: 1; filter: drop-shadow(0 0 8px currentColor);
         }
-        .sim-link-overlay line.link-low-sample {
-            stroke-dasharray: 6,4;
+        .sim-link-overlay line.link-visual.link-selected {
+            stroke-width: 10; opacity: 1; filter: drop-shadow(0 0 10px currentColor);
+        }
+        .sim-link-overlay line.link-visual.link-low-sample {
+            stroke-dasharray: 14,8;
         }
         /* Link mode toggle */
         .sim-link-toggle {
@@ -8362,7 +8394,7 @@ def generate_css():
 
         /* ROTATION EDITOR in center hub */
         .sim-rotation-wrap {
-            max-height: 320px; overflow-y: auto; margin-top: 6px;
+            max-height: 400px; overflow-y: auto; margin-top: 6px;
         }
         .sim-rotation-tabs {
             display: flex; gap: 0; margin-bottom: 6px;
@@ -8510,12 +8542,13 @@ def generate_css():
             .proj-grid { grid-template-columns: 1fr; }
             .proj-half:first-child { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
             .sim-three-col { grid-template-columns: 1fr !important; }
-            .sim-center-col { position: static; order: -1; }
+            .sim-center-col { order: -1; grid-column: 1; }
+            .sim-center-top { flex-direction: column; }
             .sim-team-picker { max-width: 100%; }
-            .sim-pos-slot { width: 72px; min-height: 70px; }
-            .sim-card { width: 70px; }
-            .sim-card-mojo { font-size: 20px; }
-            .sim-card-face { width: 30px; height: 30px; }
+            .sim-pos-slot { width: 90px; min-height: 80px; }
+            .sim-card { width: 85px; }
+            .sim-card-mojo { font-size: 22px; }
+            .sim-card-face { width: 40px; height: 40px; }
             .sim-boxscore-full { grid-template-columns: 1fr; }
         }
 
@@ -9014,7 +9047,7 @@ def generate_js():
         }
 
         // ─── LINK MODE ───
-        let simLinkModeActive = false;
+        let simLinkModeActive = true;
         let simSelectedLinks = new Set();
         let simActiveRotTab = 'home';
 
@@ -9024,6 +9057,11 @@ def generate_js():
             btn.classList.toggle('active', simLinkModeActive);
             const inspector = document.getElementById('simComboInspector');
             inspector.style.display = simLinkModeActive ? 'block' : 'none';
+            // Toggle link-mode-active on courts so cards pass through clicks to overlay
+            const homeCourt = document.getElementById('simHomeCourt');
+            const awayCourt = document.getElementById('simAwayCourt');
+            if (homeCourt) homeCourt.classList.toggle('link-mode-active', simLinkModeActive);
+            if (awayCourt) awayCourt.classList.toggle('link-mode-active', simLinkModeActive);
             if (simLinkModeActive) {
                 simRenderLinks('home');
                 simRenderLinks('away');
@@ -9090,20 +9128,34 @@ def generate_js():
                     const selected = simSelectedLinks.has(pairKey);
                     const lowSample = poss < 50;
 
-                    svg += '<line x1="' + pa.x + '%" y1="' + pa.y + '%" x2="' + pb.x + '%" y2="' + pb.y + '%"' +
+                    const lineCoords = 'x1="' + pa.x + '%" y1="' + pa.y + '%" x2="' + pb.x + '%" y2="' + pb.y + '%"';
+
+                    // Visual line (visible, no pointer events)
+                    svg += '<line ' + lineCoords +
                         ' stroke="' + color + '"' +
-                        ' class="' + (selected ? 'link-selected' : '') + (lowSample ? ' link-low-sample' : '') + '"' +
+                        ' class="link-visual' + (selected ? ' link-selected' : '') + (lowSample ? ' link-low-sample' : '') + '"' +
+                        ' data-pair="' + pairKey + '" />';
+
+                    // Hit-area line (invisible fat target for clicking)
+                    svg += '<line ' + lineCoords +
+                        ' stroke="transparent"' +
+                        ' class="link-hitarea"' +
                         ' data-pair="' + pairKey + '" data-side="' + side + '"' +
                         ' data-nrtg="' + nrtg + '" data-poss="' + poss + '"' +
-                        ' data-pida="' + a + '" data-pidb="' + b + '"' +
-                        ' onclick="simLinkClick(\\'' + pairKey + '\\')" />';
+                        ' data-pida="' + a + '" data-pidb="' + b + '" />';
                 }
             }
             overlay.innerHTML = svg;
 
-            // Add hover handlers for tooltips
-            overlay.querySelectorAll('line').forEach(line => {
-                line.addEventListener('mouseenter', function(e) {
+            // Add click + hover handlers (on hit-area lines)
+            overlay.querySelectorAll('line.link-hitarea').forEach(hitLine => {
+                // CLICK to select/deselect link
+                hitLine.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const pk = this.dataset.pair;
+                    if (pk) simLinkClick(pk);
+                });
+                hitLine.addEventListener('mouseenter', function(e) {
                     const tooltip = document.getElementById(side === 'home' ? 'simHomeLinkTooltip' : 'simAwayLinkTooltip');
                     const pA = simGetPlayerById(parseInt(this.dataset.pida));
                     const pB = simGetPlayerById(parseInt(this.dataset.pidb));
@@ -9119,10 +9171,16 @@ def generate_js():
                     const cr = court.getBoundingClientRect();
                     tooltip.style.left = (e.clientX - cr.left + 10) + 'px';
                     tooltip.style.top = (e.clientY - cr.top - 30) + 'px';
+                    // Highlight corresponding visual line
+                    const visual = overlay.querySelector('line.link-visual[data-pair="' + this.dataset.pair + '"]');
+                    if (visual) visual.classList.add('link-hover');
                 });
-                line.addEventListener('mouseleave', function() {
+                hitLine.addEventListener('mouseleave', function() {
                     const tooltip = document.getElementById(side === 'home' ? 'simHomeLinkTooltip' : 'simAwayLinkTooltip');
                     tooltip.style.display = 'none';
+                    // Remove hover highlight
+                    const visual = overlay.querySelector('line.link-visual[data-pair="' + this.dataset.pair + '"]');
+                    if (visual) visual.classList.remove('link-hover');
                 });
             });
         }
@@ -9300,6 +9358,11 @@ def generate_js():
                 if (simLinkModeActive) {
                     simRenderLinks('home');
                     simRenderLinks('away');
+                    // Ensure link-mode-active class is on courts for click pass-through
+                    const hc = document.getElementById('simHomeCourt');
+                    const ac = document.getElementById('simAwayCourt');
+                    if (hc) hc.classList.add('link-mode-active');
+                    if (ac) ac.classList.add('link-mode-active');
                 }
             }, 50);
             // Update rotation editor
