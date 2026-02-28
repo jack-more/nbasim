@@ -2430,6 +2430,42 @@
         .sim-link-toggle.active .sim-link-toggle-dot {
             background: var(--green); box-shadow: 0 0 6px rgba(0,255,85,0.5);
         }
+        .sim-link-toggle-sub {
+            font-size: 8px; font-weight: 400; opacity: 0.5;
+            letter-spacing: 0; margin-top: 1px;
+        }
+        /* Onboarding banner */
+        .sim-onboard-banner {
+            position: absolute; top: 8px; left: 8px; right: 8px; z-index: 50;
+            background: rgba(0,0,0,0.88); border: 1px solid var(--green);
+            border-radius: 10px; padding: 12px 16px;
+            flex-direction: column; gap: 6px;
+            animation: sim-onboard-pulse 2s ease-in-out infinite;
+        }
+        .sim-onboard-row {
+            font-family: var(--font-mono); font-size: 12px; color: #fff;
+            letter-spacing: 0.3px;
+        }
+        .sim-onboard-dismiss {
+            align-self: flex-end; background: var(--green); color: #000;
+            border: none; border-radius: 6px; padding: 4px 14px;
+            font-family: var(--font-mono); font-size: 10px; font-weight: 800;
+            cursor: pointer; letter-spacing: 1px; margin-top: 4px;
+        }
+        @keyframes sim-onboard-pulse {
+            0%, 100% { border-color: var(--green); }
+            50% { border-color: rgba(0,255,85,0.4); }
+        }
+        /* Grab cursor on draggable cards */
+        .sim-card[draggable="true"] { cursor: grab; }
+        .sim-card[draggable="true"]:active { cursor: grabbing; }
+        /* Grip icon on cards */
+        .sim-card-grip {
+            position: absolute; top: 4px; right: 4px;
+            font-size: 14px; color: rgba(255,255,255,0.25);
+            pointer-events: none; line-height: 1;
+        }
+        .sim-card:hover .sim-card-grip { color: rgba(255,255,255,0.6); }
 
         /* ROTATION EDITOR in center hub */
         .sim-rotation-wrap {
@@ -2501,8 +2537,10 @@
             color: rgba(255,255,255,0.5); margin-bottom: 6px;
         }
         .sim-combo-empty {
-            font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.25);
-            text-align: center; padding: 10px;
+            font-family: var(--font-mono); font-size: 12px; color: rgba(0,255,85,0.5);
+            text-align: center; padding: 14px;
+            border: 1px dashed rgba(0,255,85,0.2); border-radius: 8px;
+            background: rgba(0,255,85,0.03);
         }
         .sim-combo-players {
             display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
@@ -2521,6 +2559,10 @@
         .sim-combo-stat-val { font-weight: 800; color: #fff; }
         .sim-combo-stat-val.pos { color: var(--green); }
         .sim-combo-stat-val.neg { color: #FF4444; }
+        .sim-combo-pair-block {
+            padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .sim-combo-pair-block:last-child { border-bottom: none; }
 
         /* Link tooltip */
         .sim-link-tooltip {
@@ -7333,6 +7375,11 @@
                         </div>
                         <!-- HALF-COURT with position slots -->
                         <div class="sim-court" id="simHomeCourt">
+                            <div class="sim-onboard-banner" id="simOnboardHome" style="display:none">
+                                <div class="sim-onboard-row"><strong>Click</strong> any synergy line to see pair chemistry below</div>
+                                <div class="sim-onboard-row"><strong>Drag</strong> any card to swap lineup positions</div>
+                                <button class="sim-onboard-dismiss" onclick="simDismissOnboard()">GOT IT</button>
+                            </div>
                             <svg class="sim-court-lines" viewBox="0 0 400 320" preserveAspectRatio="none">
                                 <rect x="0" y="0" width="400" height="320" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
                                 <path d="M 60 320 L 60 130 Q 60 70 120 70 L 280 70 Q 340 70 340 130 L 340 320" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
@@ -7393,6 +7440,11 @@
                         </div>
                         <!-- HALF-COURT with position slots -->
                         <div class="sim-court" id="simAwayCourt">
+                            <div class="sim-onboard-banner" id="simOnboardAway" style="display:none">
+                                <div class="sim-onboard-row"><strong>Click</strong> any synergy line to see pair chemistry below</div>
+                                <div class="sim-onboard-row"><strong>Drag</strong> any card to swap lineup positions</div>
+                                <button class="sim-onboard-dismiss" onclick="simDismissOnboard()">GOT IT</button>
+                            </div>
                             <svg class="sim-court-lines" viewBox="0 0 400 320" preserveAspectRatio="none">
                                 <rect x="0" y="0" width="400" height="320" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
                                 <path d="M 60 320 L 60 130 Q 60 70 120 70 L 280 70 Q 340 70 340 130 L 340 320" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
@@ -7481,7 +7533,7 @@
                                 <div class="sim-center-section">
                                     <div class="sim-link-toggle active" id="simLinkToggle" onclick="simToggleLinkMode()">
                                         <span class="sim-link-toggle-dot"></span>
-                                        LINK MODE
+                                        <div><div>LINK MODE</div><div class="sim-link-toggle-sub">Click lines to inspect pairs</div></div>
                                     </div>
                                 </div>
                             </div>
@@ -7517,7 +7569,7 @@
                         <div class="sim-combo-inspector" id="simComboInspector" style="display:block">
                             <div class="sim-combo-title">COMBO INSPECTOR</div>
                             <div id="simComboContent">
-                                <div class="sim-combo-empty">Click synergy links on the court to inspect player combos</div>
+                                <div class="sim-combo-empty">Click any synergy line on the court to inspect pair chemistry</div>
                             </div>
                         </div>
                     </div>
@@ -8192,6 +8244,7 @@
             return '<div class="sim-card ' + tier + '" draggable="true" data-pid="' + pid + '" data-side="' + side + '"' +
                 ' ontouchstart="simTouchStart(event)" ontouchmove="simTouchMove(event)" ontouchend="simTouchEnd(event)">' +
                 '<div class="sim-card-inner">' +
+                '<div class="sim-card-grip">&#x283F;</div>' +
                 '<div class="sim-card-header">' +
                 '<div class="sim-card-mojo">' + Math.round(mojo) + '</div>' +
                 '<span class="sim-card-pos">' + (p.pos || 'WING') + '</span>' +
@@ -8294,6 +8347,23 @@
             simRenderAll(side);
             simRecalc();
             simCheckReady();
+            // Show onboarding banner if both teams loaded and not previously dismissed
+            if (simState.home.team && simState.away.team) simShowOnboard();
+        }
+
+        function simShowOnboard() {
+            if (localStorage.getItem('sim_onboard_seen')) return;
+            const h = document.getElementById('simOnboardHome');
+            const a = document.getElementById('simOnboardAway');
+            if (h) h.style.display = 'flex';
+            if (a) a.style.display = 'flex';
+        }
+        function simDismissOnboard() {
+            localStorage.setItem('sim_onboard_seen', '1');
+            const h = document.getElementById('simOnboardHome');
+            const a = document.getElementById('simOnboardAway');
+            if (h) h.style.display = 'none';
+            if (a) a.style.display = 'none';
         }
 
         // ─── COACHES DICT ───
@@ -8463,12 +8533,10 @@
         }
 
         function simLinkClick(pairKey) {
-            if (simSelectedLinks.has(pairKey) && simSelectedLinks.size === 1) {
-                // Clicking the already-selected link deselects it
-                simSelectedLinks.clear();
+            // Toggle: click to add/remove pairs from selection
+            if (simSelectedLinks.has(pairKey)) {
+                simSelectedLinks.delete(pairKey);
             } else {
-                // Clear previous selection, select only this pair
-                simSelectedLinks.clear();
                 simSelectedLinks.add(pairKey);
             }
             simRenderLinks('home');
@@ -8479,68 +8547,41 @@
         function simUpdateComboInspector() {
             const content = document.getElementById('simComboContent');
             if (simSelectedLinks.size === 0) {
-                content.innerHTML = '<div class="sim-combo-empty">Click links on court to inspect combos</div>';
+                content.innerHTML = '<div class="sim-combo-empty">Click any synergy line on the court to inspect pair chemistry</div>';
                 return;
             }
-            // Gather unique player IDs from selected links
-            const pidSet = new Set();
+            const pairs = SIM_DATA.pairs || {};
+            let html = '';
+
+            // Show each selected pair's data individually
             simSelectedLinks.forEach(key => {
                 const [a, b] = key.split('-').map(Number);
-                pidSet.add(a); pidSet.add(b);
-            });
-            const pids = [...pidSet].sort((a,b) => a - b);
-
-            // Player chips
-            let chipsHtml = '<div class="sim-combo-players">';
-            pids.forEach(pid => {
-                const p = simGetPlayerById(pid);
-                chipsHtml += '<span class="sim-combo-player-chip">' + (p ? p.name.split(' ').pop() : '#' + pid) + '</span>';
-            });
-            chipsHtml += '</div>';
-
-            // Try to find combo data
-            let comboHtml = '';
-            const comboKey = pids.join('-');
-            const pairs = SIM_DATA.pairs || {};
-
-            if (pids.length === 2) {
-                const key1 = pids[0] + '-' + pids[1], key2 = pids[1] + '-' + pids[0];
+                const pA = simGetPlayerById(a);
+                const pB = simGetPlayerById(b);
+                const nameA = pA ? pA.name.split(' ').pop() : '#' + a;
+                const nameB = pB ? pB.name.split(' ').pop() : '#' + b;
+                const key1 = a + '-' + b, key2 = b + '-' + a;
                 const pd = pairs[key1] || pairs[key2];
+
+                html += '<div class="sim-combo-pair-block">';
+                html += '<div class="sim-combo-players">';
+                html += '<span class="sim-combo-player-chip">' + nameA + '</span>';
+                html += '<span class="sim-combo-player-chip">' + nameB + '</span>';
+                html += '</div>';
                 if (pd) {
                     const nrtgClass = pd.nrtg >= 0 ? 'pos' : 'neg';
                     const sign = pd.nrtg >= 0 ? '+' : '';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + pd.nrtg.toFixed(1) + '</span></div>';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes Together</span><span class="sim-combo-stat-val">' + pd.min + '</span></div>';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Possessions</span><span class="sim-combo-stat-val">' + pd.poss + '</span></div>';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Synergy Score</span><span class="sim-combo-stat-val">' + pd.syn + '</span></div>';
-                    // RAPM on/off for each player
-                    pids.forEach(pid => {
-                        const p = simGetPlayerById(pid);
-                        if (p && p.rapm !== null && p.rapm !== undefined) {
-                            const sign2 = p.rapm >= 0 ? '+' : '';
-                            const cls2 = p.rapm >= 0 ? 'pos' : 'neg';
-                            comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">' + (p.name.split(' ').pop()) + ' RAPM</span><span class="sim-combo-stat-val ' + cls2 + '">' + sign2 + p.rapm.toFixed(1) + '</span></div>';
-                        }
-                    });
+                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + pd.nrtg.toFixed(1) + '</span></div>';
+                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes Together</span><span class="sim-combo-stat-val">' + pd.min + '</span></div>';
+                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Possessions</span><span class="sim-combo-stat-val">' + pd.poss + '</span></div>';
+                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Synergy Score</span><span class="sim-combo-stat-val">' + pd.syn + '</span></div>';
                 } else {
-                    comboHtml = '<div class="sim-combo-empty">No pair data available</div>';
+                    html += '<div class="sim-combo-empty">No pair data</div>';
                 }
-            } else if (pids.length >= 3 && pids.length <= 5) {
-                const combos = pids.length === 3 ? (SIM_DATA.combos_3 || {}) :
-                               pids.length === 5 ? (SIM_DATA.combos_5 || {}) : {};
-                const cd = combos[comboKey];
-                if (cd) {
-                    const nrtgClass = cd.nrtg >= 0 ? 'pos' : 'neg';
-                    const sign = cd.nrtg >= 0 ? '+' : '';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">' + pids.length + '-Man Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + cd.nrtg + '</span></div>';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes</span><span class="sim-combo-stat-val">' + cd.min + '</span></div>';
-                    comboHtml += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Games</span><span class="sim-combo-stat-val">' + cd.gp + '</span></div>';
-                } else {
-                    comboHtml = '<div class="sim-combo-empty">No ' + pids.length + '-man combo data</div>';
-                }
-            }
+                html += '</div>';
+            });
 
-            content.innerHTML = chipsHtml + comboHtml;
+            content.innerHTML = html;
         }
 
         // ─── ROTATION EDITOR ───
