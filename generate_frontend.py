@@ -7987,17 +7987,20 @@ def generate_css():
             padding: 0 8px;
         }
 
-        /* TWO-COLUMN LAYOUT (courts side by side, center hub below) */
+        /* THREE-COLUMN LAYOUT (home court — center console — away court) */
         .sim-three-col {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            display: grid; grid-template-columns: 1fr 300px 1fr; gap: 10px;
             align-items: start;
+            max-width: none; margin: 0 -16px; padding: 0 10px;
         }
 
         /* SIDE PANELS (home/away) */
         .sim-panel {
             background: var(--surface-dark); border-radius: var(--radius);
-            border: 2px solid rgba(255,255,255,0.08); overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.08); overflow: visible;
         }
+        .sim-panel.home { grid-column: 1; grid-row: 1; }
+        .sim-panel.away { grid-column: 3; grid-row: 1; }
         .sim-panel-header {
             display: flex; align-items: center; gap: 8px; padding: 10px 14px;
             border-bottom: 2px solid rgba(255,255,255,0.06);
@@ -8026,7 +8029,7 @@ def generate_css():
 
         /* POSITION SLOTS */
         .sim-pos-slot {
-            position: absolute; width: 170px; min-height: 140px;
+            position: absolute; width: 130px; min-height: 160px;
             border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px;
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; transition: all 0.2s;
@@ -8045,14 +8048,15 @@ def generate_css():
 
         /* PLAYER CARDS — FUT-style (MOJO-tiered) */
         .sim-card {
-            width: 160px; cursor: grab; user-select: none; position: relative;
+            width: 120px; cursor: grab; user-select: none; position: relative;
             border-radius: 10px; overflow: hidden; transition: transform 0.15s;
         }
         .sim-card:active { cursor: grabbing; transform: scale(1.05); }
         .sim-card.dragging { opacity: 0.3; }
         .sim-card-inner {
-            padding: 6px 6px 5px; text-align: center; border-radius: 10px;
+            padding: 0; text-align: center; border-radius: 10px;
             border: 2px solid rgba(255,255,255,0.15); position: relative;
+            overflow: hidden;
         }
         /* Tier: Gold (MOJO >= 80) */
         .sim-card.tier-gold .sim-card-inner {
@@ -8074,10 +8078,11 @@ def generate_css():
             background: linear-gradient(150deg, #1a1a1a 0%, #2d2d2d 30%, #3a3a3a 50%, #2d2d2d 70%, #1a1a1a 100%);
             border-color: rgba(255,255,255,0.1);
         }
-        /* Card header row: MOJO left, POS right */
+        /* Card header row: MOJO left, POS right — overlaid at top */
         .sim-card-header {
+            position: absolute; top: 0; left: 0; right: 0;
             display: flex; justify-content: space-between; align-items: flex-start;
-            margin-bottom: 2px;
+            padding: 6px 8px; z-index: 3;
         }
         .sim-card-mojo {
             font-family: var(--font-display); font-size: 38px; color: #fff;
@@ -8088,11 +8093,18 @@ def generate_css():
             background: rgba(0,0,0,0.5); color: #fff; padding: 2px 5px;
             border-radius: 4px; letter-spacing: 0.5px; margin-top: 2px;
         }
-        /* Headshot — large portrait filling most of card */
+        /* Headshot — full-bleed fills entire card */
         .sim-card-face {
-            width: 130px; height: 130px; border-radius: 8px; object-fit: cover;
-            margin: 2px auto; border: 2px solid rgba(255,255,255,0.25);
-            background: rgba(0,0,0,0.25);
+            width: 100%; height: 200px; border-radius: 0; object-fit: cover;
+            object-position: top center; margin: 0; border: none;
+            background: rgba(0,0,0,0.25); display: block;
+        }
+        /* Bottom info overlay with gradient for legibility */
+        .sim-card-info {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 20px 6px 5px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85) 40%);
+            z-index: 3;
         }
         .sim-card-name {
             font-family: var(--font-mono); font-size: 13px; font-weight: 800;
@@ -8148,9 +8160,9 @@ def generate_css():
             align-self: center; width: 100%; text-align: center;
         }
         /* Bench card (smaller) */
-        .sim-bench-zone .sim-card { width: 120px; }
-        .sim-bench-zone .sim-card-mojo { font-size: 24px; }
-        .sim-bench-zone .sim-card-face { width: 90px; height: 90px; }
+        .sim-bench-zone .sim-card { width: 100px; }
+        .sim-bench-zone .sim-card-mojo { font-size: 20px; }
+        .sim-bench-zone .sim-card-face { width: 100%; height: 120px; }
         .sim-bench-zone .sim-card-arch { display: none; }
         .sim-bench-zone .sim-card-stats { display: none; }
 
@@ -8184,21 +8196,23 @@ def generate_css():
         }
         .sim-locker-zone .sim-card { width: 72px; opacity: 0.5; }
         .sim-locker-zone .sim-card-mojo { font-size: 16px; }
-        .sim-locker-zone .sim-card-face { width: 32px; height: 32px; }
+        .sim-locker-zone .sim-card-face { width: 100%; height: 60px; }
         .sim-locker-zone .sim-card-arch { display: none; }
         .sim-locker-zone .sim-card-stats { display: none; }
+        .sim-locker-zone .sim-card-name { display: none; }
 
-        /* CENTER HUB (full-width below courts) */
+        /* CENTER HUB (between the two courts) */
         .sim-center-col {
-            grid-column: 1 / -1;
+            grid-column: 2; grid-row: 1;
             background: var(--surface); border: var(--border); border-radius: var(--radius);
-            box-shadow: var(--shadow); padding: 16px;
+            box-shadow: var(--shadow); padding: 12px;
+            max-height: 600px; overflow-y: auto;
         }
         .sim-center-top {
-            display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
+            display: flex; flex-direction: column; gap: 12px; align-items: stretch;
         }
         .sim-center-block {
-            flex: 1; min-width: 180px;
+            width: 100%;
         }
         .sim-center-section { margin-bottom: 14px; }
         .sim-center-label {
@@ -8356,11 +8370,10 @@ def generate_css():
         .sim-court.link-mode-active .sim-pos-slot .sim-card {
             pointer-events: none;
         }
-
-        /* SYNERGY LINK OVERLAY on court */
+        /* SYNERGY LINK OVERLAY on court — always behind cards */
         .sim-link-overlay {
             position: absolute; inset: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
+            z-index: 1; pointer-events: none;
         }
         /* Hit-area lines (invisible fat targets for clicking) */
         .sim-link-overlay line.link-hitarea {
@@ -8370,7 +8383,7 @@ def generate_css():
         /* Visual lines (the visible colored lines) */
         .sim-link-overlay line.link-visual {
             pointer-events: none;
-            stroke-width: 6; opacity: 0.75; transition: all 0.2s;
+            stroke-width: 4; opacity: 0.55; transition: all 0.2s;
         }
         .sim-link-overlay line.link-visual.link-hover,
         .sim-link-overlay line.link-visual:hover {
@@ -8434,7 +8447,7 @@ def generate_css():
         .sim-card-grip {
             position: absolute; top: 4px; right: 4px;
             font-size: 14px; color: rgba(255,255,255,0.25);
-            pointer-events: none; line-height: 1;
+            pointer-events: none; line-height: 1; z-index: 4;
         }
         .sim-card:hover .sim-card-grip { color: rgba(255,255,255,0.6); }
 
@@ -8593,14 +8606,15 @@ def generate_css():
             .rank-team-logo { display: none; }
             .proj-grid { grid-template-columns: 1fr; }
             .proj-half:first-child { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
-            .sim-three-col { grid-template-columns: 1fr !important; }
-            .sim-center-col { order: -1; grid-column: 1; }
+            .sim-three-col { grid-template-columns: 1fr !important; margin: 0 !important; padding: 0 !important; }
+            .sim-center-col { order: -1; grid-column: 1 !important; grid-row: auto !important; }
+            .sim-panel.home, .sim-panel.away { grid-column: 1 !important; grid-row: auto !important; }
             .sim-center-top { flex-direction: column; }
             .sim-team-picker { max-width: 100%; }
             .sim-pos-slot { width: 90px; min-height: 80px; }
             .sim-card { width: 85px; }
-            .sim-card-mojo { font-size: 22px; }
-            .sim-card-face { width: 40px; height: 40px; }
+            .sim-card-mojo { font-size: 18px; }
+            .sim-card-face { height: 100px; }
             .sim-boxscore-full { grid-template-columns: 1fr; }
         }
 
@@ -8973,13 +8987,14 @@ def generate_js():
                 '<span class="sim-card-pos">' + (p.pos || 'WING') + '</span>' +
                 '</div>' +
                 '<img class="sim-card-face" src="' + headshot + '" onerror="this.style.display=\\\'none\\\'" alt="">' +
+                '<div class="sim-card-info">' +
                 '<div class="sim-card-name">' + lastName + '</div>' +
                 '<div class="sim-card-arch">' + archLabel.trim() + '</div>' +
                 '<div class="sim-card-stats">' +
                 '<div class="sim-card-stat"><div class="sim-card-stat-label">PTS</div><div class="sim-card-stat-val">' + (p.pts || 0) + '</div></div>' +
                 '<div class="sim-card-stat"><div class="sim-card-stat-label">AST</div><div class="sim-card-stat-val">' + (p.ast || 0) + '</div></div>' +
                 '<div class="sim-card-stat"><div class="sim-card-stat-label">REB</div><div class="sim-card-stat-val">' + (p.reb || 0) + '</div></div>' +
-                '</div></div></div>';
+                '</div></div></div></div>';
         }
 
         function simMpgChange(pid, val, side) {
