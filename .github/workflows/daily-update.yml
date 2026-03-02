@@ -95,6 +95,15 @@ jobs:
       - name: Generate dashboard (fresh odds + props)
         run: python generate_frontend.py
 
+      # ── Capture picks on final pre-game run (9:30 AM PST) ──
+      - name: Capture picks
+        if: github.event.schedule == '30 17 * * *' || inputs.full_pipeline == 'true'
+        run: python scripts/capture_picks.py
+
+      - name: Generate blog entry
+        if: github.event.schedule == '30 17 * * *' || inputs.full_pipeline == 'true'
+        run: python scripts/generate_blog_entry.py
+
       # ── Commit + push ──
       - name: Commit and push
         run: |
@@ -103,7 +112,12 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html nba_sim.html
+          git add index.html nba_sim.html data/daily_picks.json
+
+          # Include pick data if capture ran
+          if [ -f data/picks.csv ]; then git add data/picks.csv; fi
+          if [ -f data/pick_log.json ]; then git add data/pick_log.json; fi
+          if [ -f data/blog_snippet.html ]; then git add data/blog_snippet.html; fi
 
           # Include DB if full pipeline ran
           if [ "${{ inputs.full_pipeline }}" = "true" ]; then

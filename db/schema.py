@@ -391,6 +391,14 @@ CREATE TABLE IF NOT EXISTS picks (
     result        TEXT,
     profit        REAL,
     graded_at     TEXT,
+    sim_spread    REAL,
+    book_spread   REAL,
+    spread_edge   REAL,
+    sim_total     REAL,
+    book_total    REAL,
+    raw_edge      REAL,
+    captured_at   TEXT,
+    conf_1_10     INTEGER,
     UNIQUE(slate_date, matchup, side)
 );
 

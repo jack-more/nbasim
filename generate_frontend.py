@@ -757,15 +757,15 @@ def compute_mojo_score(row, injury_adjusted_composite=None):
     # Breakdown for tooltip — preserve existing keys for compatibility
     total_raw = off_raw + def_raw + shared_raw
     breakdown = {
-        "pts": round(pts, 1), "ast": round(ast, 1), "reb": round(reb, 1),
-        "stl": round(stl, 1), "blk": round(blk, 1),
-        "ts_pct": round(ts * 100, 1) if ts < 1 else round(ts, 1),
-        "net_rating": round(net, 1),
-        "usg_pct": round(usg * 100, 1) if usg < 1 else round(usg, 1),
-        "mpg": round(mpg, 1),
-        "def_rating": round(drtg, 1),
-        "off_score": round(off_score, 1),
-        "def_score": round(def_score, 1),
+        "pts": round(pts, 3), "ast": round(ast, 3), "reb": round(reb, 3),
+        "stl": round(stl, 3), "blk": round(blk, 3),
+        "ts_pct": round(ts * 100, 3) if ts < 1 else round(ts, 3),
+        "net_rating": round(net, 3),
+        "usg_pct": round(usg * 100, 3) if usg < 1 else round(usg, 3),
+        "mpg": round(mpg, 3),
+        "def_rating": round(drtg, 3),
+        "off_score": round(off_score, 3),
+        "def_score": round(def_score, 3),
         "scoring_c": round(scoring_c / max(1, off_raw) * 100, 0) if off_raw else 0,
         "playmaking_c": round(playmaking_c / max(1, off_raw) * 100, 0) if off_raw else 0,
         "defense_c": round(def_score, 0),
@@ -774,9 +774,9 @@ def compute_mojo_score(row, injury_adjusted_composite=None):
         # Context factors for bottom sheet
         "raw_mojo": raw_mojo,
         "contextual_mojo": contextual_mojo,
-        "solo_impact": round(vs["solo"], 1) if vs else 50.0,
-        "synergy_score": round(vs["two"], 1) if vs else 50.0,
-        "fit_score": round(vs["fit"], 1) if vs else 50.0,
+        "solo_impact": round(vs["solo"], 3) if vs else 50.0,
+        "synergy_score": round(vs["two"], 3) if vs else 50.0,
+        "fit_score": round(vs["fit"], 3) if vs else 50.0,
         "injury_adjusted": injury_adjusted_composite is not None,
         # Raw RAPM from nbarapm.com (no formula integration — display only)
         "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
@@ -3252,6 +3252,38 @@ def get_matchups():
                 "rw_lineups": rw_lineups,
             })
 
+    # ── Save daily picks snapshot for automated logging ──
+    daily_snapshot = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "slate_date": slate_date,
+        "games": [],
+    }
+    for m in matchups:
+        daily_snapshot["games"].append({
+            "matchup": f"{m['away_abbr']} @ {m['home_abbr']}",
+            "home": m["home_abbr"],
+            "away": m["away_abbr"],
+            "book_spread": m["spread"] if not m["spread_is_projected"] else None,
+            "book_total": m["total"] if not m["total_is_projected"] else None,
+            "sim_spread": m["proj_spread"],
+            "sim_total": m["proj_total"],
+            "confidence": m["confidence"],
+            "spread_edge": m["spread_edge"],
+            "raw_edge": m["raw_edge"],
+            "pick_text": m["pick_text"],
+            "pick_type": m["pick_type"],
+            "conf_label": m["conf_label"],
+            "ou_pick_text": m["ou_pick_text"],
+            "ou_conf": m["ou_conf"],
+            "ou_edge": m["ou_edge"],
+            "home_ml": real_lines.get((m["home_abbr"], m["away_abbr"]), {}).get("home_ml"),
+            "away_ml": real_lines.get((m["home_abbr"], m["away_abbr"]), {}).get("away_ml"),
+        })
+    os.makedirs("data", exist_ok=True)
+    with open("data/daily_picks.json", "w") as _dpf:
+        json.dump(daily_snapshot, _dpf, indent=2)
+    print(f"[Picks] Saved daily snapshot: {len(daily_snapshot['games'])} games → data/daily_picks.json")
+
     return matchups, team_map, slate_date, event_ids
 
 
@@ -3464,15 +3496,15 @@ def get_lab_data():
             "archetype": arch,
             "arch_icon": icon,
             "team_id": tid,
-            "pts": round(float(row.get("pts_pg") or 0), 1),
-            "ast": round(float(row.get("ast_pg") or 0), 1),
-            "reb": round(float(row.get("reb_pg") or 0), 1),
-            "stl": round(float(row.get("stl_pg") or 0), 1),
-            "blk": round(float(row.get("blk_pg") or 0), 1),
-            "mpg": round(float(row.get("minutes_per_game") or 0), 1),
-            "usg": round(float(row.get("usg_pct") or 20), 1),
-            "ts": round(float(row.get("ts_pct") or 0.54), 3),
-            "solo": round(float(vs.get("solo", 50)), 1),
+            "pts": round(float(row.get("pts_pg") or 0), 3),
+            "ast": round(float(row.get("ast_pg") or 0), 3),
+            "reb": round(float(row.get("reb_pg") or 0), 3),
+            "stl": round(float(row.get("stl_pg") or 0), 3),
+            "blk": round(float(row.get("blk_pg") or 0), 3),
+            "mpg": round(float(row.get("minutes_per_game") or 0), 3),
+            "usg": round(float(row.get("usg_pct") or 0.20) * 100, 3) if float(row.get("usg_pct") or 0.20) < 1 else round(float(row.get("usg_pct") or 20), 3),
+            "ts": round(float(row.get("ts_pct") or 0.54) * 100, 3) if float(row.get("ts_pct") or 0.54) < 1 else round(float(row.get("ts_pct") or 54), 3),
+            "solo": round(float(vs.get("solo", 50)), 3),
             "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
             "rapm_off": _RAPM_DATA.get(pid, {}).get("rapm_off"),
             "rapm_def": _RAPM_DATA.get(pid, {}).get("rapm_def"),
@@ -3502,9 +3534,9 @@ def get_lab_data():
         a = int(row["player_a_id"])
         b = int(row["player_b_id"])
         key = f"{a}-{b}"
-        syn_val = round(float(row["synergy_score"] or 50), 1)
-        nrtg_val = round(float(row["net_rating"] or 0), 1)
-        min_val = round(float(row["minutes_together"] or 0), 1)
+        syn_val = round(float(row["synergy_score"] or 50), 3)
+        nrtg_val = round(float(row["net_rating"] or 0), 3)
+        min_val = round(float(row["minutes_together"] or 0), 3)
         poss_val = round(float(row["possessions"] or 0), 0)
         pairs[key] = {
             "syn": syn_val, "nrtg": nrtg_val,
@@ -4265,14 +4297,14 @@ def get_top_50_ds():
             "team": p["abbreviation"],
             "mojo": ds,
             "low": low, "high": high,
-            "pts": round(p.get("pts_pg", 0) or 0, 1),
-            "ast": round(p.get("ast_pg", 0) or 0, 1),
-            "reb": round(p.get("reb_pg", 0) or 0, 1),
-            "stl": round(p.get("stl_pg", 0) or 0, 1),
-            "blk": round(p.get("blk_pg", 0) or 0, 1),
-            "ts": round((p.get("ts_pct", 0) or 0) * 100, 1) if (p.get("ts_pct", 0) or 0) < 1 else round(p.get("ts_pct", 0) or 0, 1),
-            "net": round(p.get("net_rating", 0) or 0, 1),
-            "mpg": round(p.get("minutes_per_game", 0) or 0, 1),
+            "pts": round(p.get("pts_pg", 0) or 0, 3),
+            "ast": round(p.get("ast_pg", 0) or 0, 3),
+            "reb": round(p.get("reb_pg", 0) or 0, 3),
+            "stl": round(p.get("stl_pg", 0) or 0, 3),
+            "blk": round(p.get("blk_pg", 0) or 0, 3),
+            "ts": round((p.get("ts_pct", 0) or 0) * 100, 3) if (p.get("ts_pct", 0) or 0) < 1 else round(p.get("ts_pct", 0) or 0, 3),
+            "net": round(p.get("net_rating", 0) or 0, 3),
+            "mpg": round(p.get("minutes_per_game", 0) or 0, 3),
             "archetype": p.get("archetype_label", "") or "Unclassified",
             "breakdown": breakdown,
         })
@@ -4714,7 +4746,7 @@ def generate_html():
         <div class="filter-bar">
             <div class="filter-bar-inner">
                 <button class="filter-btn active" data-tab="slate">Game Lines</button>
-                <button class="filter-btn" data-tab="sim">SIM</button>
+                <button class="filter-btn" data-tab="sim">SIM (desktop)</button>
                 <button class="filter-btn" data-tab="props">Player Stats</button>
                 <button class="filter-btn" data-tab="trends">Trends</button>
                 <button class="filter-btn" data-tab="info">Info</button>
@@ -5068,7 +5100,7 @@ def generate_html():
                                 </div>
                             </div>
                             <!-- BLOCK 3: Run Button -->
-                            <div class="sim-center-block" style="max-width: 260px;">
+                            <div class="sim-center-block">
                                 <button class="sim-run-btn" id="simRunBtn" onclick="simRunGame()" disabled>
                                     &#9654; RUN SIMULATION
                                 </button>
@@ -5090,6 +5122,7 @@ def generate_html():
 
                 <!-- FULL-WIDTH BOX SCORES (below three-col) -->
                 <div class="sim-boxscore-full" id="simBoxScores" style="display:none"></div>
+                <div id="simShotChart" style="display:none"></div>
 
                 <!-- (empty state removed — courts always visible) -->
             </div>
@@ -7909,7 +7942,7 @@ def generate_css():
         }
 
         /* ─── SIM TAB ─── */
-        .sim-container { max-width: 1400px; margin: 0 auto; }
+        .sim-container { max-width: 100%; margin: 0 auto; padding: 0; }
 
         /* TEAM BAR */
         .sim-team-bar {
@@ -7985,18 +8018,26 @@ def generate_css():
 
         /* THREE-COLUMN LAYOUT (home court — center console — away court) */
         .sim-three-col {
-            display: grid; grid-template-columns: 1fr 300px 1fr; gap: 10px;
-            align-items: start;
-            max-width: none; margin: 0 -16px; padding: 0 10px;
+            display: grid; grid-template-columns: 1fr 320px 1fr; gap: 10px;
+            align-items: stretch;
+            width: 100vw; margin-left: calc(-50vw + 50%); padding: 0;
         }
 
         /* SIDE PANELS (home/away) */
         .sim-panel {
-            background: var(--surface-dark); border-radius: var(--radius);
+            background: var(--surface-dark);
             border: 2px solid rgba(255,255,255,0.08); overflow: visible;
         }
-        .sim-panel.home { grid-column: 1; grid-row: 1; }
-        .sim-panel.away { grid-column: 3; grid-row: 1; }
+        .sim-panel.home {
+            grid-column: 1; grid-row: 1;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            border-left: none;
+        }
+        .sim-panel.away {
+            grid-column: 3; grid-row: 1;
+            border-radius: var(--radius) 0 0 var(--radius);
+            border-right: none;
+        }
         .sim-panel-header {
             display: flex; align-items: center; gap: 8px; padding: 10px 14px;
             border-bottom: 2px solid rgba(255,255,255,0.06);
@@ -8015,7 +8056,7 @@ def generate_css():
 
         /* HALF-COURT */
         .sim-court {
-            position: relative; width: 100%; padding-bottom: 120%;
+            position: relative; width: 100%; padding-bottom: 85%;
             background: linear-gradient(180deg, rgba(30,30,30,1) 0%, rgba(40,40,40,1) 100%);
             overflow: visible;
         }
@@ -8202,7 +8243,7 @@ def generate_css():
             grid-column: 2; grid-row: 1;
             background: var(--surface); border: var(--border); border-radius: var(--radius);
             box-shadow: var(--shadow); padding: 12px;
-            max-height: 600px; overflow-y: auto;
+            max-height: none; overflow-y: visible;
         }
         .sim-center-top {
             display: flex; flex-direction: column; gap: 12px; align-items: stretch;
@@ -8268,35 +8309,41 @@ def generate_css():
         /* CENTER RESULTS (inline) */
         .sim-center-results { margin-top: 16px; border-top: 2px solid rgba(0,0,0,0.08); padding-top: 12px; }
         .sim-score-display {
-            font-family: var(--font-mono); text-align: center; margin-bottom: 10px;
+            font-family: var(--font-mono); text-align: center; margin-bottom: 14px;
+            padding: 14px 8px; background: #111; border-radius: 10px;
         }
         .sim-score-line {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            margin-bottom: 4px;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin-bottom: 6px;
         }
         .sim-score-team {
-            font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;
-            width: 50px; text-align: right;
+            font-family: var(--font-display); font-size: 22px; letter-spacing: 2px;
+            width: 60px; text-align: right; color: rgba(255,255,255,0.7);
         }
         .sim-score-qtrs {
-            font-size: 11px; color: rgba(0,0,0,0.5); display: flex; gap: 6px;
+            font-size: 13px; color: rgba(255,255,255,0.35); display: flex; gap: 8px;
         }
         .sim-score-final {
-            font-size: 22px; font-weight: 900; min-width: 40px;
+            font-size: 48px; font-weight: 900; min-width: 60px;
+            font-family: var(--font-display); letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
         }
-        .sim-score-winner { color: var(--green-dark); }
+        .sim-score-winner {
+            color: var(--green) !important;
+            text-shadow: 0 0 20px rgba(0,255,85,0.3);
+        }
         .sim-winprob-bar {
-            display: flex; height: 24px; border-radius: 6px; overflow: hidden;
-            margin-bottom: 10px; border: 2px solid rgba(0,0,0,0.1);
+            display: flex; height: 32px; border-radius: 6px; overflow: hidden;
+            margin-bottom: 12px; border: 2px solid rgba(0,0,0,0.1);
         }
         .sim-winprob-home {
             display: flex; align-items: center; justify-content: center;
-            font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+            font-family: var(--font-mono); font-size: 13px; font-weight: 800;
             color: #fff; transition: width 0.6s ease;
         }
         .sim-winprob-away {
             display: flex; align-items: center; justify-content: center;
-            font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+            font-family: var(--font-mono); font-size: 13px; font-weight: 800;
             color: #fff; transition: width 0.6s ease;
         }
         .sim-resim-btns { display: flex; gap: 8px; }
@@ -8343,6 +8390,32 @@ def generate_css():
         .sim-box-total {
             font-weight: 800; border-top: 2px solid #000;
             background: rgba(0,0,0,0.04);
+        }
+        /* Clickable box score rows */
+        .sim-box-clickable { cursor: pointer; transition: background 0.15s; }
+        .sim-box-clickable:hover { background: rgba(0,255,85,0.08) !important; }
+        .sim-box-clickable.active-chart { background: rgba(0,255,85,0.12) !important; box-shadow: inset 3px 0 0 var(--green); }
+
+        /* SHOT CHART */
+        #simShotChart { margin-top: 12px; max-width: 700px; margin-left: auto; margin-right: auto; }
+        .sc-wrapper {
+            display: flex; gap: 16px; background: var(--surface); border: var(--border);
+            border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; align-items: flex-start;
+        }
+        .sc-wrapper svg { flex: 1 1 400px; min-width: 250px; }
+        .sc-stats { flex: 0 0 180px; font-family: var(--font-mono); font-size: 11px; }
+        .sc-player-name { font-family: var(--font-display); font-size: 20px; letter-spacing: 1px; margin-bottom: 2px; }
+        .sc-archetype { font-size: 10px; color: rgba(0,0,0,0.45); margin-bottom: 12px; letter-spacing: 0.3px; }
+        .sc-stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+        .sc-stat { text-align: center; background: rgba(0,0,0,0.04); border-radius: 6px; padding: 6px 4px; }
+        .sc-stat-val { display: block; font-size: 16px; font-weight: 800; font-family: var(--font-display); letter-spacing: 0.5px; }
+        .sc-stat-label { display: block; font-size: 9px; color: rgba(0,0,0,0.4); letter-spacing: 0.5px; margin-top: 2px; }
+        .sc-zone-breakdown { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 10px; }
+        .sc-zone-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 10px; letter-spacing: 0.3px; }
+        .sc-zone-row span:first-child { font-weight: 700; color: rgba(0,0,0,0.5); }
+        @media (max-width: 768px) {
+            .sc-wrapper { flex-direction: column; align-items: center; }
+            .sc-stats { flex: 1 1 auto; width: 100%; }
         }
 
         /* EMPTY STATE */
@@ -9877,6 +9950,221 @@ def generate_js():
             return k - 1;
         }
 
+        function weightedPick(items, weights) {
+            let total = weights.reduce((a, b) => a + b, 0);
+            let r = Math.random() * total;
+            for (let i = 0; i < items.length; i++) {
+                r -= weights[i];
+                if (r <= 0) return items[i];
+            }
+            return items[items.length - 1];
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        // Shot chart zone definitions (viewBox 0 0 400 380)
+        const SHOT_ZONES = {
+            rim:          { cx: 200, cy: 305, r: 20 },
+            paint_left:   { cx: 160, cy: 280, r: 18 },
+            paint_right:  { cx: 240, cy: 280, r: 18 },
+            paint_mid:    { cx: 200, cy: 265, r: 15 },
+            mid_left:     { cx: 100, cy: 260, r: 22 },
+            mid_right:    { cx: 300, cy: 260, r: 22 },
+            elbow_left:   { cx: 120, cy: 210, r: 20 },
+            elbow_right:  { cx: 280, cy: 210, r: 20 },
+            mid_top:      { cx: 200, cy: 195, r: 18 },
+            corner_left:  { cx: 35,  cy: 295, r: 12 },
+            corner_right: { cx: 365, cy: 295, r: 12 },
+            wing_left:    { cx: 55,  cy: 200, r: 18 },
+            wing_right:   { cx: 345, cy: 200, r: 18 },
+            top_key:      { cx: 200, cy: 120, r: 22 },
+        };
+
+        const PAINT_ZONES = ['rim','paint_left','paint_right','paint_mid'];
+        const PAINT_WEIGHTS = [0.40, 0.20, 0.20, 0.20];
+        const MID_ZONES = ['mid_left','mid_right','elbow_left','elbow_right','mid_top'];
+        const MID_WEIGHTS = [0.18, 0.18, 0.22, 0.22, 0.20];
+        const THREE_ZONES = ['corner_left','corner_right','wing_left','wing_right','top_key'];
+
+        const ARCH_PAINT_RATIO = {
+            "Scoring Guard": 0.55, "Defensive Specialist": 0.60, "Floor General": 0.50,
+            "Combo Guard": 0.50, "Playmaking Guard": 0.45, "Two-Way Wing": 0.50,
+            "Slasher": 0.80, "Sharpshooter": 0.30, "3-and-D Wing": 0.45,
+            "Point Forward": 0.50, "Stretch Forward": 0.35, "Athletic Wing": 0.60,
+            "Stretch Big": 0.55, "Traditional PF": 0.75, "Small-Ball 4": 0.50,
+            "Two-Way Forward": 0.55, "Rim Protector": 0.90, "Stretch 5": 0.50,
+            "Traditional Center": 0.90, "Versatile Big": 0.55, "Unclassified": 0.55,
+        };
+
+        const ARCH_3PT = {
+            "3-and-D Wing":         [0.25,0.25,0.18,0.18,0.14],
+            "Stretch Forward":      [0.22,0.22,0.20,0.20,0.16],
+            "Stretch Big":          [0.20,0.20,0.20,0.20,0.20],
+            "Stretch 5":            [0.22,0.22,0.18,0.18,0.20],
+            "Sharpshooter":         [0.15,0.15,0.25,0.25,0.20],
+            "Scoring Guard":        [0.12,0.12,0.22,0.22,0.32],
+            "Playmaking Guard":     [0.10,0.10,0.22,0.22,0.36],
+            "Floor General":        [0.12,0.12,0.22,0.22,0.32],
+            "Combo Guard":          [0.15,0.15,0.22,0.22,0.26],
+            "Two-Way Wing":         [0.18,0.18,0.22,0.22,0.20],
+            "Point Forward":        [0.15,0.15,0.22,0.22,0.26],
+            "Athletic Wing":        [0.18,0.18,0.22,0.22,0.20],
+            "Slasher":              [0.25,0.25,0.20,0.20,0.10],
+            "Defensive Specialist": [0.28,0.28,0.18,0.18,0.08],
+            "Traditional PF":       [0.25,0.25,0.20,0.20,0.10],
+            "Small-Ball 4":         [0.18,0.18,0.22,0.22,0.20],
+            "Two-Way Forward":      [0.20,0.20,0.20,0.20,0.20],
+            "Rim Protector":        [0.30,0.30,0.15,0.15,0.10],
+            "Traditional Center":   [0.30,0.30,0.15,0.15,0.10],
+            "Versatile Big":        [0.20,0.20,0.20,0.20,0.20],
+            "Unclassified":         [0.20,0.20,0.20,0.20,0.20],
+        };
+
+        function generatePlayerShots(fgm, fga, tpm, tpa, archetype) {
+            const arch = archetype || 'Unclassified';
+            const shots = [];
+            // 3-point shots
+            const threeW = ARCH_3PT[arch] || ARCH_3PT['Unclassified'];
+            for (let s = 0; s < tpa; s++) {
+                const zn = SHOT_ZONES[weightedPick(THREE_ZONES, threeW)];
+                shots.push({
+                    x: zn.cx + (Math.random()-0.5) * zn.r * 2,
+                    y: zn.cy + (Math.random()-0.5) * zn.r * 2,
+                    made: s < tpm, is3: true
+                });
+            }
+            shuffleArray(shots);
+            // 2-point shots
+            const twoPtA = fga - tpa;
+            const twoPtM = fgm - tpm;
+            const paintRatio = ARCH_PAINT_RATIO[arch] || 0.55;
+            const paintCount = Math.round(twoPtA * paintRatio);
+            const midCount = twoPtA - paintCount;
+            const twoShots = [];
+            for (let s = 0; s < paintCount; s++) {
+                const zn = SHOT_ZONES[weightedPick(PAINT_ZONES, PAINT_WEIGHTS)];
+                twoShots.push({
+                    x: zn.cx + (Math.random()-0.5) * zn.r * 2,
+                    y: zn.cy + (Math.random()-0.5) * zn.r * 2,
+                    made: false, is3: false
+                });
+            }
+            for (let s = 0; s < midCount; s++) {
+                const zn = SHOT_ZONES[weightedPick(MID_ZONES, MID_WEIGHTS)];
+                twoShots.push({
+                    x: zn.cx + (Math.random()-0.5) * zn.r * 2,
+                    y: zn.cy + (Math.random()-0.5) * zn.r * 2,
+                    made: false, is3: false
+                });
+            }
+            shuffleArray(twoShots);
+            for (let s = 0; s < Math.min(twoPtM, twoShots.length); s++) {
+                twoShots[s].made = true;
+            }
+            shuffleArray(twoShots);
+            return [...shots, ...twoShots];
+        }
+
+        function buildShotChartSVG(shots, teamColor) {
+            const ls = 'rgba(255,255,255,0.12)', lw = '1.5';
+            let svg = '<svg viewBox="0 0 400 380" style="width:100%;max-width:400px;display:block;margin:0 auto">';
+            svg += '<rect x="0" y="0" width="400" height="380" fill="#1a1a1a" rx="8"/>';
+            // Baseline
+            svg += '<line x1="0" y1="340" x2="400" y2="340" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            // Paint
+            svg += '<rect x="130" y="200" width="140" height="140" fill="none" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            // FT circle
+            svg += '<circle cx="200" cy="200" r="60" fill="none" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            // Restricted area
+            svg += '<path d="M 160 340 A 40 40 0 0 1 240 340" fill="none" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            // 3-point line
+            svg += '<line x1="30" y1="340" x2="30" y2="200" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            svg += '<line x1="370" y1="340" x2="370" y2="200" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            svg += '<path d="M 30 200 Q 30 60 200 20 Q 370 60 370 200" fill="none" stroke="'+ls+'" stroke-width="'+lw+'"/>';
+            // Backboard + rim
+            svg += '<line x1="185" y1="335" x2="215" y2="335" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>';
+            svg += '<circle cx="200" cy="328" r="7" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>';
+            // Shot dots
+            shots.forEach(function(s) {
+                const x = Math.max(5, Math.min(395, s.x));
+                const y = Math.max(15, Math.min(338, s.y));
+                if (s.made) {
+                    svg += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="5" fill="'+(teamColor||'#00FF55')+'" opacity="0.85"/>';
+                } else {
+                    svg += '<line x1="'+(x-3.5).toFixed(1)+'" y1="'+(y-3.5).toFixed(1)+'" x2="'+(x+3.5).toFixed(1)+'" y2="'+(y+3.5).toFixed(1)+'" stroke="#FF3333" stroke-width="1.8" opacity="0.7"/>';
+                    svg += '<line x1="'+(x+3.5).toFixed(1)+'" y1="'+(y-3.5).toFixed(1)+'" x2="'+(x-3.5).toFixed(1)+'" y2="'+(y+3.5).toFixed(1)+'" stroke="#FF3333" stroke-width="1.8" opacity="0.7"/>';
+                }
+            });
+            // Legend
+            svg += '<circle cx="15" cy="365" r="4" fill="'+(teamColor||'#00FF55')+'"/>';
+            svg += '<text x="24" y="368" fill="rgba(255,255,255,0.6)" font-size="10" font-family="JetBrains Mono,monospace">MAKE</text>';
+            svg += '<text x="80" y="368" fill="#FF3333" font-size="12" font-family="JetBrains Mono,monospace" font-weight="700">x</text>';
+            svg += '<text x="92" y="368" fill="rgba(255,255,255,0.6)" font-size="10" font-family="JetBrains Mono,monospace">MISS</text>';
+            svg += '</svg>';
+            return svg;
+        }
+
+        let simShotData = {};
+        let currentShotChartKey = null;
+
+        function toggleShotChart(key, teamColor) {
+            const container = document.getElementById('simShotChart');
+            if (currentShotChartKey === key) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                currentShotChartKey = null;
+                document.querySelectorAll('.sim-box-clickable.active-chart').forEach(el => el.classList.remove('active-chart'));
+                return;
+            }
+            currentShotChartKey = key;
+            const p = simShotData[key];
+            if (!p || !p.shots || p.shots.length === 0) {
+                container.innerHTML = '<div class="sc-wrapper" style="justify-content:center;padding:24px;color:rgba(0,0,0,0.4);font-family:var(--font-mono)">NO SHOT DATA</div>';
+                container.style.display = 'block';
+                return;
+            }
+            document.querySelectorAll('.sim-box-clickable.active-chart').forEach(el => el.classList.remove('active-chart'));
+            document.querySelectorAll('.sim-box-clickable').forEach(el => {
+                if (el.querySelector('td') && el.querySelector('td').textContent === p.name) el.classList.add('active-chart');
+            });
+            const fgPct = p.fga > 0 ? (p.fgm/p.fga*100).toFixed(1) : '0.0';
+            const tpPct = p.tpa > 0 ? (p.tpm/p.tpa*100).toFixed(1) : '0.0';
+            const ftPct = p.fta > 0 ? (p.ftm/p.fta*100).toFixed(1) : '0.0';
+            const efg = p.fga > 0 ? ((p.fgm + 0.5*p.tpm)/p.fga*100).toFixed(1) : '0.0';
+            const ts = (p.fga + 0.44*p.fta) > 0 ? (p.pts/(2*(p.fga+0.44*p.fta))*100).toFixed(1) : '0.0';
+            const paint = p.shots.filter(s => !s.is3 && s.y > 240).length;
+            const paintM = p.shots.filter(s => !s.is3 && s.y > 240 && s.made).length;
+            const mid = p.shots.filter(s => !s.is3 && s.y <= 240).length;
+            const midM = p.shots.filter(s => !s.is3 && s.y <= 240 && s.made).length;
+            const three = p.shots.filter(s => s.is3).length;
+            const threeM = p.shots.filter(s => s.is3 && s.made).length;
+            const chartSvg = buildShotChartSVG(p.shots, teamColor);
+            const statsHtml = '<div class="sc-stats">'
+                + '<div class="sc-player-name">' + p.name + '</div>'
+                + '<div class="sc-archetype">' + (p.archetype||'') + '</div>'
+                + '<div class="sc-stat-grid">'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + p.pts + '</span><span class="sc-stat-label">PTS</span></div>'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + fgPct + '%</span><span class="sc-stat-label">FG%</span></div>'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + tpPct + '%</span><span class="sc-stat-label">3P%</span></div>'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + ftPct + '%</span><span class="sc-stat-label">FT%</span></div>'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + efg + '%</span><span class="sc-stat-label">eFG%</span></div>'
+                + '<div class="sc-stat"><span class="sc-stat-val">' + ts + '%</span><span class="sc-stat-label">TS%</span></div>'
+                + '</div>'
+                + '<div class="sc-zone-breakdown">'
+                + '<div class="sc-zone-row"><span>PAINT</span><span>' + paintM + '/' + paint + '</span></div>'
+                + '<div class="sc-zone-row"><span>MID-RANGE</span><span>' + midM + '/' + mid + '</span></div>'
+                + '<div class="sc-zone-row"><span>3-POINT</span><span>' + threeM + '/' + three + '</span></div>'
+                + '</div></div>';
+            container.innerHTML = '<div class="sc-wrapper">' + chartSvg + statsHtml + '</div>';
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
         function simComputePairSynergy(side) {
             const pids = simState[side].court;
             if (pids.length < 2) return 50;
@@ -9989,40 +10277,83 @@ def generate_js():
                 totalUsgMin += (p.usg || 20) * min;
             });
 
+            // --- Pass 1: allocate raw points proportional to usage, then reconcile to teamTotal ---
             let ptsRemaining = teamTotal;
-            const playerLines = [];
+            const rawPts = [];
+            const activeData = [];
 
-            activePids.forEach((pid, idx) => {
+            activePids.forEach((pid) => {
                 const p = pmap[pid];
                 if (!p) return;
                 const min = simPlayerMinutes[pid] || Math.round(p.mpg);
                 if (min <= 0) return;
-
                 const usgMin = (p.usg || 20) * min;
                 const share = totalUsgMin > 0 ? usgMin / totalUsgMin : 1 / activePids.length;
-                let pts = Math.round(teamTotal * share + gaussRand() * 3);
+                let pts = Math.round(teamTotal * share + gaussRand() * 2);
                 pts = Math.max(0, pts);
+                rawPts.push(pts);
+                activeData.push({ pid, p, min, share });
+            });
 
+            // Reconcile: adjust so individual points sum exactly to teamTotal
+            let rawSum = rawPts.reduce((a, b) => a + b, 0);
+            let diff = teamTotal - rawSum;
+            // Distribute remainder to highest-usage players first
+            if (diff !== 0) {
+                const sorted = activeData.map((d, i) => ({ i, share: d.share }))
+                    .sort((a, b) => b.share - a.share);
+                const step = diff > 0 ? 1 : -1;
+                let idx = 0;
+                while (diff !== 0) {
+                    const target = sorted[idx % sorted.length].i;
+                    if (step < 0 && rawPts[target] <= 0) { idx++; continue; }
+                    rawPts[target] += step;
+                    diff -= step;
+                    idx++;
+                }
+            }
+
+            // --- Pass 2: generate box score lines from reconciled points ---
+            const playerLines = [];
+
+            activeData.forEach((d, i) => {
+                const { pid, p, min } = d;
+                const pts = rawPts[i];
                 const minRatio = min / 36;
                 const reb = Math.max(0, poissonRand((p.reb || 3) * minRatio));
                 const ast = Math.max(0, poissonRand((p.ast || 2) * minRatio));
                 const stl = Math.max(0, poissonRand((p.stl || 0.5) * minRatio));
                 const blk = Math.max(0, poissonRand((p.blk || 0.3) * minRatio));
 
-                const fga = Math.max(1, Math.round(pts / ((p.ts || 0.54) * 2) + gaussRand()));
-                const fgm = Math.min(fga, Math.round(fga * (0.35 + Math.random() * 0.25)));
-                const tpa = Math.max(0, Math.round(fga * 0.35 + gaussRand()));
-                const tpm = Math.min(tpa, Math.round(tpa * (0.25 + Math.random() * 0.2)));
-                const fta = Math.max(0, poissonRand(pts * 0.2));
-                const ftm = Math.min(fta, Math.round(fta * (0.7 + Math.random() * 0.2)));
+                // Derive shooting splits: FT first (credit those points), then FG from remainder
+                const fta = Math.max(0, poissonRand(pts * 0.22));
+                const ftPct = 0.7 + Math.random() * 0.15;
+                const ftm = Math.min(fta, Math.round(fta * ftPct));
+                const ptsFromFt = ftm;
+                const ptsFromFg = Math.max(0, pts - ptsFromFt);
+
+                // FGA from remaining points using eFG% (accounts for 3-pt bonus)
+                const efg = 0.48 + Math.random() * 0.12;  // ~48-60% eFG
+                const fga = ptsFromFg > 0 ? Math.max(1, Math.round(ptsFromFg / (efg * 2))) : 0;
+                const tpa = Math.max(0, Math.round(fga * (0.30 + Math.random() * 0.15)));
+                const tpm = Math.min(tpa, Math.round(tpa * (0.28 + Math.random() * 0.15)));
+                const fgPtsFrom3 = tpm * 3;
+                const fgPtsFrom2 = Math.max(0, ptsFromFg - fgPtsFrom3);
+                const fg2m = Math.round(fgPtsFrom2 / 2);
+                const fgm = Math.min(fga, fg2m + tpm);
 
                 const plusMinus = Math.round(gaussRand() * 8);
+
+                // Generate shot location data for shot chart
+                const playerShots = generatePlayerShots(fgm, fga, tpm, tpa, p.archetype);
 
                 playerLines.push({
                     name: p.name, min, pts, reb, ast, stl, blk,
                     fgm, fga, tpm, tpa, ftm, fta, plusMinus,
                     isStarter: courtPids.includes(pid),
-                    mojo: simAdjustedMojo[pid] || p.mojo
+                    mojo: simAdjustedMojo[pid] || p.mojo,
+                    archetype: p.archetype || 'Unclassified',
+                    shots: playerShots
                 });
             });
 
@@ -10076,18 +10407,24 @@ def generate_js():
                 '<div class="sim-box-header" style="background:'+color+';color:#fff">' +
                 '<img src="'+logo+'" style="width:24px;height:24px">' + abbr + '</div>' +
                 '<table class="sim-box-table"><thead><tr>' +
-                '<th>NAME</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG</th><th>+/-</th>' +
+                '<th>NAME</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG</th><th>3PT</th><th>FT</th><th>+/-</th>' +
                 '</tr></thead><tbody>';
-            let tPts=0,tReb=0,tAst=0,tStl=0,tBlk=0,tMin=0;
-            players.forEach(p => {
+            let tPts=0,tReb=0,tAst=0,tStl=0,tBlk=0,tMin=0,tFgm=0,tFga=0,tTpm=0,tTpa=0,tFtm=0,tFta=0;
+            players.forEach((p, idx) => {
+                const key = (p.name + '|' + abbr).replace(/'/g, "\\'");
+                simShotData[p.name + '|' + abbr] = p;
                 const cls = p.isStarter ? 'sim-box-starter' : 'sim-box-bench';
-                html += '<tr class="'+cls+'"><td>'+p.name+'</td><td>'+p.min+'</td><td>'+p.pts+'</td>' +
+                html += '<tr class="'+cls+' sim-box-clickable" onclick="toggleShotChart(\''+key+'\',\''+color+'\')">' +
+                    '<td>'+p.name+'</td><td>'+p.min+'</td><td>'+p.pts+'</td>' +
                     '<td>'+p.reb+'</td><td>'+p.ast+'</td><td>'+p.stl+'</td><td>'+p.blk+'</td>' +
-                    '<td>'+p.fgm+'-'+p.fga+'</td><td>'+(p.plusMinus>=0?'+':'')+p.plusMinus+'</td></tr>';
+                    '<td>'+p.fgm+'-'+p.fga+'</td><td>'+p.tpm+'-'+p.tpa+'</td><td>'+p.ftm+'-'+p.fta+'</td>' +
+                    '<td>'+(p.plusMinus>=0?'+':'')+p.plusMinus+'</td></tr>';
                 tPts+=p.pts; tReb+=p.reb; tAst+=p.ast; tStl+=p.stl; tBlk+=p.blk; tMin+=p.min;
+                tFgm+=p.fgm; tFga+=p.fga; tTpm+=p.tpm; tTpa+=p.tpa; tFtm+=p.ftm; tFta+=p.fta;
             });
             html += '<tr class="sim-box-total"><td>TOTAL</td><td>'+tMin+'</td><td>'+tPts+'</td>' +
-                '<td>'+tReb+'</td><td>'+tAst+'</td><td>'+tStl+'</td><td>'+tBlk+'</td><td></td><td></td></tr>';
+                '<td>'+tReb+'</td><td>'+tAst+'</td><td>'+tStl+'</td><td>'+tBlk+'</td>' +
+                '<td>'+tFgm+'-'+tFga+'</td><td>'+tTpm+'-'+tTpa+'</td><td>'+tFtm+'-'+tFta+'</td><td></td></tr>';
             html += '</tbody></table></div>';
             return html;
         }
@@ -10095,6 +10432,10 @@ def generate_js():
         function simResim() {
             document.getElementById('simCenterResults').style.display = 'none';
             document.getElementById('simBoxScores').style.display = 'none';
+            document.getElementById('simShotChart').style.display = 'none';
+            document.getElementById('simShotChart').innerHTML = '';
+            currentShotChartKey = null;
+            simShotData = {};
             document.getElementById('simThreeCol').scrollIntoView({behavior:'smooth'});
         }
 """
