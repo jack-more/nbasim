@@ -4713,11 +4713,10 @@ def generate_html():
         <!-- FILTER BAR -->
         <div class="filter-bar">
             <div class="filter-bar-inner">
-                <button class="filter-btn active" data-tab="sim">SIM</button>
-                <button class="filter-btn" data-tab="slate">Game Lines</button>
+                <button class="filter-btn active" data-tab="slate">Game Lines</button>
+                <button class="filter-btn" data-tab="sim">SIM</button>
                 <button class="filter-btn" data-tab="props">Player Stats</button>
                 <button class="filter-btn" data-tab="trends">Trends</button>
-                <button class="filter-btn" data-tab="lab">WOWY</button>
                 <button class="filter-btn" data-tab="info">Info</button>
             </div>
         </div>
@@ -4727,7 +4726,7 @@ def generate_html():
     <main class="content">
 
         <!-- SLATE TAB -->
-        <div class="tab-content" id="tab-slate">
+        <div class="tab-content active" id="tab-slate">
             <div class="section-header">
                 <h2>{slate_date} SLATE</h2>
                 <span class="section-sub">{len(matchups)} games</span>
@@ -4838,16 +4837,10 @@ def generate_html():
         </div>
 
         <!-- WOWY TAB -->
-        <div class="tab-content" id="tab-lab">
-            <div class="section-header">
-                <h2>WOWY EXPLORER</h2>
-                <span class="section-sub">With Or Without You — explore lineup combinations by team</span>
-            </div>
-            {lab_html}
-        </div>
+        <!-- WOWY tab removed — functionality merged into SIM WOWY Inspector -->
 
         <!-- SIM TAB -->
-        <div class="tab-content active" id="tab-sim">
+        <div class="tab-content" id="tab-sim">
             <div class="sim-container">
                 <!-- TEAM SELECTORS (logo grid) -->
                 <div class="sim-team-bar">
@@ -5115,13 +5108,13 @@ def generate_html():
 
     <!-- BOTTOM NAV (MOBILE) -->
     <nav class="bottom-nav">
-        <button class="nav-btn active" data-tab="sim">
+        <button class="nav-btn active" data-tab="slate">
+            <span class="nav-icon">📊</span>
+            <span>LINES</span>
+        </button>
+        <button class="nav-btn" data-tab="sim">
             <span class="nav-icon">🏀</span>
             <span>SIM</span>
-        </button>
-        <button class="nav-btn" data-tab="slate">
-            <span class="nav-icon">📊</span>
-            <span>SLATE</span>
         </button>
         <button class="nav-btn" data-tab="props">
             <span class="nav-icon">🎯</span>
@@ -5130,10 +5123,6 @@ def generate_html():
         <button class="nav-btn" data-tab="trends">
             <span class="nav-icon">📈</span>
             <span>TRENDS</span>
-        </button>
-        <button class="nav-btn" data-tab="lab">
-            <span class="nav-icon">📊</span>
-            <span>WOWY</span>
         </button>
         <button class="nav-btn" data-tab="info">
             <span class="nav-icon">ℹ️</span>
@@ -6153,7 +6142,7 @@ def generate_css():
 
         /* ─── MAIN CONTENT ─── */
         .content {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 16px;
         }
