@@ -3557,7 +3557,7 @@ def get_lab_data():
 
     for n in [2, 3, 4, 5]:
         df = read_query(f"""
-            SELECT player_ids, net_rating, minutes, gp, team_id
+            SELECT player_ids, net_rating, off_rating, def_rating, minutes, gp, team_id
             FROM lineup_stats
             WHERE season_id = '2025-26' AND group_quantity = {n}
                   AND net_rating IS NOT NULL AND minutes > 5
@@ -3573,6 +3573,8 @@ def get_lab_data():
             gp_val = int(row["gp"] or 0)
             combos[str(n)][key] = {
                 "nrtg": nrtg_val, "min": min_val, "gp": gp_val,
+                "ortg": round(float(row.get("off_rating") or 0), 1),
+                "drtg": round(float(row.get("def_rating") or 0), 1),
             }
             tid = int(row.get("team_id", 0) or 0)
             abbr = tid_to_abbr.get(tid, "")
@@ -3607,7 +3609,9 @@ def get_lab_data():
     return {
         "rosters": rosters,
         "pairs": pairs,
+        "combos_2": combos["2"],
         "combos_3": combos["3"],
+        "combos_4": combos["4"],
         "combos_5": combos["5"],
         "team_pairs": dict(team_pairs),
         "team_combos": {k: dict(v) for k, v in team_combos.items()},
@@ -4652,7 +4656,9 @@ def generate_html():
     sim_data_json = json.dumps({
         "rosters": lab_data["rosters"],
         "pairs": lab_data.get("pairs", {}),
+        "combos_2": lab_data.get("combos_2", {}),
         "combos_3": lab_data.get("combos_3", {}),
+        "combos_4": lab_data.get("combos_4", {}),
         "combos_5": lab_data.get("combos_5", {}),
         "team_stats": lab_data.get("team_stats", {}),
         "team_hca": TEAM_HCA,
@@ -5012,6 +5018,13 @@ def generate_html():
                     <!-- CENTER HUB: CONTROLS (full-width below courts) -->
                     <div class="sim-center-col" id="simCenterCol">
                         <div class="sim-center-top">
+                            <!-- WOWY INSPECTOR (top of center console) -->
+                            <div class="sim-wowy-inspector" id="simComboInspector">
+                                <div class="sim-wowy-title">WOWY INSPECTOR</div>
+                                <div id="simComboContent">
+                                    <div class="sim-combo-empty">Click a synergy line or player card to inspect</div>
+                                </div>
+                            </div>
                             <!-- BLOCK 1: Schemes + Venue -->
                             <div class="sim-center-block">
                                 <div class="sim-center-section">
@@ -5078,13 +5091,7 @@ def generate_html():
                                 </div>
                             </div>
                         </div>
-                        <!-- COMBO INSPECTOR (full width below) -->
-                        <div class="sim-combo-inspector" id="simComboInspector" style="display:block">
-                            <div class="sim-combo-title">COMBO INSPECTOR</div>
-                            <div id="simComboContent">
-                                <div class="sim-combo-empty">Click any synergy line on the court to inspect pair chemistry</div>
-                            </div>
-                        </div>
+                        <!-- COMBO INSPECTOR moved to top of sim-center-top -->
                     </div>
                 </div>
 
@@ -8029,7 +8036,7 @@ def generate_css():
 
         /* POSITION SLOTS */
         .sim-pos-slot {
-            position: absolute; width: 130px; min-height: 160px;
+            position: absolute; width: 130px; min-height: 140px;
             border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px;
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; transition: all 0.2s;
@@ -8095,7 +8102,7 @@ def generate_css():
         }
         /* Headshot — full-bleed fills entire card */
         .sim-card-face {
-            width: 100%; height: 200px; border-radius: 0; object-fit: cover;
+            width: 100%; height: 130px; border-radius: 0; object-fit: cover;
             object-position: top center; margin: 0; border: none;
             background: rgba(0,0,0,0.25); display: block;
         }
@@ -8162,7 +8169,7 @@ def generate_css():
         /* Bench card (smaller) */
         .sim-bench-zone .sim-card { width: 100px; }
         .sim-bench-zone .sim-card-mojo { font-size: 20px; }
-        .sim-bench-zone .sim-card-face { width: 100%; height: 120px; }
+        .sim-bench-zone .sim-card-face { width: 100%; height: 90px; }
         .sim-bench-zone .sim-card-arch { display: none; }
         .sim-bench-zone .sim-card-stats { display: none; }
 
@@ -8370,6 +8377,9 @@ def generate_css():
         .sim-court.link-mode-active .sim-pos-slot .sim-card {
             pointer-events: none;
         }
+        .sim-court.link-mode-active .sim-pos-slot .sim-card .sim-card-info {
+            pointer-events: auto; cursor: pointer;
+        }
         /* SYNERGY LINK OVERLAY on court — always behind cards */
         .sim-link-overlay {
             position: absolute; inset: 0; width: 100%; height: 100%;
@@ -8511,42 +8521,72 @@ def generate_css():
         }
         .sim-rot-total.warn { color: #FF4444; }
 
-        /* COMBO INSPECTOR in center hub */
-        .sim-combo-inspector {
-            padding: 8px; background: var(--surface-dark); border-radius: 8px;
-            margin-top: 8px;
+        /* WOWY INSPECTOR in center hub */
+        .sim-wowy-inspector {
+            padding: 10px; background: var(--surface-dark); border-radius: 8px;
+            border-left: 3px solid rgba(0,255,85,0.4);
         }
-        .sim-combo-title {
-            font-family: var(--font-display); font-size: 10px; letter-spacing: 1px;
-            color: rgba(255,255,255,0.5); margin-bottom: 6px;
+        .sim-wowy-title {
+            font-family: var(--font-display); font-size: 11px; letter-spacing: 1.5px;
+            color: rgba(0,255,85,0.7); margin-bottom: 8px;
         }
         .sim-combo-empty {
-            font-family: var(--font-mono); font-size: 12px; color: rgba(0,255,85,0.5);
-            text-align: center; padding: 14px;
-            border: 1px dashed rgba(0,255,85,0.2); border-radius: 8px;
-            background: rgba(0,255,85,0.03);
+            font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.35);
+            text-align: center; padding: 12px;
+            border: 1px dashed rgba(255,255,255,0.1); border-radius: 6px;
         }
-        .sim-combo-players {
-            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
+        .sim-wowy-header {
+            display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px;
         }
-        .sim-combo-player-chip {
+        .sim-wowy-group-label {
+            font-family: var(--font-display); font-size: 10px; letter-spacing: 1px;
+            color: rgba(255,255,255,0.5); margin-right: 4px;
+        }
+        .sim-wowy-chip {
+            display: inline-flex; align-items: center; gap: 4px;
             font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-            padding: 2px 6px; border-radius: 4px;
-            background: rgba(0,255,85,0.15); color: var(--green);
+            padding: 2px 6px; border-radius: 10px;
+            background: rgba(0,255,85,0.12); color: var(--green);
         }
-        .sim-combo-stat-row {
-            display: flex; justify-content: space-between; padding: 3px 0;
-            font-family: var(--font-mono); font-size: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+        .sim-wowy-chip-img {
+            width: 20px; height: 20px; border-radius: 50%; object-fit: cover;
+            background: rgba(0,0,0,0.3);
         }
-        .sim-combo-stat-label { color: rgba(255,255,255,0.5); }
-        .sim-combo-stat-val { font-weight: 800; color: #fff; }
-        .sim-combo-stat-val.pos { color: var(--green); }
-        .sim-combo-stat-val.neg { color: #FF4444; }
-        .sim-combo-pair-block {
-            padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+        .sim-wowy-table {
+            width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 10px;
         }
-        .sim-combo-pair-block:last-child { border-bottom: none; }
+        .sim-wowy-table thead th {
+            font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.4);
+            text-align: center; padding: 3px 4px; letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sim-wowy-table thead th:first-child { text-align: left; }
+        .sim-wowy-label {
+            font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.5);
+            text-align: left; padding: 4px 4px; letter-spacing: 0.5px;
+        }
+        .sim-wowy-cell {
+            text-align: center; padding: 4px; font-weight: 700; color: #fff;
+        }
+        .sim-wowy-cell.pos { color: var(--green); }
+        .sim-wowy-cell.neg { color: #FF4444; }
+        .sim-wowy-pairs {
+            margin-top: 6px; padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .sim-wowy-pair-row {
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+            padding: 3px 0; font-family: var(--font-mono); font-size: 9px;
+        }
+        .sim-wowy-pair-names {
+            font-weight: 700; color: rgba(255,255,255,0.6); min-width: 80px;
+        }
+        .sim-wowy-pair-stat {
+            font-weight: 700; color: rgba(255,255,255,0.5);
+        }
+        .sim-wowy-pair-stat.pos { color: var(--green); }
+        .sim-wowy-pair-stat.neg { color: #FF4444; }
+        .sim-wowy-pair-stat.syn { color: rgba(0,255,85,0.7); }
 
         /* Link tooltip */
         .sim-link-tooltip {
@@ -8987,7 +9027,7 @@ def generate_js():
                 '<span class="sim-card-pos">' + (p.pos || 'WING') + '</span>' +
                 '</div>' +
                 '<img class="sim-card-face" src="' + headshot + '" onerror="this.style.display=\\\'none\\\'" alt="">' +
-                '<div class="sim-card-info">' +
+                '<div class="sim-card-info" onclick="simCardClick(' + pid + ',event)">' +
                 '<div class="sim-card-name">' + lastName + '</div>' +
                 '<div class="sim-card-arch">' + archLabel.trim() + '</div>' +
                 '<div class="sim-card-stats">' +
@@ -9134,6 +9174,7 @@ def generate_js():
         // ─── LINK MODE ───
         let simLinkModeActive = true;
         let simSelectedLinks = new Set();
+        let simSelectedPlayer = null;  // single player card click
         let simActiveRotTab = 'home';
 
         function simToggleLinkMode() {
@@ -9270,8 +9311,17 @@ def generate_js():
             });
         }
 
+        function simCardClick(pid, e) {
+            e.stopPropagation();
+            simSelectedPlayer = (simSelectedPlayer === pid) ? null : pid;
+            simSelectedLinks.clear();
+            simRenderLinks('home');
+            simRenderLinks('away');
+            simUpdateComboInspector();
+        }
+
         function simLinkClick(pairKey) {
-            // Toggle: click to add/remove pairs from selection
+            simSelectedPlayer = null;
             if (simSelectedLinks.has(pairKey)) {
                 simSelectedLinks.delete(pairKey);
             } else {
@@ -9282,42 +9332,122 @@ def generate_js():
             simUpdateComboInspector();
         }
 
+        function simWowyChip(pid) {
+            const p = simGetPlayerById(pid);
+            if (!p) return '<span class="sim-wowy-chip">#' + pid + '</span>';
+            const hs = 'https://cdn.nba.com/headshots/nba/latest/260x190/' + pid + '.png';
+            const last = p.name.split(' ').pop();
+            return '<span class="sim-wowy-chip"><img class="sim-wowy-chip-img" src="' + hs + '" onerror="this.style.display=\\\'none\\\'" alt="">' + last + '</span>';
+        }
+
+        function simWowyStatCell(val, isDiff) {
+            if (val === null || val === undefined) return '<td class="sim-wowy-cell">—</td>';
+            const n = parseFloat(val);
+            const cls = isDiff ? (n >= 0 ? 'pos' : 'neg') : '';
+            const sign = (isDiff && n >= 0) ? '+' : '';
+            return '<td class="sim-wowy-cell ' + cls + '">' + sign + n.toFixed(1) + '</td>';
+        }
+
         function simUpdateComboInspector() {
             const content = document.getElementById('simComboContent');
-            if (simSelectedLinks.size === 0) {
-                content.innerHTML = '<div class="sim-combo-empty">Click any synergy line on the court to inspect pair chemistry</div>';
+
+            // ─── Single player selected via card click ───
+            if (simSelectedPlayer) {
+                const p = simGetPlayerById(simSelectedPlayer);
+                if (!p) { content.innerHTML = '<div class="sim-combo-empty">Player not found</div>'; return; }
+                let html = '<div class="sim-wowy-header">' + simWowyChip(simSelectedPlayer) + '</div>';
+                html += '<table class="sim-wowy-table"><thead><tr><th></th><th>OFF</th><th>DEF</th><th>NET</th></tr></thead><tbody>';
+                const rapm = p.rapm != null ? p.rapm.toFixed(1) : null;
+                const rapmOff = p.rapm_off != null ? p.rapm_off.toFixed(1) : null;
+                const rapmDef = p.rapm_def != null ? p.rapm_def.toFixed(1) : null;
+                html += '<tr><td class="sim-wowy-label">RAPM</td>';
+                html += simWowyStatCell(rapmOff, true) + simWowyStatCell(rapmDef, true) + simWowyStatCell(rapm, true);
+                html += '</tr>';
+                html += '<tr><td class="sim-wowy-label">PER GAME</td>';
+                html += '<td class="sim-wowy-cell">' + (p.pts||0) + '/' + (p.ast||0) + '/' + (p.reb||0) + '</td>';
+                html += '<td class="sim-wowy-cell">' + (p.stl||0) + ' stl / ' + (p.blk||0) + ' blk</td>';
+                html += '<td class="sim-wowy-cell">' + (p.mpg||0) + ' mpg</td>';
+                html += '</tr>';
+                html += '</tbody></table>';
+                content.innerHTML = html;
                 return;
             }
+
+            // ─── No links selected ───
+            if (simSelectedLinks.size === 0) {
+                content.innerHTML = '<div class="sim-combo-empty">Click a synergy line or player card</div>';
+                return;
+            }
+
+            // ─── Extract unique players from selected links ───
+            const playerSet = new Set();
+            simSelectedLinks.forEach(key => {
+                key.split('-').forEach(id => playerSet.add(Number(id)));
+            });
+            const pids = Array.from(playerSet).sort((a,b) => a - b);
+            const n = pids.length;
             const pairs = SIM_DATA.pairs || {};
             let html = '';
 
-            // Show each selected pair's data individually
-            simSelectedLinks.forEach(key => {
-                const [a, b] = key.split('-').map(Number);
-                const pA = simGetPlayerById(a);
-                const pB = simGetPlayerById(b);
-                const nameA = pA ? pA.name.split(' ').pop() : '#' + a;
-                const nameB = pB ? pB.name.split(' ').pop() : '#' + b;
-                const key1 = a + '-' + b, key2 = b + '-' + a;
-                const pd = pairs[key1] || pairs[key2];
+            // ─── Build header with player chips ───
+            html += '<div class="sim-wowy-header">';
+            html += '<span class="sim-wowy-group-label">' + n + '-MAN</span>';
+            pids.forEach(pid => { html += simWowyChip(pid); });
+            html += '</div>';
 
-                html += '<div class="sim-combo-pair-block">';
-                html += '<div class="sim-combo-players">';
-                html += '<span class="sim-combo-player-chip">' + nameA + '</span>';
-                html += '<span class="sim-combo-player-chip">' + nameB + '</span>';
-                html += '</div>';
-                if (pd) {
-                    const nrtgClass = pd.nrtg >= 0 ? 'pos' : 'neg';
-                    const sign = pd.nrtg >= 0 ? '+' : '';
-                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Net Rating</span><span class="sim-combo-stat-val ' + nrtgClass + '">' + sign + pd.nrtg.toFixed(1) + '</span></div>';
-                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Minutes Together</span><span class="sim-combo-stat-val">' + pd.min + '</span></div>';
-                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Possessions</span><span class="sim-combo-stat-val">' + pd.poss + '</span></div>';
-                    html += '<div class="sim-combo-stat-row"><span class="sim-combo-stat-label">Synergy Score</span><span class="sim-combo-stat-val">' + pd.syn + '</span></div>';
-                } else {
-                    html += '<div class="sim-combo-empty">No pair data</div>';
+            // ─── Group combo lookup (2-5 man) ───
+            const comboKey = pids.join('-');
+            const comboSrc = n <= 5 ? (SIM_DATA['combos_' + n] || {}) : {};
+            const cd = comboSrc[comboKey];
+
+            if (cd) {
+                html += '<table class="sim-wowy-table"><thead><tr><th></th><th>MIN</th><th>OFF</th><th>DEF</th><th>NET</th></tr></thead><tbody>';
+                html += '<tr><td class="sim-wowy-label">COMBO</td>';
+                html += simWowyStatCell(cd.min, false);
+                html += simWowyStatCell(cd.ortg, false);
+                html += simWowyStatCell(cd.drtg, false);
+                html += simWowyStatCell(cd.nrtg, true);
+                html += '</tr>';
+                html += '<tr><td class="sim-wowy-label">GP</td><td class="sim-wowy-cell">' + (cd.gp||0) + '</td><td colspan="3"></td></tr>';
+                html += '</tbody></table>';
+            } else if (n > 2) {
+                html += '<div class="sim-combo-empty">No ' + n + '-man combo data</div>';
+            }
+
+            // ─── Individual pair breakdowns ───
+            if (n >= 2) {
+                html += '<div class="sim-wowy-pairs">';
+                for (let i = 0; i < pids.length; i++) {
+                    for (let j = i + 1; j < pids.length; j++) {
+                        const a = pids[i], b = pids[j];
+                        const pk1 = a + '-' + b, pk2 = b + '-' + a;
+                        const pd = pairs[pk1] || pairs[pk2];
+                        const c2key = [a,b].sort((x,y)=>x-y).join('-');
+                        const c2 = (SIM_DATA.combos_2 || {})[c2key];
+                        const pA = simGetPlayerById(a), pB = simGetPlayerById(b);
+                        const nA = pA ? pA.name.split(' ').pop() : '#'+a;
+                        const nB = pB ? pB.name.split(' ').pop() : '#'+b;
+
+                        html += '<div class="sim-wowy-pair-row">';
+                        html += '<span class="sim-wowy-pair-names">' + nA + ' + ' + nB + '</span>';
+                        if (c2) {
+                            const nCls = c2.nrtg >= 0 ? 'pos' : 'neg';
+                            const nSgn = c2.nrtg >= 0 ? '+' : '';
+                            html += '<span class="sim-wowy-pair-stat">MIN ' + c2.min + '</span>';
+                            html += '<span class="sim-wowy-pair-stat">OFF ' + c2.ortg + '</span>';
+                            html += '<span class="sim-wowy-pair-stat">DEF ' + c2.drtg + '</span>';
+                            html += '<span class="sim-wowy-pair-stat ' + nCls + '">NET ' + nSgn + c2.nrtg + '</span>';
+                        } else if (pd) {
+                            const nCls = pd.nrtg >= 0 ? 'pos' : 'neg';
+                            const nSgn = pd.nrtg >= 0 ? '+' : '';
+                            html += '<span class="sim-wowy-pair-stat ' + nCls + '">NRtg ' + nSgn + pd.nrtg.toFixed(1) + '</span>';
+                        }
+                        if (pd && pd.syn != null) html += '<span class="sim-wowy-pair-stat syn">SYN ' + pd.syn + '</span>';
+                        html += '</div>';
+                    }
                 }
                 html += '</div>';
-            });
+            }
 
             content.innerHTML = html;
         }
