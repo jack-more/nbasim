@@ -5061,8 +5061,8 @@ def generate_html():
                                 <div class="sim-center-section" id="simRotationSection" style="display:none">
                                     <div class="sim-center-label">ROTATION</div>
                                     <div class="sim-rotation-tabs">
-                                        <div class="sim-rotation-tab active" id="simRotTabHome" onclick="simSwitchRotTab('home')">HOME</div>
-                                        <div class="sim-rotation-tab" id="simRotTabAway" onclick="simSwitchRotTab('away')">AWAY</div>
+                                        <div class="sim-rotation-tab active" id="simRotTabHome" onclick="simSwitchRotTab('home')"><img id="simRotLogoHome" class="sim-rot-logo" src="" style="display:none"> HOME</div>
+                                        <div class="sim-rotation-tab" id="simRotTabAway" onclick="simSwitchRotTab('away')"><img id="simRotLogoAway" class="sim-rot-logo" src="" style="display:none"> AWAY</div>
                                     </div>
                                     <div class="sim-rotation-wrap" id="simRotationContent"></div>
                                 </div>
@@ -8461,10 +8461,13 @@ def generate_css():
             flex: 1; padding: 5px 8px; text-align: center; cursor: pointer;
             font-family: var(--font-display); font-size: 10px; letter-spacing: 1px;
             color: rgba(0,0,0,0.35); border-bottom: 2px solid transparent;
-            transition: all 0.2s;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
         }
         .sim-rotation-tab.active {
             color: var(--green-dark); border-bottom-color: var(--green);
+        }
+        .sim-rot-logo {
+            width: 22px; height: 22px; object-fit: contain;
         }
         .sim-rot-row {
             display: grid; grid-template-columns: 24px 1fr 36px 38px 80px 28px;
@@ -9102,6 +9105,12 @@ def generate_js():
             } else {
                 logo.src = '';
                 label.textContent = side.toUpperCase();
+            }
+            // Update rotation tab logo
+            const rotLogo = document.getElementById(side === 'home' ? 'simRotLogoHome' : 'simRotLogoAway');
+            if (rotLogo) {
+                if (abbr) { rotLogo.src = simGetTeamLogo(abbr); rotLogo.style.display = ''; }
+                else { rotLogo.src = ''; rotLogo.style.display = 'none'; }
             }
 
             // Show schemes in center column
