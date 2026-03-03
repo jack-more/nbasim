@@ -8791,7 +8791,7 @@ def generate_js():
                 const sort = btn.dataset.sort;
 
                 if (sort === 'value') {
-                    cards.sort((a, b) => parseFloat(b.dataset.conf) - parseFloat(a.dataset.conf));
+                    cards.sort((a, b) => parseFloat(b.dataset.edge) - parseFloat(a.dataset.edge));
                 } else {
                     cards.sort((a, b) => parseInt(a.dataset.idx) - parseInt(b.dataset.idx));
                 }
