@@ -168,17 +168,14 @@ jobs:
           cp nbasim/index.html morellosims/nbasim/index.html
           FILE=morellosims/nbasim/index.html
 
-          # Inject auth CSS before </head>
-          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
+          # Auth CSS + Firebase SDK already included by generate_frontend.py
+          # Only inject MORELLOSIMS-specific additions:
 
           # Add dark theme attribute to body
           sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
 
           # Add status-indicators div for profile button
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
-
-          # Inject Firebase SDK + auth JS before </body>
-          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
 
       - name: Commit and push
         working-directory: morellosims
@@ -273,10 +270,9 @@ jobs:
           cp nbasim/index.html morellosims/nbasim/index.html
           FILE=morellosims/nbasim/index.html
 
-          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
+          # Auth CSS + Firebase SDK already included by generate_frontend.py
           sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
-          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
 
       - name: Commit and push
         working-directory: morellosims
@@ -373,17 +369,9 @@ jobs:
           cp nbasim/index.html morellosims/nbasim/index.html
           FILE=morellosims/nbasim/index.html
 
-          # Inject auth CSS before </head>
-          sed -i 's|</head>|    <link rel="stylesheet" href="../morello-auth.css">\n</head>|' "$FILE"
-
-          # Add dark theme attribute to body
+          # Auth CSS + Firebase SDK already included by generate_frontend.py
           sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
-
-          # Add status-indicators div for profile button
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
-
-          # Inject Firebase SDK + auth JS before </body>
-          sed -i 's|</body>|\n    <!-- Firebase SDK + Morello Auth -->\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>\n    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>\n    <script src="../morello-auth.js"></script>\n</body>|' "$FILE"
 
       - name: Commit and push
         working-directory: morellosims
