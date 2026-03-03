@@ -10411,10 +10411,10 @@ def generate_js():
                 '</tr></thead><tbody>';
             let tPts=0,tReb=0,tAst=0,tStl=0,tBlk=0,tMin=0,tFgm=0,tFga=0,tTpm=0,tTpa=0,tFtm=0,tFta=0;
             players.forEach((p, idx) => {
-                const key = (p.name + '|' + abbr).replace(/'/g, "\\'");
+                const key = (p.name + '|' + abbr).replace(/'/g, "\\\\'");
                 simShotData[p.name + '|' + abbr] = p;
                 const cls = p.isStarter ? 'sim-box-starter' : 'sim-box-bench';
-                html += '<tr class="'+cls+' sim-box-clickable" onclick="toggleShotChart(\''+key+'\',\''+color+'\')">' +
+                html += '<tr class="'+cls+' sim-box-clickable" onclick="toggleShotChart(\\x27'+key+'\\x27,\\x27'+color+'\\x27)">' +
                     '<td>'+p.name+'</td><td>'+p.min+'</td><td>'+p.pts+'</td>' +
                     '<td>'+p.reb+'</td><td>'+p.ast+'</td><td>'+p.stl+'</td><td>'+p.blk+'</td>' +
                     '<td>'+p.fgm+'-'+p.fga+'</td><td>'+p.tpm+'-'+p.tpa+'</td><td>'+p.ftm+'-'+p.fta+'</td>' +
