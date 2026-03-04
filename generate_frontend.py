@@ -521,7 +521,7 @@ def fetch_odds_api_lines():
     """
     if not ODDS_API_KEY:
         print("[Odds API] No ODDS_API_KEY set — using projected lines")
-        return {}, [], None, []
+        return {}, [], None, [], {}
 
     url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
     params = {
@@ -540,12 +540,22 @@ def fetch_odds_api_lines():
         print(f"[Odds API] Fetched {len(data)} games — {remaining} requests remaining this month")
     except Exception as e:
         print(f"[Odds API] Failed to fetch: {e} — using projected lines")
-        return {}, [], None, []
+        return {}, [], None, [], {}
 
     lines = {}
+    bookmaker_lines = {}
     matchup_pairs = []
     event_ids = []
     slate_date_str = None
+
+    # Bookmakers to collect individual lines from
+    TRACKED_BOOKS = {
+        "draftkings": "DK",
+        "fanduel": "FD",
+        "betmgm": "MGM",
+        "bovada": "BOV",
+        "pointsbetus": "PBU",
+    }
 
     for game in data:
         home_full = game.get("home_team", "")
@@ -606,8 +616,28 @@ def fetch_odds_api_lines():
         if result:
             lines[(home_abbr, away_abbr)] = result
 
+        # Collect per-bookmaker spreads for tracked sportsbooks
+        game_books = []
+        for bk in game.get("bookmakers", []):
+            bk_key = bk.get("key", "")
+            if bk_key not in TRACKED_BOOKS:
+                continue
+            for market in bk.get("markets", []):
+                if market["key"] == "spreads":
+                    for outcome in market.get("outcomes", []):
+                        if ODDS_TEAM_MAP.get(outcome.get("name", ""), "") == home_abbr:
+                            pt = outcome.get("point")
+                            if pt is not None:
+                                game_books.append({
+                                    "name": TRACKED_BOOKS[bk_key],
+                                    "key": bk_key,
+                                    "spread": float(pt),
+                                })
+        if game_books:
+            bookmaker_lines[(home_abbr, away_abbr)] = game_books
+
     print(f"[Odds API] Parsed lines for {len(lines)} matchups | Slate: {slate_date_str} | {len(matchup_pairs)} games | {len(event_ids)} event IDs")
-    return lines, matchup_pairs, slate_date_str, event_ids
+    return lines, matchup_pairs, slate_date_str, event_ids, bookmaker_lines
 
 
 def fetch_odds_api_player_props(event_ids):
@@ -2985,7 +3015,7 @@ def get_matchups():
     rw_lineups, rw_lines, rw_pairs, rw_slate_date, rw_game_times = scrape_rotowire()
 
     # Also try Odds API as fallback
-    api_lines, api_pairs, api_slate_date, event_ids = fetch_odds_api_lines()
+    api_lines, api_pairs, api_slate_date, event_ids, api_bookmaker_lines = fetch_odds_api_lines()
 
     # Merge lines: prefer RotoWire, fall back to Odds API
     real_lines = {}
@@ -2994,6 +3024,9 @@ def get_matchups():
     for key, val in api_lines.items():
         if key not in real_lines:
             real_lines[key] = val
+
+    # Per-bookmaker odds from Odds API (for sportsbook buttons on cards)
+    bookmaker_lines = api_bookmaker_lines
 
     has_any_real = len(real_lines) > 0
 
@@ -3028,6 +3061,9 @@ def get_matchups():
         matchup_pairs, game_times_for_filter, real_lines
     )
     if removed_count > 0:
+        # Also prune bookmaker_lines for removed games
+        kept = set(matchup_pairs)
+        bookmaker_lines = {k: v for k, v in bookmaker_lines.items() if k in kept}
         print(f"[Matchups] {len(matchup_pairs)} games remaining after Step 0 filtering")
 
     # ── ROLLOVER: If ALL games filtered, try Basketball Monster for tomorrow ──
@@ -3047,6 +3083,7 @@ def get_matchups():
                     slate_date = bm_date
                     rw_lineups = bm_lineups  # Use BM lineups for MOJI model
                     real_lines = bm_lines
+                    bookmaker_lines = {}  # BM doesn't provide per-book odds
                     rw_game_times = bm_times
                     using_bm_fallback = True
                 else:
@@ -3250,6 +3287,7 @@ def get_matchups():
                 "h_mojo_rank": h_mojo_rank, "a_mojo_rank": a_mojo_rank,
                 "spread_breakdown": spread_breakdown,
                 "rw_lineups": rw_lineups,
+                "bookmaker_odds": bookmaker_lines.get((home_abbr, away_abbr), []),
             })
 
     # ── Save daily picks snapshot for automated logging ──
@@ -5504,6 +5542,72 @@ def render_matchup_card(m, idx, team_map):
             </div>
         </div>"""
 
+    # Sportsbook odds buttons row
+    book_odds = m.get("bookmaker_odds", [])
+
+    # Affiliate link templates — user will fill in real tracking URLs later
+    AFFILIATE_LINKS = {
+        "draftkings": "https://sportsbook.draftkings.com",
+        "fanduel": "https://sportsbook.fanduel.com",
+        "betmgm": "https://sports.betmgm.com",
+        "bovada": "https://www.bovada.lv",
+        "pointsbetus": "https://www.pointsbet.com",
+    }
+
+    BOOK_DISPLAY = {
+        "draftkings": "DK",
+        "fanduel": "FD",
+        "betmgm": "MGM",
+        "bovada": "BOV",
+        "pointsbetus": "PBU",
+    }
+
+    BOOK_COLORS = {
+        "draftkings": "#53d337",
+        "fanduel": "#1493ff",
+        "betmgm": "#c4a44a",
+        "bovada": "#cc0000",
+        "pointsbetus": "#ed1c24",
+    }
+
+    sportsbook_btns = ""
+    if book_odds:
+        # Determine pick side for edge display
+        pick_side = ha if proj_spread_val <= 0 else aa
+
+        btns_html = ""
+        for bk in book_odds:
+            bk_key = bk["key"]
+            bk_name = BOOK_DISPLAY.get(bk_key, bk_key.upper()[:3])
+            bk_color = BOOK_COLORS.get(bk_key, "#888")
+            bk_spread = bk["spread"]  # home perspective
+            bk_link = AFFILIATE_LINKS.get(bk_key, "#")
+
+            # Display spread from favorite perspective (same convention as main display)
+            if bk_spread <= 0:
+                disp_team = ha
+                disp_spread = bk_spread
+            else:
+                disp_team = aa
+                disp_spread = -bk_spread
+
+            # Calculate edge: difference between model and this book's line
+            edge_val = abs(proj_spread_val - bk_spread)
+            edge_class = "sb-edge-hot" if edge_val >= 2.5 else "sb-edge-mild" if edge_val >= 1 else "sb-edge-none"
+
+            btns_html += f'''<a href="{bk_link}" target="_blank" rel="noopener" class="sb-btn" style="border-color:{bk_color}40">
+                <span class="sb-name" style="color:{bk_color}">{bk_name}</span>
+                <span class="sb-line">{disp_team} {disp_spread:+.1f}</span>
+                <span class="{edge_class}">{edge_val:+.1f}</span>
+            </a>'''
+
+        sportsbook_btns = f'''
+        <!-- Sportsbook Odds -->
+        <div class="mc-sportsbooks">
+            <span class="sb-header">BOOKS</span>
+            {btns_html}
+        </div>'''
+
     return f"""
     <div class="matchup-card" data-conf="{conf_10}" data-edge="{abs(spread_edge):.1f}" data-total="{total}" data-idx="{idx}">
         <div class="mc-header">
@@ -5554,6 +5658,8 @@ def render_matchup_card(m, idx, team_map):
 
         <!-- MOJI Breakdown -->
         {breakdown_html}
+
+        {sportsbook_btns}
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -6520,6 +6626,68 @@ def generate_css():
             border-radius: 3px;
             background: rgba(255,150,0,0.12);
             color: #b36500;
+        }
+
+        /* Sportsbook odds buttons */
+        .mc-sportsbooks {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            overflow-x: auto;
+            border-top: 1px dashed rgba(0,0,0,0.08);
+            margin-top: 4px;
+        }
+        .sb-header {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8px;
+            letter-spacing: 2px;
+            color: rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            margin-right: 4px;
+        }
+        .sb-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 4px;
+            text-decoration: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            white-space: nowrap;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .sb-btn:hover {
+            background: rgba(0,0,0,0.06);
+            border-color: rgba(0,0,0,0.2);
+            transform: translateY(-1px);
+        }
+        .sb-name {
+            font-weight: 700;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+        }
+        .sb-line {
+            color: #333;
+            font-weight: 600;
+        }
+        .sb-edge-hot {
+            color: #00aa44;
+            font-weight: 700;
+            font-size: 9px;
+        }
+        .sb-edge-mild {
+            color: #b8860b;
+            font-weight: 600;
+            font-size: 9px;
+        }
+        .sb-edge-none {
+            color: #999;
+            font-size: 9px;
         }
 
         /* Expand button */
