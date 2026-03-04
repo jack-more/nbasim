@@ -192,7 +192,22 @@ def main():
         target_date = args.date
     elif os.path.exists(DAILY_JSON):
         with open(DAILY_JSON) as f:
-            target_date = json.load(f).get("slate_date", datetime.now().strftime("%Y-%m-%d"))
+            raw_date = json.load(f).get("slate_date", "")
+            # slate_date can be "MAR 3" format — convert to YYYY-MM-DD
+            if raw_date and not raw_date[0].isdigit():
+                try:
+                    dt_parsed = datetime.strptime(raw_date, "%b %d")
+                    target_date = dt_parsed.replace(year=datetime.now().year).strftime("%Y-%m-%d")
+                except ValueError:
+                    try:
+                        dt_parsed = datetime.strptime(raw_date, "%B %d")
+                        target_date = dt_parsed.replace(year=datetime.now().year).strftime("%Y-%m-%d")
+                    except ValueError:
+                        target_date = datetime.now().strftime("%Y-%m-%d")
+            elif raw_date:
+                target_date = raw_date
+            else:
+                target_date = datetime.now().strftime("%Y-%m-%d")
     else:
         target_date = datetime.now().strftime("%Y-%m-%d")
 
