@@ -78,7 +78,7 @@ def write_picks(picks):
     """Write picks back to CSV."""
     os.makedirs(os.path.dirname(PICKS_CSV), exist_ok=True)
     with open(PICKS_CSV, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(picks)
 
