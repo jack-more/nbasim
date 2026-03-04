@@ -30,8 +30,9 @@ DAYS_OF_WEEK = {0: "MONDAY", 1: "TUESDAY", 2: "WEDNESDAY", 3: "THURSDAY",
 
 
 def load_picks_for_date(target_date):
-    """Load picks from pick_log.json for a specific date."""
+    """Load picks from pick_log.json for a specific date (deduped by matchup+type)."""
     picks = []
+    seen = set()
 
     # Try pick_log.json first (has full metadata)
     if os.path.exists(PICK_LOG):
@@ -39,7 +40,10 @@ def load_picks_for_date(target_date):
             log = json.load(f)
         for entry in log:
             if entry.get("slate_date") == target_date:
-                picks.append(entry)
+                key = (entry["matchup"], entry.get("pick_type", "spread"))
+                if key not in seen:
+                    seen.add(key)
+                    picks.append(entry)
 
     # Fallback to CSV if no log entries
     if not picks and os.path.exists(PICKS_CSV):
@@ -47,20 +51,23 @@ def load_picks_for_date(target_date):
             reader = csv.DictReader(f)
             for row in reader:
                 if row["date"] == target_date:
-                    picks.append({
-                        "slate_date": row["date"],
-                        "matchup": row["matchup"],
-                        "side": row["side"],
-                        "pick_type": row["type"],
-                        "risk": int(float(row["risk"])) if row["risk"] else 30,
-                        "conf_1_10": 7,
-                        "confidence": 65,
-                        "spread_edge": 0,
-                        "sim_spread": None,
-                        "book_spread": None,
-                        "sim_total": None,
-                        "book_total": None,
-                    })
+                    key = (row["matchup"], row.get("type", "spread"))
+                    if key not in seen:
+                        seen.add(key)
+                        picks.append({
+                            "slate_date": row["date"],
+                            "matchup": row["matchup"],
+                            "side": row["side"],
+                            "pick_type": row["type"],
+                            "risk": int(float(row["risk"])) if row["risk"] else 30,
+                            "conf_1_10": 7,
+                            "confidence": 65,
+                            "spread_edge": 0,
+                            "sim_spread": None,
+                            "book_spread": None,
+                            "sim_total": None,
+                            "book_total": None,
+                        })
 
     return picks
 
@@ -112,9 +119,9 @@ def generate_pick_card(pick, game_data):
         rationale += f"SIM spread: {pick['sim_spread']:+.1f}, Book: {pick['book_spread']:+.1f}. "
 
     return f"""
-                    <div style="margin:8px 0 6px; padding:10px 12px; background:{conf_bg}; border-left:3px solid #2a9d5f; border-radius:0 4px 4px 0;">
+                    <div class="pick-card" data-status="pending" data-matchup="{matchup}" style="margin:8px 0 6px; padding:10px 12px; background:{conf_bg}; border-left:3px solid #2a9d5f; border-radius:0 4px 4px 0;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <p class="mono" style="font-size:10px; color:#2a9d5f; font-weight:700; letter-spacing:1px; margin:0;">{matchup} — {side}</p>
+                            <p class="mono pick-side-text" style="font-size:10px; color:#2a9d5f; font-weight:700; letter-spacing:1px; margin:0;">{matchup} — {side}</p>
                             <div style="display:flex; gap:6px; align-items:center;">
                                 <span class="mono" style="font-size:9px; background:#f4a261; color:#000; padding:2px 6px; border-radius:2px; font-weight:700;">{risk} $PP</span>
                                 <span class="mono" style="font-size:9px; background:#2a9d5f; color:#000; padding:2px 6px; border-radius:2px; font-weight:700;">{type_label} {c10}</span>
@@ -122,7 +129,7 @@ def generate_pick_card(pick, game_data):
                         </div>
                         {implied_line}
                         <p class="mono" style="font-size:8px; color:#FFD600; margin:0 0 4px; font-weight:700; letter-spacing:0.5px;">PENDING</p>
-                        <p class="blog-body-text" style="font-size:10px; color:#999; margin:0;">{rationale}</p>
+                        <p class="blog-body-text pick-rationale" style="font-size:10px; color:#999; margin:0;">{rationale}</p>
                     </div>"""
 
 

@@ -163,7 +163,8 @@ jobs:
       - name: Sync pick data to blog
         run: python nbasim/scripts/update_blog.py nbasim/index.html morellosims/index.html
 
-      - name: Inject new blog entry (if snippet exists)
+      - name: Inject new blog entry (post-game 11:30 PM PST only)
+        if: github.event.schedule == '30 7 * * *' || inputs.full_pipeline == 'true'
         run: |
           if [ -f nbasim/data/blog_snippet.html ]; then
             python nbasim/scripts/inject_blog_entry.py nbasim/data/blog_snippet.html morellosims/index.html

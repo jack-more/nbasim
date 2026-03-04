@@ -12,7 +12,9 @@ Usage:
   python scripts/settle_blog.py <settlement_results.json> <morellosims_index.html>
 """
 
+import csv
 import json
+import os
 import re
 import sys
 
@@ -110,7 +112,7 @@ def patch_bankroll(html, new_bankroll, starting=1000):
     else:
         color = "#f4a261"
 
-    # Patch main bankroll display: "1,000 $PP" → "943 $PP"
+    # Patch main bankroll box: "1,449 $PP"
     old_bankroll_pattern = re.compile(
         r'(BANKROLL</div>\s*<div[^>]*>)\s*[\d,]+ \$PP'
     )
@@ -121,11 +123,7 @@ def patch_bankroll(html, new_bankroll, starting=1000):
         changes += 1
         html = new_html
 
-    # Update bankroll color
-    old_color = re.compile(r'(BANKROLL</div>\s*<div[^>]*style="[^"]*color:)#f4a261')
-    html = old_color.sub(rf'\g<1>{color}', html)
-
-    # Patch summary bankroll number
+    # Patch summary bankroll number (bottom section)
     old_summary = re.compile(
         r'(BANKROLL</div>\s*<div[^>]*font-size:16px[^>]*>)\s*[\d,]+'
     )
@@ -137,26 +135,90 @@ def patch_bankroll(html, new_bankroll, starting=1000):
     return html, changes
 
 
-def patch_record_and_status(html, record, status):
-    """Update record and status displays."""
+def patch_hero_stats(html, record, bankroll, total_picks, total_risked):
+    """Update the hero stat bar (record, ROI, bankroll, picks)."""
     changes = 0
-    record_str = f"{record['W']}-{record['L']}-{record['P']}"
 
-    # Patch record: "—" → "2-5-0"
+    wins = record.get("W", 0)
+    losses = record.get("L", 0)
+    record_str = f"{wins}-{losses}"
+
+    # Compute ROI on settled risked
+    profit = bankroll - 1000
+    roi_pct = round(profit / total_risked * 100) if total_risked > 0 else 0
+    roi_sign = "+" if roi_pct >= 0 else ""
+
+    # Patch hero record: <span class="stat-value">XX-XX</span>\n..RECORD
     old_record = re.compile(
-        r'(RECORD</div>\s*<div[^>]*>)\s*&mdash;'
+        r'(<span class="stat-value">)[\d]+-[\d]+(<\/span>\s*<span class="stat-label">RECORD)'
     )
-    new_html = old_record.sub(rf'\g<1>{record_str}', html)
+    new_html = old_record.sub(rf'\g<1>{record_str}\2', html)
     if new_html != html:
         changes += 1
         html = new_html
 
-    # Patch status: "PENDING" → "PARTIAL" or "SETTLED"
-    old_status = re.compile(
-        r'(STATUS</div>\s*<div[^>]*>)\s*PENDING'
+    # Patch hero ROI
+    old_roi = re.compile(
+        r'(<span class="stat-value">)[+-]?\d+%(<\/span>\s*<span class="stat-label">ROI)'
     )
-    status_color = "#00FF55" if status == "SETTLED" else "#f4a261"
-    new_html = old_status.sub(rf'\g<1>{status}', html)
+    new_html = old_roi.sub(rf'\g<1>{roi_sign}{roi_pct}%\2', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch hero bankroll
+    old_bankroll = re.compile(
+        r'(<span class="stat-value">)[\d,]+(<\/span>\s*<span class="stat-label">BANKROLL)'
+    )
+    new_html = old_bankroll.sub(rf'\g<1>{bankroll:,.0f}\2', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch hero picks count
+    old_picks = re.compile(
+        r'(<span class="stat-value">)\d+(<\/span>\s*<span class="stat-label">PICKS)'
+    )
+    new_html = old_picks.sub(rf'\g<1>{total_picks}\2', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch total risked in bankroll box and tfoot
+    old_risked = re.compile(r'(TOTAL RISKED</div>\s*<div[^>]*>)\s*[\d,]+ \$PP')
+    new_html = old_risked.sub(rf'\g<1>{total_risked:,.0f} $PP', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch tfoot risked
+    old_tfoot = re.compile(r'(TOTAL RISKED</td>\s*<td[^>]*>)\s*[\d,]+ \$PP')
+    new_html = old_tfoot.sub(rf'\g<1>{total_risked:,.0f} $PP', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch summary section risked
+    old_summary_risked = re.compile(
+        r'(RISKED</div>\s*<div[^>]*font-size:16px[^>]*>)\s*[\d,]+'
+    )
+    new_html = old_summary_risked.sub(rf'\g<1>{total_risked:,.0f}', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch summary section picks
+    old_summary_picks = re.compile(
+        r'(PICKS</div>\s*<div[^>]*font-size:16px[^>]*>)\s*\d+'
+    )
+    new_html = old_summary_picks.sub(rf'\g<1>{total_picks}', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch blog preview text
+    old_preview = re.compile(r'\d+ picks across \d+ slates')
+    new_html = old_preview.sub(f'{total_picks} picks across {wins + losses} slates', html)
     if new_html != html:
         changes += 1
         html = new_html
@@ -213,6 +275,47 @@ def patch_pick_cards(html, picks):
     return html, changes
 
 
+def compute_stats_from_csv(csv_path):
+    """Compute record, bankroll, totals from picks.csv."""
+    wins = 0
+    losses = 0
+    pushes = 0
+    total_profit = 0.0
+    total_risked = 0
+    total_picks = 0
+
+    if not os.path.exists(csv_path):
+        return None
+
+    with open(csv_path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            total_picks += 1
+            risk = int(float(row.get("risk", 0) or 0))
+            total_risked += risk
+
+            result = row.get("result", "").strip()
+            profit = float(row.get("profit", 0) or 0)
+
+            if result == "W":
+                wins += 1
+                total_profit += profit
+            elif result == "L":
+                losses += 1
+                total_profit += profit  # profit is negative for L
+            elif result == "P":
+                pushes += 1
+
+    bankroll = 1000 + total_profit
+    return {
+        "record": {"W": wins, "L": losses, "P": pushes},
+        "bankroll": round(bankroll),
+        "total_profit": total_profit,
+        "total_picks": total_picks,
+        "total_risked": total_risked,
+    }
+
+
 def main():
     if len(sys.argv) != 3:
         print("Usage: python settle_blog.py <settlement_results.json> <blog_html>")
@@ -228,14 +331,6 @@ def main():
         html = f.read()
 
     picks = settlement["picks"]
-    record = settlement["record"]
-    new_bankroll = settlement["new_bankroll"]
-    status = settlement["status"]
-
-    print(f"Settlement: {record['W']}-{record['L']}-{record['P']} | "
-          f"P/L: {settlement['total_profit']:+.2f} | "
-          f"Bankroll: {new_bankroll:.0f} | Status: {status}")
-    print()
 
     total_changes = 0
 
@@ -244,20 +339,36 @@ def main():
     html, c = patch_results_table(html, picks)
     total_changes += c
 
-    # Patch bankroll
-    print("Patching bankroll...")
-    html, c = patch_bankroll(html, new_bankroll)
-    total_changes += c
-
-    # Patch record + status
-    print("Patching record + status...")
-    html, c = patch_record_and_status(html, record, status)
-    total_changes += c
-
     # Patch pick cards with FINAL scores
     print("Patching pick cards with final scores...")
     html, c = patch_pick_cards(html, picks)
     total_changes += c
+
+    # Compute stats from CSV (source of truth) for hero stats + bankroll
+    csv_path = os.path.join(os.path.dirname(results_path), "picks.csv")
+    stats = compute_stats_from_csv(csv_path)
+
+    if stats:
+        record = stats["record"]
+        bankroll = stats["bankroll"]
+        total_picks = stats["total_picks"]
+        total_risked = stats["total_risked"]
+
+        print(f"\nCSV stats: {record['W']}-{record['L']} | "
+              f"P/L: {stats['total_profit']:+.2f} | "
+              f"Bankroll: {bankroll} | Picks: {total_picks} | Risked: {total_risked}")
+
+        # Patch bankroll box
+        print("Patching bankroll...")
+        html, c = patch_bankroll(html, bankroll)
+        total_changes += c
+
+        # Patch hero stats (record, ROI, bankroll, picks)
+        print("Patching hero stats...")
+        html, c = patch_hero_stats(html, record, bankroll, total_picks, total_risked)
+        total_changes += c
+    else:
+        print("WARNING: Could not find picks.csv — skipping hero stat update")
 
     print(f"\nTotal changes: {total_changes}")
 

@@ -44,7 +44,11 @@ def risk_amount(conf_1_10):
 
 
 def existing_picks(slate_date):
-    """Return set of (matchup, side) already in picks.csv for this date."""
+    """Return set of (matchup, type) already in picks.csv for this date.
+
+    Dedup by matchup+type (not matchup+side) so line movements don't
+    create duplicate picks for the same game.
+    """
     existing = set()
     if not os.path.exists(PICKS_CSV):
         return existing
@@ -52,7 +56,7 @@ def existing_picks(slate_date):
         reader = csv.DictReader(f)
         for row in reader:
             if row["date"] == slate_date:
-                existing.add((row["matchup"], row["side"]))
+                existing.add((row["matchup"], row.get("type", "spread")))
     return existing
 
 
@@ -132,9 +136,9 @@ def capture(threshold=65, dry_run=False):
             parts = pick_text.split()
             line_val = float(parts[-1]) if len(parts) >= 2 else 0.0
 
-        # Dedup check
-        if (matchup, pick_text) in already:
-            print(f"  SKIP (exists): {matchup} → {pick_text}")
+        # Dedup check: by matchup + type (not side, since lines move)
+        if (matchup, pick_type) in already:
+            print(f"  SKIP (exists): {matchup} → {pick_type}")
             continue
 
         pick = {
