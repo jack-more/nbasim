@@ -65,9 +65,23 @@ def capture(threshold=65, dry_run=False):
     with open(DAILY_JSON) as f:
         snapshot = json.load(f)
 
-    slate_date = snapshot["slate_date"]
+    raw_slate_date = snapshot["slate_date"]
     generated_at = snapshot["generated_at"]
     now = datetime.now(timezone.utc).isoformat()
+
+    # Normalize date to YYYY-MM-DD format (daily_picks.json uses "MAR 4" format)
+    if raw_slate_date and not raw_slate_date[0].isdigit():
+        try:
+            dt = datetime.strptime(raw_slate_date, "%b %d")
+            slate_date = dt.replace(year=datetime.now().year).strftime("%Y-%m-%d")
+        except ValueError:
+            try:
+                dt = datetime.strptime(raw_slate_date, "%B %d")
+                slate_date = dt.replace(year=datetime.now().year).strftime("%Y-%m-%d")
+            except ValueError:
+                slate_date = raw_slate_date  # fallback
+    else:
+        slate_date = raw_slate_date
 
     print(f"[capture] Slate: {slate_date} | Generated: {generated_at}")
     print(f"[capture] Threshold: >{threshold} or <{100 - threshold}")
