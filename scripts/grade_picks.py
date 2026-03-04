@@ -52,7 +52,7 @@ ODDS_TEAM_MAP = {
 }
 
 STARTING_BANKROLL = 1150.0
-CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit"]
+CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds"]
 
 
 # ── CSV I/O ──────────────────────────────────────────────────────────
@@ -69,6 +69,7 @@ def read_picks():
             row["risk"] = row.get("risk", "0").strip()
             row["result"] = row.get("result", "").strip()
             row["profit"] = row.get("profit", "").strip()
+            row["odds"] = row.get("odds", "").strip()
             rows.append(row)
         return rows
 
@@ -179,9 +180,19 @@ def parse_side(side_str):
 
 
 def compute_profit(result, risk_amount, odds=-110):
-    """Compute profit based on result and standard -110 odds."""
+    """Compute profit based on result and American odds.
+
+    American odds:
+      -110: risk $110 to win $100 → profit = risk * (100/110)
+      +150: risk $100 to win $150 → profit = risk * (150/100)
+    """
     if result == "W":
-        return round(risk_amount * (100 / abs(odds)), 2)
+        if odds > 0:
+            # Underdog: +150 means risk $100 to win $150
+            return round(risk_amount * (odds / 100), 2)
+        else:
+            # Favorite: -110 means risk $110 to win $100
+            return round(risk_amount * (100 / abs(odds)), 2)
     elif result == "L":
         return round(-risk_amount, 2)
     else:
@@ -303,7 +314,14 @@ def grade_all():
             print(f"  PENDING: {pick['date']} | {matchup} | {side}")
             continue
 
-        profit = compute_profit(result, risk)
+        # Use actual ML odds for moneyline picks, standard -110 for spreads
+        pick_odds = -110
+        if pick_type == "ml" and pick.get("odds"):
+            try:
+                pick_odds = int(pick["odds"])
+            except (ValueError, TypeError):
+                pass
+        profit = compute_profit(result, risk, odds=pick_odds)
         pick["result"] = result
         pick["profit"] = str(profit)
         # Store game scores for settlement blog patching

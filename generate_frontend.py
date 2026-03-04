@@ -527,7 +527,7 @@ def fetch_odds_api_lines():
     params = {
         "apiKey": ODDS_API_KEY,
         "regions": "us",
-        "markets": "spreads,totals",
+        "markets": "h2h,spreads,totals",
         "oddsFormat": "american",
     }
 
@@ -587,9 +587,11 @@ def fetch_odds_api_lines():
                 except Exception:
                     pass
 
-        # Average spread and total across all bookmakers for consensus line
+        # Average spread, total, and moneyline across all bookmakers for consensus line
         spreads = []
         totals = []
+        home_mls = []
+        away_mls = []
         for bk in game.get("bookmakers", []):
             for market in bk.get("markets", []):
                 if market["key"] == "spreads":
@@ -604,6 +606,15 @@ def fetch_odds_api_lines():
                             pt = outcome.get("point")
                             if pt is not None:
                                 totals.append(float(pt))
+                elif market["key"] == "h2h":
+                    for outcome in market.get("outcomes", []):
+                        team_abbr = ODDS_TEAM_MAP.get(outcome.get("name", ""), "")
+                        price = outcome.get("price")
+                        if price is not None:
+                            if team_abbr == home_abbr:
+                                home_mls.append(int(price))
+                            elif team_abbr == away_abbr:
+                                away_mls.append(int(price))
 
         result = {}
         if spreads:
@@ -612,6 +623,10 @@ def fetch_odds_api_lines():
         if totals:
             avg_total = sum(totals) / len(totals)
             result["total"] = round(avg_total * 2) / 2
+        if home_mls:
+            result["home_ml"] = round(sum(home_mls) / len(home_mls))
+        if away_mls:
+            result["away_ml"] = round(sum(away_mls) / len(away_mls))
 
         if result:
             lines[(home_abbr, away_abbr)] = result

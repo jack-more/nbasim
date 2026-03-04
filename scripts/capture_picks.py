@@ -117,9 +117,17 @@ def capture(threshold=65, dry_run=False):
         risk = risk_amount(c10)
 
         # Extract line value from pick_text (e.g., "LAL +3.5" → 3.5, "MIN ML" → 0)
+        ml_odds = None
         if "ML" in pick_text:
             line_val = 0.0
             pick_type = "ml"
+            # Store actual moneyline odds for correct payout calculation
+            team = pick_text.replace(" ML", "").strip()
+            home = g["matchup"].split(" @ ")[1]
+            if team == home:
+                ml_odds = g.get("home_ml")
+            else:
+                ml_odds = g.get("away_ml")
         else:
             parts = pick_text.split()
             line_val = float(parts[-1]) if len(parts) >= 2 else 0.0
@@ -147,6 +155,7 @@ def capture(threshold=65, dry_run=False):
             "raw_edge": g["raw_edge"],
             "captured_at": now,
             "conf_label": g["conf_label"],
+            "ml_odds": ml_odds,
         }
         picks.append(pick)
         tag = "W" if c10 >= 8 else "M"  # max or mid unit
@@ -165,9 +174,10 @@ def capture(threshold=65, dry_run=False):
     with open(PICKS_CSV, "a", newline="") as f:
         writer = csv.writer(f)
         if not csv_exists:
-            writer.writerow(["date", "matchup", "side", "type", "risk", "result", "profit"])
+            writer.writerow(["date", "matchup", "side", "type", "risk", "result", "profit", "odds"])
         for p in picks:
-            writer.writerow([p["slate_date"], p["matchup"], p["side"], p["pick_type"], p["risk"], "", ""])
+            odds_val = p.get("ml_odds") or ""
+            writer.writerow([p["slate_date"], p["matchup"], p["side"], p["pick_type"], p["risk"], "", "", odds_val])
 
     print(f"[capture] Appended {len(picks)} picks to {PICKS_CSV}")
 
