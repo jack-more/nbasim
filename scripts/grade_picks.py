@@ -225,6 +225,41 @@ def grade_spread(matchup, side_str, scores):
         return "L"
 
 
+def grade_ml(matchup, side_str, scores):
+    """Grade a moneyline pick. Side is like 'GSW ML' or 'BOS ML'."""
+    game = scores.get(matchup)
+    if game is None:
+        return None
+
+    # Parse "GSW ML" → team = "GSW"
+    m = re.match(r"([A-Z]{3})\s+ML", side_str.strip())
+    if not m:
+        return None
+
+    team = m.group(1)
+    home_score = game["home_score"]
+    away_score = game["away_score"]
+    home_abbr = game["home_abbr"]
+    away_abbr = game["away_abbr"]
+
+    if team == home_abbr:
+        if home_score > away_score:
+            return "W"
+        elif home_score == away_score:
+            return "P"
+        else:
+            return "L"
+    elif team == away_abbr:
+        if away_score > home_score:
+            return "W"
+        elif away_score == home_score:
+            return "P"
+        else:
+            return "L"
+    else:
+        return None
+
+
 # ── Main ─────────────────────────────────────────────────────────────
 
 def grade_all():
@@ -259,6 +294,8 @@ def grade_all():
 
         if pick_type == "spread":
             result = grade_spread(matchup, side, scores)
+        elif pick_type == "ml":
+            result = grade_ml(matchup, side, scores)
         else:
             result = None  # TODO: total/prop grading
 
@@ -269,6 +306,11 @@ def grade_all():
         profit = compute_profit(result, risk)
         pick["result"] = result
         pick["profit"] = str(profit)
+        # Store game scores for settlement blog patching
+        game = scores.get(matchup)
+        if game:
+            pick["home_score"] = str(game["home_score"])
+            pick["away_score"] = str(game["away_score"])
         graded += 1
 
         marker = {"W": "+", "L": "-", "P": "="}[result]
@@ -311,7 +353,7 @@ def print_summary(picks):
     for p in picks:
         r = p.get("result", "").strip()
         if r:
-            results_list.append({
+            entry = {
                 "date": p["date"],
                 "matchup": p["matchup"],
                 "side": p["side"],
@@ -319,7 +361,13 @@ def print_summary(picks):
                 "risk": float(p.get("risk", 0) or 0),
                 "result": r,
                 "profit": float(p.get("profit", 0) or 0),
-            })
+            }
+            # Include game scores if available
+            if p.get("home_score"):
+                entry["home_score"] = int(p["home_score"])
+            if p.get("away_score"):
+                entry["away_score"] = int(p["away_score"])
+            results_list.append(entry)
 
     settlement = {
         "graded_at": datetime.now(timezone.utc).isoformat(),

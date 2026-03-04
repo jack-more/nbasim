@@ -53,15 +53,16 @@ def patch_results_table(html, picks):
         # For spread/total picks: match row with matchup + side in <td> elements
         # Pattern: find <tr> containing the matchup text and the side text,
         # then replace the last <td> that contains &mdash;
-        if p.get("pick_type", p.get("type", "spread")) == "spread":
-            # Spread rows: "BKN @ CLE" in first td, "CLE -16.0" in second td
+        pick_type = p.get("pick_type", p.get("type", "spread"))
+        if pick_type in ("spread", "ml"):
+            # Spread/ML rows: "BKN @ CLE" in first td, "CLE -16.0" or "GSW ML" in second td
             pattern = re.compile(
                 rf'(<tr[^>]*>.*?>{re.escape(away)} @ {re.escape(home)}</td>'
                 rf'.*?>{side_escaped}</td>'
                 rf'.*?)<td[^>]*>\s*&mdash;\s*</td>',
                 re.DOTALL,
             )
-        elif p.get("pick_type", p.get("type", "spread")) == "total":
+        elif pick_type == "total":
             # O/U rows: "BKN @ CLE" in first td, "OVER 229.5" or "UNDER 235.5" in second td
             pattern = re.compile(
                 rf'(<tr[^>]*>.*?>{re.escape(away)} @ {re.escape(home)}</td>'
@@ -69,7 +70,7 @@ def patch_results_table(html, picks):
                 rf'.*?)<td[^>]*>\s*&mdash;\s*</td>',
                 re.DOTALL,
             )
-        elif p.get("pick_type", p.get("type", "spread")) == "prop":
+        elif pick_type == "prop":
             # Prop rows: "Jokic PTS" or "Mitchell PTS" in first td, "OVER 28.5" in second td
             # Extract player last name and stat for matching
             player = p.get("player_name", "")
@@ -168,17 +169,22 @@ def patch_pick_cards(html, picks):
     changes = 0
 
     for p in picks:
-        if not p["result"] or p.get("pick_type", p.get("type", "spread")) == "prop":
+        pick_type = p.get("pick_type", p.get("type", "spread"))
+        if not p["result"] or pick_type == "prop":
             continue  # Only add final score to game line cards
 
         matchup = p["matchup"]
         away, home = matchup.split(" @ ")
-        h_score = p["home_score"]
-        a_score = p["away_score"]
+        h_score = p.get("home_score")
+        a_score = p.get("away_score")
         result = p["result"]
         profit = p["profit"]
 
-        if p.get("pick_type", p.get("type", "spread")) == "spread":
+        # Skip FINAL score line if scores not available in settlement data
+        if h_score is None or a_score is None:
+            continue
+
+        if pick_type in ("spread", "ml"):
             # Skip if FINAL already exists for this matchup
             if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
                 continue
