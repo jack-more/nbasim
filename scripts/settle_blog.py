@@ -53,7 +53,7 @@ def patch_results_table(html, picks):
         # For spread/total picks: match row with matchup + side in <td> elements
         # Pattern: find <tr> containing the matchup text and the side text,
         # then replace the last <td> that contains &mdash;
-        if p["pick_type"] == "spread":
+        if p.get("pick_type", p.get("type", "spread")) == "spread":
             # Spread rows: "BKN @ CLE" in first td, "CLE -16.0" in second td
             pattern = re.compile(
                 rf'(<tr[^>]*>.*?>{re.escape(away)} @ {re.escape(home)}</td>'
@@ -61,7 +61,7 @@ def patch_results_table(html, picks):
                 rf'.*?)<td[^>]*>\s*&mdash;\s*</td>',
                 re.DOTALL,
             )
-        elif p["pick_type"] == "total":
+        elif p.get("pick_type", p.get("type", "spread")) == "total":
             # O/U rows: "BKN @ CLE" in first td, "OVER 229.5" or "UNDER 235.5" in second td
             pattern = re.compile(
                 rf'(<tr[^>]*>.*?>{re.escape(away)} @ {re.escape(home)}</td>'
@@ -69,7 +69,7 @@ def patch_results_table(html, picks):
                 rf'.*?)<td[^>]*>\s*&mdash;\s*</td>',
                 re.DOTALL,
             )
-        elif p["pick_type"] == "prop":
+        elif p.get("pick_type", p.get("type", "spread")) == "prop":
             # Prop rows: "Jokic PTS" or "Mitchell PTS" in first td, "OVER 28.5" in second td
             # Extract player last name and stat for matching
             player = p.get("player_name", "")
@@ -168,7 +168,7 @@ def patch_pick_cards(html, picks):
     changes = 0
 
     for p in picks:
-        if not p["result"] or p["pick_type"] == "prop":
+        if not p["result"] or p.get("pick_type", p.get("type", "spread")) == "prop":
             continue  # Only add final score to game line cards
 
         matchup = p["matchup"]
@@ -178,7 +178,7 @@ def patch_pick_cards(html, picks):
         result = p["result"]
         profit = p["profit"]
 
-        if p["pick_type"] == "spread":
+        if p.get("pick_type", p.get("type", "spread")) == "spread":
             # Skip if FINAL already exists for this matchup
             if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
                 continue
