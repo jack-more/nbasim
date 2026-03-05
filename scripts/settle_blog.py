@@ -223,6 +223,22 @@ def patch_hero_stats(html, record, bankroll, total_picks, total_risked):
         changes += 1
         html = new_html
 
+    # Patch blog title: "NBA SIM: XX-XX RECORD (+XX% ROI)"
+    old_title = re.compile(r'(NBA SIM: )\d+-\d+ RECORD \([+-]?\d+% ROI\)')
+    new_html = old_title.sub(rf'\g<1>{record_str} RECORD ({roi_sign}{roi_pct}% ROI)', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
+    # Patch summary section record: "XX-XX-0"
+    old_summary_record = re.compile(
+        r'(RECORD</div>\s*<div[^>]*font-size:16px[^>]*>)\s*\d+-\d+-\d+'
+    )
+    new_html = old_summary_record.sub(rf'\g<1>{record_str}-0', html)
+    if new_html != html:
+        changes += 1
+        html = new_html
+
     return html, changes
 
 
