@@ -906,7 +906,8 @@ def compute_spread_and_total(home_data, away_data):
 _MOJI_CONSTANTS = {
     "MOJO_SCALE":     1.0,    # 1pt MOJO gap → 1.0 points on spread scale
     "MOJI_WEIGHT":   0.45,   # MOJI share in final blend (proven)
-    "NRTG_WEIGHT":  0.35,   # adjusted net rating share in final blend (proven)
+    "NRTG_SEASON_WEIGHT": 0.10,  # season-long NRtg (stabilizer)
+    "NRTG_RECENT_WEIGHT": 0.25,  # trailing 10-game NRtg (momentum, captures hot/cold teams)
     "SYN_WEIGHT":   0.20,   # lineup synergy share in final blend (SYN v2, unproven — modifier only)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
     "HCA":          1.8,    # base home court advantage (most arenas — modern NBA)
@@ -2450,6 +2451,24 @@ def _compute_full_strength_moji(roster_df):
     return total / total_min if total_min > 0 else 50.0
 
 
+def get_trailing_nrtg(team_id, n_games=10):
+    """Average point differential over last N games (rolling NRtg proxy)."""
+    df = read_query("""
+        SELECT
+            CASE WHEN home_team_id = ? THEN home_score - away_score
+                 ELSE away_score - home_score END as margin
+        FROM games
+        WHERE (home_team_id = ? OR away_team_id = ?)
+          AND season_id = '2025-26'
+          AND home_score IS NOT NULL
+        ORDER BY game_date DESC
+        LIMIT ?
+    """, DB_PATH, [team_id, team_id, team_id, n_games])
+    if df.empty:
+        return 0.0
+    return df["margin"].mean()
+
+
 def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     """Full MOJI spread model.
 
@@ -2549,7 +2568,21 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         away_adj_nrtg -= K["B2B_ROAD"]
         print(f"  [B2B] {away_abbr} is on a road back-to-back (-{K['B2B_ROAD']})")
 
-    nrtg_diff = home_adj_nrtg - away_adj_nrtg
+    season_nrtg_diff = home_adj_nrtg - away_adj_nrtg
+
+    # ── Trailing 10-game NRtg (captures momentum / hot teams) ──
+    home_recent_nrtg = get_trailing_nrtg(home_tid, n_games=10)
+    away_recent_nrtg = get_trailing_nrtg(away_tid, n_games=10)
+    home_adj_recent = home_recent_nrtg + team_hca - home_nrtg_attrition
+    away_adj_recent = away_recent_nrtg - away_nrtg_attrition
+    if home_b2b:
+        home_adj_recent -= K["B2B_HOME"]
+    if away_b2b:
+        away_adj_recent -= K["B2B_ROAD"]
+    recent_nrtg_diff = home_adj_recent - away_adj_recent
+
+    print(f"  [NRtg] {home_abbr} season={h_net:+.1f} recent10={home_recent_nrtg:+.1f} | "
+          f"{away_abbr} season={a_net:+.1f} recent10={away_recent_nrtg:+.1f}")
 
     # ── Compute lineup synergy vs opponent scheme ──
     # Get opponent defensive schemes from coaching_profiles
@@ -2575,12 +2608,13 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     syn_diff = home_syn - away_syn
     synergy_as_points = syn_diff * K["SYN_SCALE"]
 
-    # ── Final blend: 45% MOJI + 35% NRtg + 20% SYN ──
+    # ── Final blend: 45% MOJI + 10% season NRtg + 25% recent NRtg + 20% SYN ──
     moji_diff = home_moji - away_moji
     moji_as_points = moji_diff * K["MOJO_SCALE"]
 
     raw_power = (K["MOJI_WEIGHT"] * moji_as_points +
-                 K["NRTG_WEIGHT"] * nrtg_diff +
+                 K["NRTG_SEASON_WEIGHT"] * season_nrtg_diff +
+                 K["NRTG_RECENT_WEIGHT"] * recent_nrtg_diff +
                  K["SYN_WEIGHT"] * synergy_as_points)
 
     proj_spread = -raw_power
@@ -2609,7 +2643,10 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         "away_nrtg": round(away_adj_nrtg, 1),
         "home_nrtg_attrition": round(home_nrtg_attrition, 1),
         "away_nrtg_attrition": round(away_nrtg_attrition, 1),
-        "nrtg_diff": round(nrtg_diff, 1),
+        "nrtg_diff": round(season_nrtg_diff, 1),
+        "recent_nrtg_diff": round(recent_nrtg_diff, 1),
+        "home_recent_nrtg": round(home_recent_nrtg, 1),
+        "away_recent_nrtg": round(away_recent_nrtg, 1),
         "home_syn": round(home_syn, 1),
         "away_syn": round(away_syn, 1),
         "syn_diff": round(syn_diff, 1),
@@ -5451,6 +5488,9 @@ def render_matchup_card(m, idx, team_map):
     home_nrtg = bd.get("home_nrtg", 0)
     away_nrtg = bd.get("away_nrtg", 0)
     nrtg_diff = bd.get("nrtg_diff", 0)
+    recent_nrtg_diff = bd.get("recent_nrtg_diff", 0)
+    home_recent_nrtg = bd.get("home_recent_nrtg", 0)
+    away_recent_nrtg = bd.get("away_recent_nrtg", 0)
     home_syn = bd.get("home_syn", 50)
     away_syn = bd.get("away_syn", 50)
     syn_diff = bd.get("syn_diff", 0)
@@ -5492,20 +5532,21 @@ def render_matchup_card(m, idx, team_map):
         moji_fav = "EVEN"
         moji_fav_val = ""
 
-    # Which team NRtg favors
-    if nrtg_diff > 0:
+    # Which team NRtg favors (combined: season + recent)
+    combined_nrtg = 0.10 * nrtg_diff + 0.25 * recent_nrtg_diff
+    if combined_nrtg > 0:
         nrtg_fav = ha
-        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
-    elif nrtg_diff < 0:
+        nrtg_fav_val = f"+{abs(combined_nrtg / 0.35):.1f}"
+    elif combined_nrtg < 0:
         nrtg_fav = aa
-        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
+        nrtg_fav_val = f"+{abs(combined_nrtg / 0.35):.1f}"
     else:
         nrtg_fav = "EVEN"
         nrtg_fav_val = ""
 
     # Model weighting computations
     moji_weighted = 0.45 * moji_pts
-    nrtg_weighted = 0.35 * nrtg_diff
+    nrtg_weighted = 0.10 * nrtg_diff + 0.25 * recent_nrtg_diff
     syn_weighted = 0.20 * syn_pts
     proj_spread_val = m.get("proj_spread", 0)
 
