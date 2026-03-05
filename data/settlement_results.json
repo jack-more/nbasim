@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-04T17:38:44.199491+00:00",
+  "graded_at": "2026-03-05T18:47:51.669746+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -162,16 +162,214 @@
       "risk": 50.0,
       "result": "L",
       "profit": -50.0
+    },
+    {
+      "date": "2026-02-26",
+      "matchup": "PHX @ LAL",
+      "side": "LAL +3.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-02-27",
+      "matchup": "NYK @ MIL",
+      "side": "NYK -8.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-02-27",
+      "matchup": "MEM @ DAL",
+      "side": "MEM +5.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-02-28",
+      "matchup": "LAL @ GSW",
+      "side": "LAL -4.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-02-28",
+      "matchup": "HOU @ MIA",
+      "side": "MIA +2.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-02-28",
+      "matchup": "NOP @ UTA",
+      "side": "NOP -6.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-03-01",
+      "matchup": "MIN @ DEN",
+      "side": "MIN ML",
+      "type": "ml",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 65.0
+    },
+    {
+      "date": "2026-03-01",
+      "matchup": "MIL @ CHI",
+      "side": "CHI +3.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-03-01",
+      "matchup": "CLE @ BKN",
+      "side": "BKN +12.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-03-01",
+      "matchup": "OKC @ DAL",
+      "side": "DAL +15.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-03-01",
+      "matchup": "NOP @ LAC",
+      "side": "NOP +8.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0
+    },
+    {
+      "date": "2026-03-02",
+      "matchup": "BOS @ MIL",
+      "side": "BOS -7.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "SAS @ PHI",
+      "side": "SAS -7.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "PHX @ SAC",
+      "side": "PHX -9.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "DET @ CLE",
+      "side": "DET -2.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "BKN @ MIA",
+      "side": "BKN +12.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "WAS @ ORL",
+      "side": "WAS +16.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0
+    },
+    {
+      "date": "2026-03-03",
+      "matchup": "OKC @ CHI",
+      "side": "CHI +9.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-03-04",
+      "matchup": "CHA @ BOS",
+      "side": "CHA +7.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45
+    },
+    {
+      "date": "2026-03-04",
+      "matchup": "UTA @ PHI",
+      "side": "UTA +9.5",
+      "type": "spread",
+      "risk": 20.0,
+      "result": "W",
+      "profit": 18.18
+    },
+    {
+      "date": "2026-03-04",
+      "matchup": "ATL @ MIL",
+      "side": "ATL ML",
+      "type": "ml",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 39.0
+    },
+    {
+      "date": "2026-03-04",
+      "matchup": "IND @ LAC",
+      "side": "IND +12.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0
     }
   ],
-  "pending_count": 6,
+  "pending_count": 0,
   "record": {
-    "W": 11,
-    "L": 7,
+    "W": 28,
+    "L": 12,
     "P": 0
   },
-  "total_profit": 90.87,
+  "total_profit": 510.27,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1240.87,
-  "status": "PARTIAL"
+  "new_bankroll": 1660.27,
+  "status": "SETTLED"
 }
