@@ -5532,17 +5532,27 @@ def render_matchup_card(m, idx, team_map):
         moji_fav = "EVEN"
         moji_fav_val = ""
 
-    # Which team NRtg favors (combined: season + recent)
-    combined_nrtg = 0.10 * nrtg_diff + 0.25 * recent_nrtg_diff
-    if combined_nrtg > 0:
+    # Which team season NRtg favors
+    if nrtg_diff > 0:
         nrtg_fav = ha
-        nrtg_fav_val = f"+{abs(combined_nrtg / 0.35):.1f}"
-    elif combined_nrtg < 0:
+        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
+    elif nrtg_diff < 0:
         nrtg_fav = aa
-        nrtg_fav_val = f"+{abs(combined_nrtg / 0.35):.1f}"
+        nrtg_fav_val = f"+{abs(nrtg_diff):.1f}"
     else:
         nrtg_fav = "EVEN"
         nrtg_fav_val = ""
+
+    # Which team L10 NRtg favors
+    if recent_nrtg_diff > 0:
+        l10_fav = ha
+        l10_fav_val = f"+{abs(recent_nrtg_diff):.1f}"
+    elif recent_nrtg_diff < 0:
+        l10_fav = aa
+        l10_fav_val = f"+{abs(recent_nrtg_diff):.1f}"
+    else:
+        l10_fav = "EVEN"
+        l10_fav_val = ""
 
     # Model weighting computations
     moji_weighted = 0.45 * moji_pts
@@ -5581,6 +5591,13 @@ def render_matchup_card(m, idx, team_map):
                 <span class="moji-edge-sm">{nrtg_fav} {nrtg_fav_val}</span>
             </div>
             <div class="moji-row">
+                <span class="moji-label">L10</span>
+                <span class="moji-val">{aa} {away_recent_nrtg:+.1f}</span>
+                <div class="moji-mid-spacer"></div>
+                <span class="moji-val">{ha} {home_recent_nrtg:+.1f}</span>
+                <span class="moji-edge-sm">{l10_fav} {l10_fav_val}</span>
+            </div>
+            <div class="moji-row">
                 <span class="moji-label">SYN</span>
                 <span class="moji-val">{aa} {away_syn:.1f}</span>
                 <div class="moji-mid-spacer"></div>
@@ -5589,7 +5606,7 @@ def render_matchup_card(m, idx, team_map):
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI ({moji_weighted:+.1f}) + 35% NRtg ({nrtg_weighted:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
+                <span class="moji-model-formula">45% MOJI ({moji_weighted:+.1f}) + 10% NRtg ({0.10 * nrtg_diff:+.1f}) + 25% L10 ({0.25 * recent_nrtg_diff:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA \u25B2{TEAM_HCA.get(ha, 1.8):.1f} {ha}</span>
@@ -6112,9 +6129,9 @@ def render_info_page():
                 <div class="formula-row"><span>Step 3</span><span>Compute lineup quality rating</span></div>
                 <div class="formula-row"><span>Step 4</span><span>Compute adjusted MOJI with archetype-aware usage redistribution</span></div>
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
-                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg (Home NRtg + HCA [1.8 base, 3.8 DEN, 3.5 BOS], with B2B −2.0/−2.5)</span></div>
+                <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg: season-long + trailing 10-game (HCA [1.8 base, 3.8 DEN, 3.5 BOS], B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
-                <div class="formula-row"><span>Step 8</span><span>Blend: 45% SYN + 20% MOJI + 15% Adjusted NRtg + 20% H2H = raw power</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Blend: 45% MOJI + 10% Season NRtg + 25% Trailing 10-Game NRtg + 20% SYN = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">
@@ -10635,10 +10652,10 @@ def generate_js():
                 '</tr></thead><tbody>';
             let tPts=0,tReb=0,tAst=0,tStl=0,tBlk=0,tMin=0,tFgm=0,tFga=0,tTpm=0,tTpa=0,tFtm=0,tFta=0;
             players.forEach((p, idx) => {
-                const key = (p.name + '|' + abbr).replace(/'/g, "\\\\'");
+                const key = (p.name + '|' + abbr).replace(/'/g, '');
                 simShotData[p.name + '|' + abbr] = p;
                 const cls = p.isStarter ? 'sim-box-starter' : 'sim-box-bench';
-                html += '<tr class="'+cls+' sim-box-clickable" onclick="toggleShotChart(\\x27'+key+'\\x27,\\x27'+color+'\\x27)">' +
+                html += '<tr class="'+cls+' sim-box-clickable" data-shot-key="'+key+'" data-shot-color="'+color+'">' +
                     '<td>'+p.name+'</td><td>'+p.min+'</td><td>'+p.pts+'</td>' +
                     '<td>'+p.reb+'</td><td>'+p.ast+'</td><td>'+p.stl+'</td><td>'+p.blk+'</td>' +
                     '<td>'+p.fgm+'-'+p.fga+'</td><td>'+p.tpm+'-'+p.tpa+'</td><td>'+p.ftm+'-'+p.fta+'</td>' +
@@ -10652,6 +10669,16 @@ def generate_js():
             html += '</tbody></table></div>';
             return html;
         }
+
+        // Delegated click for box score rows (avoid inline onclick with quote issues)
+        document.getElementById('simBoxScores').addEventListener('click', function(e) {
+            const row = e.target.closest('.sim-box-clickable');
+            if (row) {
+                const key = row.dataset.shotKey;
+                const color = row.dataset.shotColor;
+                if (key && color) toggleShotChart(key, color);
+            }
+        });
 
         function simResim() {
             document.getElementById('simCenterResults').style.display = 'none';
