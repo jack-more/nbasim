@@ -39,15 +39,26 @@ SEASON_ID = "2025-26"
 
 
 def refresh_recent_games():
-    """Collect game schedule for the last 10 days (fills any gaps).
-    Non-fatal — if NBA.com times out, we still have existing game records."""
-    logger.info(f"=== Refreshing game schedule (last {LOOKBACK_DAYS} days) ===")
+    """Collect game schedule using Basketball-Reference (primary) or NBA API (fallback)."""
+    logger.info(f"=== Refreshing game schedule ===")
+
+    # Try Basketball-Reference first (doesn't get blocked from cloud IPs)
+    try:
+        from collectors.games_bbref import BRefGameCollector
+        bbref = BRefGameCollector(DB_PATH)
+        new_count = bbref.update_games_table(SEASON_ID)
+        logger.info(f"Basketball-Reference: {new_count} games added/updated")
+        return
+    except Exception as e:
+        logger.warning(f"Basketball-Reference failed: {e}")
+
+    # Fallback to NBA API
     try:
         game_collector = GameCollector(DB_PATH)
         game_collector.collect_for_season(SEASON_ID)
-        logger.info("Game schedule refreshed.")
+        logger.info("Game schedule refreshed via NBA API.")
     except Exception as e:
-        logger.warning(f"Game schedule refresh failed (non-fatal, using existing data): {e}")
+        logger.warning(f"Both data sources failed. NBA API error: {e}")
 
 
 def collect_missing_boxscores():

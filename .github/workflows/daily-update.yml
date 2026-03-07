@@ -6,13 +6,9 @@ on:
     # Settle blog + load tomorrow's slate (BM fallback if RotoWire stale)
     - cron: '30 7 * * *'
 
-    # ── EARLY AM: 5:00 AM PST = 1:00 PM UTC ──
-    # Overnight refresh — BM fallback or RotoWire with confirmed lineups
-    - cron: '0 13 * * *'
-
-    # ── PRE-GAME: 9:30 AM PST = 5:30 PM UTC ──
-    # Final pre-tip update — RotoWire confirmed lineups + fresh DSI
-    - cron: '30 17 * * *'
+    # ── MORNING UPDATE: 5:30 AM PST = 1:30 PM UTC ──
+    # First daily stats refresh — RotoWire lineups + fresh odds + BR game data
+    - cron: '30 13 * * *'
 
     # ── TRENDS REFRESH: 8:00 AM PST = 4:00 PM UTC ──
     # Collect missing boxscores (14-day window) + refresh lineup combos + regenerate HTML
@@ -21,6 +17,10 @@ on:
     # ── POST-GAME SETTLEMENT: 9:00 AM PST = 5:00 PM UTC ──
     # Grades yesterday's picks, updates bankroll + blog
     - cron: '0 17 * * *'
+
+    # ── PRE-GAME UPDATE: 10:00 AM PST = 6:00 PM UTC ──
+    # Second daily stats refresh — final confirmed lineups + fresh odds
+    - cron: '0 18 * * *'
 
   workflow_dispatch:
     inputs:
@@ -91,17 +91,23 @@ jobs:
           python main.py predict 2>&1 | tail -10
           echo "=== Full pipeline complete ==="
 
-      # ── Always: pull fresh odds + generate HTML ──
+      # ── Always: pull fresh odds + generate HTML (with retry) ──
       - name: Generate dashboard (fresh odds + props)
-        run: python generate_frontend.py
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Attempt $attempt/3 ==="
+            python generate_frontend.py && break
+            echo "Attempt $attempt failed, waiting 60s before retry..."
+            sleep 60
+          done
 
-      # ── Capture picks on final pre-game run (9:30 AM PST) ──
+      # ── Capture picks on final pre-game run (10:00 AM PST) ──
       - name: Capture picks
-        if: github.event.schedule == '30 17 * * *' || inputs.full_pipeline == 'true'
+        if: github.event.schedule == '0 18 * * *' || inputs.full_pipeline == 'true'
         run: python scripts/capture_picks.py
 
       - name: Generate blog entry
-        if: github.event.schedule == '30 17 * * *' || inputs.full_pipeline == 'true'
+        if: github.event.schedule == '0 18 * * *' || inputs.full_pipeline == 'true'
         run: python scripts/generate_blog_entry.py
 
       # ── Commit + push ──
@@ -231,11 +237,23 @@ jobs:
         run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
 
       - name: Refresh trends (collect missing boxscores + lineup stats)
-        timeout-minutes: 20
-        run: python scripts/refresh_trends.py
+        timeout-minutes: 25
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Trends refresh attempt $attempt/3 ==="
+            python scripts/refresh_trends.py && break
+            echo "Attempt $attempt failed, waiting 60s before retry..."
+            sleep 60
+          done
 
       - name: Regenerate dashboard with fresh trends
-        run: python generate_frontend.py
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Generate attempt $attempt/3 ==="
+            python generate_frontend.py && break
+            echo "Attempt $attempt failed, waiting 30s before retry..."
+            sleep 30
+          done
 
       - name: Commit and push
         run: |
