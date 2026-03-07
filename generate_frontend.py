@@ -5708,48 +5708,28 @@ def render_matchup_card(m, idx, team_map):
     prediction_btns = ""
 
     kalshi_data = pm_data.get("kalshi") if pm_data else None
-    poly_data = pm_data.get("polymarket") if pm_data else None
 
-    if kalshi_data or poly_data:
-        pm_btns_html = ""
-
-        if kalshi_data:
-            k_home = kalshi_data["home_prob"]
-            k_away = kalshi_data["away_prob"]
-            # Show the favorite's probability
-            if k_home >= k_away:
-                k_team = ha
-                k_prob = k_home
-            else:
-                k_team = aa
-                k_prob = k_away
-            k_link = "https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7"
-            pm_btns_html += f'''<a href="{k_link}" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
-                <span class="sb-name" style="color:#00C480">KLSH</span>
-                <span class="sb-line">{k_team} {k_prob*100:.0f}%</span>
-            </a>'''
-
-        if poly_data:
-            p_home = poly_data["home_prob"]
-            p_away = poly_data["away_prob"]
-            if p_home >= p_away:
-                p_team = ha
-                p_prob = p_home
-            else:
-                p_team = aa
-                p_prob = p_away
-            poly_slug = poly_data.get("slug", "")
-            p_link = f"https://polymarket.com/event/{poly_slug}" if poly_slug else "https://polymarket.com"
-            pm_btns_html += f'''<a href="{p_link}" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
-                <span class="sb-name" style="color:#0066FF">POLY</span>
-                <span class="sb-line">{p_team} {p_prob*100:.0f}%</span>
-            </a>'''
+    if kalshi_data:
+        k_home = kalshi_data["home_prob"]
+        k_away = kalshi_data["away_prob"]
+        # Show the favorite's probability
+        if k_home >= k_away:
+            k_team = ha
+            k_prob = k_home
+        else:
+            k_team = aa
+            k_prob = k_away
+        k_link = "https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7"
+        pm_btn_html = f'''<a href="{k_link}" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+            <span class="sb-name" style="color:#00C480">KLSH</span>
+            <span class="sb-line">{k_team} {k_prob*100:.0f}%</span>
+        </a>'''
 
         prediction_btns = f'''
         <!-- Prediction Markets -->
         <div class="mc-sportsbooks mc-prediction-markets">
             <span class="sb-header">MARKETS</span>
-            {pm_btns_html}
+            {pm_btn_html}
         </div>'''
 
     return f"""
