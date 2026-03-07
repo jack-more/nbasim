@@ -583,6 +583,20 @@
             color: #999;
             font-size: 9px;
         }
+        .sb-btn-featured {
+            background: linear-gradient(135deg, rgba(255,107,0,0.08), rgba(255,107,0,0.03));
+            border-width: 1.5px;
+        }
+        .sb-btn-featured:hover {
+            background: linear-gradient(135deg, rgba(255,107,0,0.15), rgba(255,107,0,0.06));
+        }
+        .mc-prediction-markets {
+            border-top-style: dotted;
+        }
+        .pm-btn .sb-line {
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
 
         /* Expand button */
         .expand-btn {
@@ -2829,7 +2843,7 @@
         <div class="tab-content active" id="tab-slate">
             <div class="section-header">
                 <h2>MAR 7 SLATE</h2>
-                <span class="section-sub">6 games</span>
+                <span class="section-sub">5 games</span>
             </div>
             <div class="proj-disclaimer" style="margin-bottom:12px">
                 Lines from sportsbooks via The Odds API. Projected lines marked (PROJ. SPREAD) / (PROJ O/U) where real data unavailable.
@@ -2840,874 +2854,7 @@
             </div>
             <div class="matchup-list" id="matchupList">
                 
-    <div class="matchup-card" data-conf="4" data-edge="1.5" data-total="225.0" data-idx="0">
-        <div class="mc-header">
-            <div class="mc-team mc-away">
-                <img src="https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg" class="mc-logo" alt="ORL" onerror="this.style.display='none'">
-                <div class="mc-team-info">
-                    <span class="mc-abbr">ORL</span>
-                    <span class="mc-mojo-rank">MOJO #14</span>
-                    <span class="mc-record">29-24</span>
-                </div>
-            </div>
-            <div class="mc-center">
-                <div class="mc-spread ma-premium" style="color:#FFD600">MIN -6.5</div>
-                <div class="mc-total">O/U 225.0</div>
-                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> MIN -6.5 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
-                <div class="mc-implied">ORL 109 — MIN 116</div>
-                <div class="mc-sim-proj ma-premium">MIN -8.0 (SIM) · EDGE 1.5 MIN</div>
-            </div>
-            <div class="mc-team mc-home">
-                <div class="mc-team-info right">
-                    <span class="mc-abbr">MIN</span>
-                    <span class="mc-mojo-rank">MOJO #6</span>
-                    <span class="mc-record">35-23</span>
-                </div>
-                <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="mc-logo" alt="MIN" onerror="this.style.display='none'">
-            </div>
-        </div>
-
-        <!-- Tug of war bar -->
-        <div class="tow-bar">
-            <div class="tow-fill tow-away" style="width:47.0%; background:#0077C0;"></div>
-            <div class="tow-fill tow-home" style="width:53.0%; background:#0C2340;"></div>
-            <div class="tow-mid"></div>
-        </div>
-        <div class="tow-labels">
-            <span>ORL MOJO 318</span>
-            <span>MIN MOJO 358</span>
-        </div>
-
-        <!-- Schemes row -->
-        <div class="mc-schemes">
-            <div class="scheme-tag" style="background:#0077C0; color:#C4CED4">Run-and-Gun (Mid)</div>
-            <div class="scheme-tag" style="background:#0077C0; color:#C4CED4">Blitz (Avg)</div>
-            <div class="scheme-divider">vs</div>
-            <div class="scheme-tag" style="background:#0C2340; color:#236192">ISO-Heavy (Fast)</div>
-            <div class="scheme-tag" style="background:#0C2340; color:#236192">Switch-Everything (Good)</div>
-        </div>
-
-        <!-- MOJI Breakdown -->
-        
-        <div class="moji-breakdown">
-            <div class="moji-row">
-                <span class="moji-label">MOJI</span>
-                <span class="moji-val">ORL 51.4</span>
-                <div class="moji-bar-mini">
-                    <div class="moji-bar-away" style="width:45%; background:#0077C0;"></div>
-                    <div class="moji-bar-home" style="width:55%; background:#0C2340;"></div>
-                </div>
-                <span class="moji-val">MIN 63.9</span>
-                <span class="moji-edge-sm">MIN +12.5</span>
-            </div>
-            <div class="moji-row">
-                <span class="moji-label">NRtg</span>
-                <span class="moji-val">ORL -3.7</span>
-                <div class="moji-mid-spacer"></div>
-                <span class="moji-val">MIN +6.7</span>
-                <span class="moji-edge-sm">MIN +10.4</span>
-            </div>
-            <div class="moji-row">
-                <span class="moji-label">L10</span>
-                <span class="moji-val">ORL +3.5</span>
-                <div class="moji-mid-spacer"></div>
-                <span class="moji-val">MIN +2.9</span>
-                <span class="moji-edge-sm">MIN +3.6</span>
-            </div>
-            <div class="moji-row">
-                <span class="moji-label">SYN</span>
-                <span class="moji-val">ORL 55.0</span>
-                <div class="moji-mid-spacer"></div>
-                <span class="moji-val">MIN 65.1</span>
-                <span class="moji-edge-sm">MIN +10.1</span>
-            </div>
-            <div class="moji-row moji-model-row ma-premium">
-                <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI (+5.6) + 10% NRtg (+1.0) + 25% L10 (+0.9) + 20% SYN (+0.3) = <strong>PROJ MIN -8.0</strong></span>
-            </div>
-            <div class="moji-row moji-tags">
-                <span class="hca-badge">HCA ▲1.8 MIN</span>
-                
-                <span class="out-badge">ORL: 3 OUT</span>
-            </div>
-        </div>
-
-        
-
-        <!-- Expand button -->
-        <button class="expand-btn" onclick="toggleExpand(this)">
-            <span>▼ VIEW LINEUPS</span>
-        </button>
-
-        <!-- Expanded lineup section -->
-        <div class="mc-expanded" style="display:none">
-            <div class="lineup-half">
-                <div class="lineup-team-header" style="border-color:#0077C0">ORL Magic</div>
-                
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Paolo Banchero" data-arch="Small-Ball 4" data-mojo="62" data-range="59-67"
-         data-pts="21.5" data-ast="5.0" data-reb="8.4"
-         data-stl="0.7" data-blk="0.7" data-ts="55.5"
-         data-net="-1.0" data-usg="27.0" data-mpg="34.7"
-         data-team="ORL" data-pid="1631094"
-         data-scoring-pct="42.0" data-playmaking-pct="15.0"
-         data-defense-pct="22.0" data-efficiency-pct="36.0"
-         data-impact-pct="-5.0"
-         data-raw-mojo="62" data-solo-impact="38.21"
-         data-syn-score="45.03" data-fit-score="45.03"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;J. Suggs (+67.4 SYN, 35 poss)&quot;, &quot;F. Wagner (+54.3 SYN, 40 poss)&quot;, &quot;G. Bitadze (+46.7 SYN, 19 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631094.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">P. Banchero </span>
-            <span class="pr-meta">F ⚡ Small-Ball 4</span>
-        </div>
-        <div class="pr-stats">
-            <span>22p 5a 8r</span>
-            <span>35 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">62</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">59-67</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Desmond Bane" data-arch="Sharpshooter" data-mojo="66" data-range="63-73"
-         data-pts="20.1" data-ast="4.1" data-reb="4.2"
-         data-stl="1.0" data-blk="0.5" data-ts="60.0"
-         data-net="1.5" data-usg="22.7" data-mpg="34.0"
-         data-team="ORL" data-pid="1630217"
-         data-scoring-pct="41.0" data-playmaking-pct="13.0"
-         data-defense-pct="38.0" data-efficiency-pct="41.0"
-         data-impact-pct="8.0"
-         data-raw-mojo="65" data-solo-impact="60.91"
-         data-syn-score="53.59" data-fit-score="53.6"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;J. Suggs (+62.9 SYN, 44 poss)&quot;, &quot;A. Black (+57.6 SYN, 43 poss)&quot;, &quot;W. Carter Jr. (+55.6 SYN, 50 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630217.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">D. Bane </span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>20p 4a 4r</span>
-            <span>34 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">66</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">63-73</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Anthony Black" data-arch="Sharpshooter" data-mojo="62" data-range="59-71"
-         data-pts="15.9" data-ast="3.9" data-reb="4.0"
-         data-stl="1.4" data-blk="0.7" data-ts="56.5"
-         data-net="0.7" data-usg="21.7" data-mpg="31.5"
-         data-team="ORL" data-pid="1641710"
-         data-scoring-pct="37.0" data-playmaking-pct="14.0"
-         data-defense-pct="39.0" data-efficiency-pct="43.0"
-         data-impact-pct="4.0"
-         data-raw-mojo="59" data-solo-impact="60.91"
-         data-syn-score="53.26" data-fit-score="53.24"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;J. Suggs (+75.3 SYN, 26 poss)&quot;, &quot;F. Wagner (+58.6 SYN, 35 poss)&quot;, &quot;D. Bane (+57.6 SYN, 43 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641710.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">A. Black </span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>16p 4a 4r</span>
-            <span>32 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">62</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">59-71</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Wendell Carter Jr." data-arch="Stretch 5" data-mojo="60" data-range="57-68"
-         data-pts="11.4" data-ast="2.1" data-reb="7.6"
-         data-stl="0.8" data-blk="0.6" data-ts="59.6"
-         data-net="1.8" data-usg="15.4" data-mpg="29.6"
-         data-team="ORL" data-pid="1628976"
-         data-scoring-pct="31.0" data-playmaking-pct="9.0"
-         data-defense-pct="39.0" data-efficiency-pct="55.0"
-         data-impact-pct="9.0"
-         data-raw-mojo="57" data-solo-impact="50.67"
-         data-syn-score="54.62" data-fit-score="54.64"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;J. Suggs (+64.4 SYN, 36 poss)&quot;, &quot;J. Isaac (+61.2 SYN, 18 poss)&quot;, &quot;D. Bane (+55.6 SYN, 50 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628976.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">W. Carter Jr. </span>
-            <span class="pr-meta">C-F 📐 Stretch 5</span>
-        </div>
-        <div class="pr-stats">
-            <span>11p 2a 8r</span>
-            <span>30 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">60</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">57-68</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Jalen Suggs" data-arch="Scoring Guard" data-mojo="76" data-range="73-80"
-         data-pts="13.9" data-ast="5.4" data-reb="4.0"
-         data-stl="1.9" data-blk="0.8" data-ts="56.9"
-         data-net="6.5" data-usg="22.5" data-mpg="26.5"
-         data-team="ORL" data-pid="1630591"
-         data-scoring-pct="32.0" data-playmaking-pct="19.0"
-         data-defense-pct="80.0" data-efficiency-pct="43.0"
-         data-impact-pct="32.0"
-         data-raw-mojo="77" data-solo-impact="74.85"
-         data-syn-score="73.75" data-fit-score="73.76"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;A. Black (+75.3 SYN, 26 poss)&quot;, &quot;P. Banchero (+67.4 SYN, 35 poss)&quot;, &quot;F. Wagner (+67.1 SYN, 45 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630591.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Suggs </span>
-            <span class="pr-meta">G ⚡ Scoring Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>14p 5a 4r</span>
-            <span>26 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">76</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">73-80</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Tristan da Silva" data-arch="Stretch Big" data-mojo="54" data-range="46-68"
-         data-pts="8.6" data-ast="1.2" data-reb="3.4"
-         data-stl="0.8" data-blk="0.3" data-ts="54.6"
-         data-net="0.1" data-usg="15.9" data-mpg="22.7"
-         data-team="ORL" data-pid="1641783"
-         data-scoring-pct="28.0" data-playmaking-pct="6.0"
-         data-defense-pct="40.0" data-efficiency-pct="60.0"
-         data-impact-pct="1.0"
-         data-raw-mojo="47" data-solo-impact="70.44"
-         data-syn-score="48.21" data-fit-score="48.22"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;F. Wagner (+53.9 SYN, 33 poss)&quot;, &quot;J. Suggs (+53.1 SYN, 23 poss)&quot;, &quot;G. Bitadze (+51.0 SYN, 22 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641783.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">T. da Silva </span>
-            <span class="pr-meta">F 📐 Stretch Big</span>
-        </div>
-        <div class="pr-stats">
-            <span>9p 1a 3r</span>
-            <span>23 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">54</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">46-68</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Goga Bitadze" data-arch="Rim Protector" data-mojo="57" data-range="50-72"
-         data-pts="5.8" data-ast="1.1" data-reb="5.0"
-         data-stl="0.7" data-blk="1.2" data-ts="71.5"
-         data-net="0.7" data-usg="11.7" data-mpg="15.8"
-         data-team="ORL" data-pid="1629048"
-         data-scoring-pct="18.0" data-playmaking-pct="5.0"
-         data-defense-pct="50.0" data-efficiency-pct="73.0"
-         data-impact-pct="6.0"
-         data-raw-mojo="51" data-solo-impact="70.33"
-         data-syn-score="52.4" data-fit-score="52.43"
-         data-inj-delta="-2"
-         data-top-pairs="[&quot;F. Wagner (+55.9 SYN, 23 poss)&quot;, &quot;A. Black (+53.6 SYN, 21 poss)&quot;, &quot;T. da Silva (+51.0 SYN, 22 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629048.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">G. Bitadze </span>
-            <span class="pr-meta">C-F 🏰 Rim Protector</span>
-        </div>
-        <div class="pr-stats">
-            <span>6p 1a 5r</span>
-            <span>16 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">57</span><span class="pr-inj-delta inj-down">-2</span>
-            <span class="pr-mojo-range">50-72</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Noah Penda" data-arch="Athletic Wing" data-mojo="41" data-range="34-60"
-         data-pts="4.6" data-ast="1.1" data-reb="3.6"
-         data-stl="0.5" data-blk="0.4" data-ts="53.4"
-         data-net="-2.5" data-usg="15.3" data-mpg="13.3"
-         data-team="ORL" data-pid="1642869"
-         data-scoring-pct="18.0" data-playmaking-pct="6.0"
-         data-defense-pct="23.0" data-efficiency-pct="69.0"
-         data-impact-pct="-41.0"
-         data-raw-mojo="33" data-solo-impact="54.58"
-         data-syn-score="23.53" data-fit-score="23.53"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. Bane (+41.0 SYN, 19 poss)&quot;, &quot;P. Banchero (+19.4 SYN, 18 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642869.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">N. Penda </span>
-            <span class="pr-meta">G-F 💨 Athletic Wing</span>
-        </div>
-        <div class="pr-stats">
-            <span>5p 1a 4r</span>
-            <span>13 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">41</span>
-            <span class="pr-mojo-range">34-60</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Jevon Carter" data-arch="Combo Guard" data-mojo="48" data-range="45-74"
-         data-pts="5.7" data-ast="1.1" data-reb="1.3"
-         data-stl="0.6" data-blk="0.2" data-ts="57.2"
-         data-net="-6.8" data-usg="18.4" data-mpg="12.4"
-         data-team="ORL" data-pid="1628975"
-         data-scoring-pct="20.0" data-playmaking-pct="6.0"
-         data-defense-pct="12.0" data-efficiency-pct="66.0"
-         data-impact-pct="-544.0"
-         data-raw-mojo="33" data-solo-impact="59.33"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="3"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628975.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Carter </span>
-            <span class="pr-meta">G 🔄 Combo Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>6p 1a 1r</span>
-            <span>12 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">48</span><span class="pr-inj-delta inj-up">+3</span>
-            <span class="pr-mojo-range">45-74</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Moritz Wagner" data-arch="nan" data-mojo="45" data-range="34-64"
-         data-pts="9.2" data-ast="0.8" data-reb="3.0"
-         data-stl="0.7" data-blk="0.1" data-ts="64.1"
-         data-net="-8.5" data-usg="25.6" data-mpg="12.3"
-         data-team="ORL" data-pid="1629021"
-         data-scoring-pct="26.0" data-playmaking-pct="3.0"
-         data-defense-pct="12.0" data-efficiency-pct="61.0"
-         data-impact-pct="-680.0"
-         data-raw-mojo="33" data-solo-impact="67.89"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="0"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629021.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">M. Wagner </span>
-            <span class="pr-meta">F-C ◆ nan</span>
-        </div>
-        <div class="pr-stats">
-            <span>9p 1a 3r</span>
-            <span>12 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">45</span>
-            <span class="pr-mojo-range">34-64</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Jett Howard" data-arch="Combo Guard" data-mojo="48" data-range="45-72"
-         data-pts="4.8" data-ast="0.8" data-reb="1.3"
-         data-stl="0.2" data-blk="0.2" data-ts="54.0"
-         data-net="-1.3" data-usg="17.6" data-mpg="10.9"
-         data-team="ORL" data-pid="1641724"
-         data-scoring-pct="18.0" data-playmaking-pct="5.0"
-         data-defense-pct="6.0" data-efficiency-pct="69.0"
-         data-impact-pct="-32.0"
-         data-raw-mojo="33" data-solo-impact="63.16"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="3"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641724.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Howard </span>
-            <span class="pr-meta">G 🔄 Combo Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>5p 1a 1r</span>
-            <span>11 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">48</span><span class="pr-inj-delta inj-up">+3</span>
-            <span class="pr-mojo-range">45-72</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Jamal Cain" data-arch="nan" data-mojo="47" data-range="44-71"
-         data-pts="2.6" data-ast="0.4" data-reb="0.8"
-         data-stl="0.3" data-blk="0.1" data-ts="52.1"
-         data-net="0.2" data-usg="16.8" data-mpg="6.9"
-         data-team="ORL" data-pid="1631288"
-         data-scoring-pct="11.0" data-playmaking-pct="3.0"
-         data-defense-pct="20.0" data-efficiency-pct="77.0"
-         data-impact-pct="6.0"
-         data-raw-mojo="33" data-solo-impact="59.78"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="3"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631288.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Cain </span>
-            <span class="pr-meta">F ◆ nan</span>
-        </div>
-        <div class="pr-stats">
-            <span>3p 0a 1r</span>
-            <span>7 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">47</span><span class="pr-inj-delta inj-up">+3</span>
-            <span class="pr-mojo-range">44-71</span>
-        </div>
-    </div>
-    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
-         data-name="Franz Wagner" data-arch="Small-Ball 4" data-mojo="68" data-range="65-75"
-         data-pts="21.3" data-ast="3.6" data-reb="5.8"
-         data-stl="1.1" data-blk="0.3" data-ts="59.1"
-         data-net="1.7" data-usg="25.1" data-mpg="31.8"
-         data-team="ORL" data-pid="1630532"
-         data-scoring-pct="43.0" data-playmaking-pct="11.0"
-         data-defense-pct="35.0" data-efficiency-pct="40.0"
-         data-impact-pct="9.0"
-         data-raw-mojo="65" data-solo-impact="68.72"
-         data-syn-score="61.05" data-fit-score="61.04"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;J. Suggs (+67.1 SYN, 45 poss)&quot;, &quot;A. Black (+58.6 SYN, 35 poss)&quot;, &quot;G. Bitadze (+55.9 SYN, 23 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630532.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">F. Wagner <span class="rw-status-badge rw-out">OUT</span></span>
-            <span class="pr-meta">F ⚡ Small-Ball 4</span>
-        </div>
-        <div class="pr-stats">
-            <span>21p 4a 6r</span>
-            <span>32 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">68</span>
-            <span class="pr-mojo-range">65-75</span>
-        </div>
-    </div>
-    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
-         data-name="Jase Richardson" data-arch="Sharpshooter" data-mojo="46" data-range="36-63"
-         data-pts="4.9" data-ast="1.2" data-reb="1.3"
-         data-stl="0.3" data-blk="0" data-ts="57.6"
-         data-net="2.3" data-usg="16.5" data-mpg="11.8"
-         data-team="ORL" data-pid="1642859"
-         data-scoring-pct="18.0" data-playmaking-pct="6.0"
-         data-defense-pct="21.0" data-efficiency-pct="69.0"
-         data-impact-pct="29.0"
-         data-raw-mojo="35" data-solo-impact="60.28"
-         data-syn-score="40.98" data-fit-score="40.92"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. Bane (+42.5 SYN, 16 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642859.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Richardson <span class="rw-status-badge rw-out">OUT</span></span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>5p 1a 1r</span>
-            <span>12 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">46</span>
-            <span class="pr-mojo-range">36-63</span>
-        </div>
-    </div>
-    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
-         data-name="Jonathan Isaac" data-arch="Traditional PF" data-mojo="52" data-range="38-68"
-         data-pts="2.7" data-ast="0.4" data-reb="2.6"
-         data-stl="0.4" data-blk="0.6" data-ts="50.9"
-         data-net="-0.4" data-usg="12.2" data-mpg="10.1"
-         data-team="ORL" data-pid="1628371"
-         data-scoring-pct="12.0" data-playmaking-pct="3.0"
-         data-defense-pct="63.0" data-efficiency-pct="78.0"
-         data-impact-pct="-7.0"
-         data-raw-mojo="43" data-solo-impact="62.42"
-         data-syn-score="67.83" data-fit-score="67.89"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;W. Carter Jr. (+61.2 SYN, 18 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628371.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Isaac <span class="rw-status-badge rw-out">OUT</span></span>
-            <span class="pr-meta">F 🏋️ Traditional PF</span>
-        </div>
-        <div class="pr-stats">
-            <span>3p 0a 3r</span>
-            <span>10 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">52</span>
-            <span class="pr-mojo-range">38-68</span>
-        </div>
-    </div>
-            </div>
-            <div class="lineup-half">
-                <div class="lineup-team-header" style="border-color:#0C2340">MIN Timberwolves</div>
-                
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Anthony Edwards" data-arch="Scoring Guard" data-mojo="75" data-range="72-77"
-         data-pts="29.5" data-ast="3.6" data-reb="5.3"
-         data-stl="1.4" data-blk="0.8" data-ts="62.1"
-         data-net="4.3" data-usg="30.6" data-mpg="35.5"
-         data-team="MIN" data-pid="1630162"
-         data-scoring-pct="50.0" data-playmaking-pct="9.0"
-         data-defense-pct="35.0" data-efficiency-pct="35.0"
-         data-impact-pct="19.0"
-         data-raw-mojo="76" data-solo-impact="49.83"
-         data-syn-score="60.72" data-fit-score="60.71"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. DiVincenzo (+66.6 SYN, 46 poss)&quot;, &quot;J. McDaniels (+65.0 SYN, 49 poss)&quot;, &quot;R. Gobert (+64.0 SYN, 51 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630162.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">A. Edwards </span>
-            <span class="pr-meta">G ⚡ Scoring Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>30p 4a 5r</span>
-            <span>36 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">75</span>
-            <span class="pr-mojo-range">72-77</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Julius Randle" data-arch="Small-Ball 4" data-mojo="70" data-range="67-76"
-         data-pts="22.1" data-ast="5.3" data-reb="6.9"
-         data-stl="1.1" data-blk="0.3" data-ts="59.6"
-         data-net="4.6" data-usg="25.9" data-mpg="33.5"
-         data-team="MIN" data-pid="203944"
-         data-scoring-pct="42.0" data-playmaking-pct="15.0"
-         data-defense-pct="24.0" data-efficiency-pct="37.0"
-         data-impact-pct="19.0"
-         data-raw-mojo="67" data-solo-impact="60.91"
-         data-syn-score="64.04" data-fit-score="64.02"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;R. Gobert (+66.7 SYN, 41 poss)&quot;, &quot;J. McDaniels (+64.6 SYN, 53 poss)&quot;, &quot;D. DiVincenzo (+64.0 SYN, 49 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203944.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Randle </span>
-            <span class="pr-meta">F-C ⚡ Small-Ball 4</span>
-        </div>
-        <div class="pr-stats">
-            <span>22p 5a 7r</span>
-            <span>34 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">70</span>
-            <span class="pr-mojo-range">67-76</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Jaden McDaniels" data-arch="Stretch Forward" data-mojo="68" data-range="65-75"
-         data-pts="14.9" data-ast="2.9" data-reb="4.4"
-         data-stl="1.0" data-blk="1.0" data-ts="61.7"
-         data-net="5.6" data-usg="17.9" data-mpg="32.2"
-         data-team="MIN" data-pid="1630183"
-         data-scoring-pct="35.0" data-playmaking-pct="10.0"
-         data-defense-pct="44.0" data-efficiency-pct="49.0"
-         data-impact-pct="25.0"
-         data-raw-mojo="64" data-solo-impact="59.14"
-         data-syn-score="70.37" data-fit-score="70.35"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. DiVincenzo (+67.2 SYN, 50 poss)&quot;, &quot;R. Gobert (+66.9 SYN, 49 poss)&quot;, &quot;A. Edwards (+65.0 SYN, 49 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630183.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. McDaniels </span>
-            <span class="pr-meta">F 📐 Stretch Forward</span>
-        </div>
-        <div class="pr-stats">
-            <span>15p 3a 4r</span>
-            <span>32 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">68</span>
-            <span class="pr-mojo-range">65-75</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Rudy Gobert" data-arch="Rim Protector" data-mojo="75" data-range="72-77"
-         data-pts="11.2" data-ast="1.7" data-reb="11.3"
-         data-stl="0.7" data-blk="1.6" data-ts="67.6"
-         data-net="7.3" data-usg="12.6" data-mpg="31.3"
-         data-team="MIN" data-pid="203497"
-         data-scoring-pct="30.0" data-playmaking-pct="7.0"
-         data-defense-pct="65.0" data-efficiency-pct="60.0"
-         data-impact-pct="24.0"
-         data-raw-mojo="74" data-solo-impact="62.03"
-         data-syn-score="72.71" data-fit-score="72.72"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. DiVincenzo (+70.2 SYN, 50 poss)&quot;, &quot;J. McDaniels (+66.9 SYN, 49 poss)&quot;, &quot;J. Randle (+66.7 SYN, 41 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203497.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">R. Gobert </span>
-            <span class="pr-meta">C 🏰 Rim Protector</span>
-        </div>
-        <div class="pr-stats">
-            <span>11p 2a 11r</span>
-            <span>31 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">75</span>
-            <span class="pr-mojo-range">72-77</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Donte DiVincenzo" data-arch="Combo Guard" data-mojo="70" data-range="67-76"
-         data-pts="12.7" data-ast="4.2" data-reb="4.5"
-         data-stl="1.4" data-blk="0.4" data-ts="58.0"
-         data-net="8.0" data-usg="16.4" data-mpg="31.1"
-         data-team="MIN" data-pid="1628978"
-         data-scoring-pct="31.0" data-playmaking-pct="16.0"
-         data-defense-pct="50.0" data-efficiency-pct="48.0"
-         data-impact-pct="33.0"
-         data-raw-mojo="66" data-solo-impact="60.91"
-         data-syn-score="74.67" data-fit-score="74.68"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;R. Gobert (+70.2 SYN, 50 poss)&quot;, &quot;J. McDaniels (+67.2 SYN, 50 poss)&quot;, &quot;B. Hyland (+66.7 SYN, 19 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628978.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">D. DiVincenzo </span>
-            <span class="pr-meta">G 🔄 Combo Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>13p 4a 4r</span>
-            <span>31 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">70</span>
-            <span class="pr-mojo-range">67-76</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Ayo Dosunmu" data-arch="Sharpshooter" data-mojo="51" data-range="48-62"
-         data-pts="14.8" data-ast="3.6" data-reb="2.9"
-         data-stl="0.8" data-blk="0.3" data-ts="63.2"
-         data-net="-4.5" data-usg="19.9" data-mpg="26.5"
-         data-team="MIN" data-pid="1630245"
-         data-scoring-pct="34.0" data-playmaking-pct="12.0"
-         data-defense-pct="16.0" data-efficiency-pct="48.0"
-         data-impact-pct="-54.0"
-         data-raw-mojo="46" data-solo-impact="41.16"
-         data-syn-score="41.32" data-fit-score="41.33"
-         data-inj-delta="0"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630245.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">A. Dosunmu </span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>15p 4a 3r</span>
-            <span>26 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">51</span>
-            <span class="pr-mojo-range">48-62</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Naz Reid" data-arch="Stretch 5" data-mojo="68" data-range="64-77"
-         data-pts="14.3" data-ast="2.5" data-reb="6.4"
-         data-stl="1.0" data-blk="0.9" data-ts="59.3"
-         data-net="3.9" data-usg="21.1" data-mpg="26.3"
-         data-team="MIN" data-pid="1629675"
-         data-scoring-pct="35.0" data-playmaking-pct="9.0"
-         data-defense-pct="51.0" data-efficiency-pct="49.0"
-         data-impact-pct="19.0"
-         data-raw-mojo="64" data-solo-impact="90.81"
-         data-syn-score="58.36" data-fit-score="58.37"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;B. Hyland (+67.1 SYN, 26 poss)&quot;, &quot;D. DiVincenzo (+63.1 SYN, 29 poss)&quot;, &quot;R. Gobert (+59.7 SYN, 26 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629675.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">N. Reid </span>
-            <span class="pr-meta">C-F 📐 Stretch 5</span>
-        </div>
-        <div class="pr-stats">
-            <span>14p 2a 6r</span>
-            <span>26 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">68</span>
-            <span class="pr-mojo-range">64-77</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Mike Conley" data-arch="nan" data-mojo="48" data-range="38-66"
-         data-pts="4.3" data-ast="2.9" data-reb="1.8"
-         data-stl="0.6" data-blk="0.3" data-ts="49.7"
-         data-net="0.1" data-usg="11.1" data-mpg="18.4"
-         data-team="MIN" data-pid="201144"
-         data-scoring-pct="16.0" data-playmaking-pct="16.0"
-         data-defense-pct="28.0" data-efficiency-pct="62.0"
-         data-impact-pct="1.0"
-         data-raw-mojo="37" data-solo-impact="64.74"
-         data-syn-score="47.9" data-fit-score="47.89"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;D. DiVincenzo (+58.2 SYN, 19 poss)&quot;, &quot;J. Randle (+57.3 SYN, 25 poss)&quot;, &quot;R. Gobert (+50.4 SYN, 22 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201144.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">M. Conley </span>
-            <span class="pr-meta"> ◆ nan</span>
-        </div>
-        <div class="pr-stats">
-            <span>4p 3a 2r</span>
-            <span>18 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">48</span>
-            <span class="pr-mojo-range">38-66</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Bones Hyland" data-arch="Sharpshooter" data-mojo="56" data-range="48-68"
-         data-pts="7.1" data-ast="2.6" data-reb="1.8"
-         data-stl="0.6" data-blk="0.2" data-ts="59.4"
-         data-net="5.7" data-usg="18.7" data-mpg="14.8"
-         data-team="MIN" data-pid="1630538"
-         data-scoring-pct="21.0" data-playmaking-pct="12.0"
-         data-defense-pct="33.0" data-efficiency-pct="60.0"
-         data-impact-pct="44.0"
-         data-raw-mojo="47" data-solo-impact="60.73"
-         data-syn-score="66.5" data-fit-score="66.49"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;N. Reid (+67.1 SYN, 26 poss)&quot;, &quot;D. DiVincenzo (+66.7 SYN, 19 poss)&quot;, &quot;R. Gobert (+63.6 SYN, 18 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630538.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">B. Hyland </span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>7p 3a 2r</span>
-            <span>15 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">56</span>
-            <span class="pr-mojo-range">48-68</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Jaylen Clark" data-arch="Defensive Specialist" data-mojo="56" data-range="44-70"
-         data-pts="3.8" data-ast="0.6" data-reb="1.9"
-         data-stl="0.7" data-blk="0.1" data-ts="51.5"
-         data-net="6.3" data-usg="12.1" data-mpg="13.3"
-         data-team="MIN" data-pid="1641740"
-         data-scoring-pct="16.0" data-playmaking-pct="4.0"
-         data-defense-pct="55.0" data-efficiency-pct="73.0"
-         data-impact-pct="48.0"
-         data-raw-mojo="47" data-solo-impact="77.95"
-         data-syn-score="59.95" data-fit-score="59.96"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;N. Reid (+57.0 SYN, 22 poss)&quot;, &quot;J. Randle (+56.9 SYN, 16 poss)&quot;, &quot;A. Edwards (+53.1 SYN, 18 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641740.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Clark </span>
-            <span class="pr-meta">G 🛡️ Defensive Specialist</span>
-        </div>
-        <div class="pr-stats">
-            <span>4p 1a 2r</span>
-            <span>13 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">56</span>
-            <span class="pr-mojo-range">44-70</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Terrence Shannon Jr." data-arch="3-and-D Wing" data-mojo="41" data-range="38-65"
-         data-pts="4.6" data-ast="0.6" data-reb="1.2"
-         data-stl="0.3" data-blk="0" data-ts="53.7"
-         data-net="-16.7" data-usg="15.1" data-mpg="13.1"
-         data-team="MIN" data-pid="1630545"
-         data-scoring-pct="18.0" data-playmaking-pct="4.0"
-         data-defense-pct="5.0" data-efficiency-pct="71.0"
-         data-impact-pct="-1336.0"
-         data-raw-mojo="33" data-solo-impact="48.25"
-         data-syn-score="16.55" data-fit-score="16.57"
-         data-inj-delta="0"
-         data-top-pairs="[&quot;N. Reid (+35.2 SYN, 19 poss)&quot;, &quot;A. Edwards (+23.1 SYN, 18 poss)&quot;, &quot;J. Randle (+17.6 SYN, 17 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630545.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">T. Shannon Jr. </span>
-            <span class="pr-meta">G-F 🔒 3-and-D Wing</span>
-        </div>
-        <div class="pr-stats">
-            <span>5p 1a 1r</span>
-            <span>13 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">41</span>
-            <span class="pr-mojo-range">38-65</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Julian Phillips" data-arch="3-and-D Wing" data-mojo="47" data-range="36-65"
-         data-pts="2.8" data-ast="0.2" data-reb="1.2"
-         data-stl="0.5" data-blk="0.2" data-ts="54.3"
-         data-net="-0.8" data-usg="12.3" data-mpg="9.1"
-         data-team="MIN" data-pid="1641763"
-         data-scoring-pct="12.0" data-playmaking-pct="1.0"
-         data-defense-pct="51.0" data-efficiency-pct="80.0"
-         data-impact-pct="-21.0"
-         data-raw-mojo="38" data-solo-impact="45.36"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="0"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641763.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Phillips </span>
-            <span class="pr-meta">F 🔒 3-and-D Wing</span>
-        </div>
-        <div class="pr-stats">
-            <span>3p 0a 1r</span>
-            <span>9 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">47</span>
-            <span class="pr-mojo-range">36-65</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Joan Beringer" data-arch="nan" data-mojo="55" data-range="46-70"
-         data-pts="3.1" data-ast="0.2" data-reb="2.0"
-         data-stl="0.1" data-blk="0.4" data-ts="68.4"
-         data-net="8.5" data-usg="14.3" data-mpg="7.0"
-         data-team="MIN" data-pid="1642866"
-         data-scoring-pct="11.0" data-playmaking-pct="1.0"
-         data-defense-pct="48.0" data-efficiency-pct="81.0"
-         data-impact-pct="65.0"
-         data-raw-mojo="48" data-solo-impact="69.6"
-         data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="0"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642866.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Beringer </span>
-            <span class="pr-meta">F ◆ nan</span>
-        </div>
-        <div class="pr-stats">
-            <span>3p 0a 2r</span>
-            <span>7 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">55</span>
-            <span class="pr-mojo-range">46-70</span>
-        </div>
-    </div>
-            </div>
-        </div>
-    </div>
-    <div class="matchup-card" data-conf="2" data-edge="0.0" data-total="233.5" data-idx="1">
+    <div class="matchup-card" data-conf="3" data-edge="1.0" data-total="233.0" data-idx="0">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg" class="mc-logo" alt="PHI" onerror="this.style.display='none'">
@@ -3719,10 +2866,10 @@
             </div>
             <div class="mc-center">
                 <div class="mc-spread ma-premium" style="color:#888">ATL -6.5</div>
-                <div class="mc-total">O/U 233.5</div>
-                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> ATL -6.5 <span class="mc-conf-num" style="color:#FF8C00">2</span></div>
-                <div class="mc-implied">PHI 114 — ATL 120</div>
-                <div class="mc-sim-proj ma-premium">ATL -6.5 (SIM) · EDGE 0.0 </div>
+                <div class="mc-total">O/U 233.0</div>
+                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> PHI +6.5 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
+                <div class="mc-implied">PHI 113 — ATL 120</div>
+                <div class="mc-sim-proj ma-premium">ATL -5.5 (SIM) · EDGE 1.0 PHI</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -3736,13 +2883,13 @@
 
         <!-- Tug of war bar -->
         <div class="tow-bar">
-            <div class="tow-fill tow-away" style="width:52.2%; background:#006BB6;"></div>
-            <div class="tow-fill tow-home" style="width:47.8%; background:#E03A3E;"></div>
+            <div class="tow-fill tow-away" style="width:52.1%; background:#006BB6;"></div>
+            <div class="tow-fill tow-home" style="width:47.9%; background:#E03A3E;"></div>
             <div class="tow-mid"></div>
         </div>
         <div class="tow-labels">
             <span>PHI MOJO 344</span>
-            <span>ATL MOJO 315</span>
+            <span>ATL MOJO 316</span>
         </div>
 
         <!-- Schemes row -->
@@ -3761,45 +2908,64 @@
                 <span class="moji-label">MOJI</span>
                 <span class="moji-val">PHI 43.3</span>
                 <div class="moji-bar-mini">
-                    <div class="moji-bar-away" style="width:44%; background:#006BB6;"></div>
-                    <div class="moji-bar-home" style="width:56%; background:#E03A3E;"></div>
+                    <div class="moji-bar-away" style="width:45%; background:#006BB6;"></div>
+                    <div class="moji-bar-home" style="width:55%; background:#E03A3E;"></div>
                 </div>
-                <span class="moji-val">ATL 54.8</span>
-                <span class="moji-edge-sm">ATL +11.5</span>
+                <span class="moji-val">ATL 52.9</span>
+                <span class="moji-edge-sm">ATL +9.6</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">NRtg</span>
                 <span class="moji-val">PHI -4.6</span>
                 <div class="moji-mid-spacer"></div>
-                <span class="moji-val">ATL +0.8</span>
-                <span class="moji-edge-sm">ATL +5.4</span>
+                <span class="moji-val">ATL +0.2</span>
+                <span class="moji-edge-sm">ATL +4.9</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">L10</span>
                 <span class="moji-val">PHI -1.8</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">ATL -5.1</span>
-                <span class="moji-edge-sm">ATL +2.8</span>
+                <span class="moji-edge-sm">ATL +2.3</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">SYN</span>
                 <span class="moji-val">PHI 47.8</span>
                 <div class="moji-mid-spacer"></div>
-                <span class="moji-val">ATL 51.8</span>
-                <span class="moji-edge-sm">ATL +3.9</span>
+                <span class="moji-val">ATL 51.6</span>
+                <span class="moji-edge-sm">ATL +3.8</span>
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI (+5.2) + 10% NRtg (+0.5) + 25% L10 (+0.7) + 20% SYN (+0.1) = <strong>PROJ ATL -6.5</strong></span>
+                <span class="moji-model-formula">45% MOJI (+4.3) + 10% NRtg (+0.5) + 25% L10 (+0.6) + 20% SYN (+0.1) = <strong>PROJ ATL -5.5</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA ▲1.8 ATL</span>
                 
-                <span class="out-badge">PHI: 3 OUT</span>
+                <span class="out-badge">ATL: 1 OUT</span><span class="out-badge">PHI: 3 OUT</span>
             </div>
         </div>
 
         
+        
+        <!-- Prediction Markets -->
+        <div class="mc-sportsbooks mc-prediction-markets">
+            <span class="sb-header">MARKETS</span>
+            <a href="https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+                <span class="sb-name" style="color:#00C480">KLSH</span>
+                <span class="sb-line">ATL 70%</span>
+            </a><a href="https://polymarket.com/event/nba-phi-atl-2026-03-07" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
+                <span class="sb-name" style="color:#0066FF">POLY</span>
+                <span class="sb-line">ATL 68%</span>
+            </a>
+        </div>
+        
+        <div class="mc-sportsbooks mc-bethog-row">
+            <a href="https://bethog.com/r/alphamale" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:#ff6b0060">
+                <span class="sb-name" style="color:#ff6b00">HOG</span>
+                <span class="sb-line">BET NOW</span>
+            </a>
+        </div>
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -4329,7 +3495,7 @@
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="CJ McCollum" data-arch="Sharpshooter" data-mojo="56" data-range="53-66"
+         data-name="CJ McCollum" data-arch="Sharpshooter" data-mojo="57" data-range="54-66"
          data-pts="18.8" data-ast="3.6" data-reb="3.4"
          data-stl="0.8" data-blk="0.4" data-ts="57.0"
          data-net="-4.3" data-usg="24.4" data-mpg="30.1"
@@ -4339,7 +3505,7 @@
          data-impact-pct="-41.0"
          data-raw-mojo="50" data-solo-impact="53.52"
          data-syn-score="44.94" data-fit-score="44.91"
-         data-inj-delta="0"
+         data-inj-delta="1"
          data-top-pairs="[&quot;D. Daniels (+82.3 SYN, 34 poss)&quot;, &quot;J. Johnson (+73.4 SYN, 42 poss)&quot;, &quot;O. Okongwu (+55.3 SYN, 37 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203468.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -4351,8 +3517,8 @@
             <span>30 mpg</span>
         </div>
         <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">56</span>
-            <span class="pr-mojo-range">53-66</span>
+            <span class="pr-mojo-num">57</span><span class="pr-inj-delta inj-up">+1</span>
+            <span class="pr-mojo-range">54-66</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -4410,7 +3576,7 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Corey Kispert" data-arch="Stretch Forward" data-mojo="41" data-range="34-57"
+         data-name="Corey Kispert" data-arch="Stretch Forward" data-mojo="42" data-range="34-57"
          data-pts="9.3" data-ast="1.7" data-reb="2.4"
          data-stl="0.4" data-blk="0.1" data-ts="60.8"
          data-net="-10.5" data-usg="16.6" data-mpg="20.2"
@@ -4420,7 +3586,7 @@
          data-impact-pct="-840.0"
          data-raw-mojo="33" data-solo-impact="48.52"
          data-syn-score="21.87" data-fit-score="21.87"
-         data-inj-delta="0"
+         data-inj-delta="1"
          data-top-pairs="[&quot;C. McCollum (+49.1 SYN, 22 poss)&quot;, &quot;J. Johnson (+36.1 SYN, 29 poss)&quot;, &quot;M. Gueye (+31.6 SYN, 21 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630557.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -4432,12 +3598,12 @@
             <span>20 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">41</span>
+            <span class="pr-mojo-num">42</span><span class="pr-inj-delta inj-up">+1</span>
             <span class="pr-mojo-range">34-57</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Gabe Vincent" data-arch="Slasher" data-mojo="45" data-range="42-71"
+         data-name="Gabe Vincent" data-arch="Slasher" data-mojo="49" data-range="46-71"
          data-pts="4.6" data-ast="1.4" data-reb="0.9"
          data-stl="0.6" data-blk="0" data-ts="50.1"
          data-net="-0.6" data-usg="11.1" data-mpg="19.0"
@@ -4447,7 +3613,7 @@
          data-impact-pct="-8.0"
          data-raw-mojo="33" data-solo-impact="63.43"
          data-syn-score="49.32" data-fit-score="49.35"
-         data-inj-delta="0"
+         data-inj-delta="4"
          data-top-pairs="[]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629216.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -4459,8 +3625,8 @@
             <span>19 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">45</span>
-            <span class="pr-mojo-range">42-71</span>
+            <span class="pr-mojo-num">49</span><span class="pr-inj-delta inj-up">+4</span>
+            <span class="pr-mojo-range">46-71</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -4545,7 +3711,7 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="RayJ Dennis" data-arch="nan" data-mojo="45" data-range="42-69"
+         data-name="RayJ Dennis" data-arch="nan" data-mojo="49" data-range="46-69"
          data-pts="4.3" data-ast="2.0" data-reb="1.5"
          data-stl="0.3" data-blk="0.3" data-ts="41.6"
          data-net="-10.3" data-usg="20.0" data-mpg="11.8"
@@ -4555,7 +3721,7 @@
          data-impact-pct="-824.0"
          data-raw-mojo="35" data-solo-impact="52.4"
          data-syn-score="48.11" data-fit-score="51.74"
-         data-inj-delta="0"
+         data-inj-delta="4"
          data-top-pairs="[]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642484.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -4567,8 +3733,8 @@
             <span>12 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">45</span>
-            <span class="pr-mojo-range">42-69</span>
+            <span class="pr-mojo-num">49</span><span class="pr-inj-delta inj-up">+4</span>
+            <span class="pr-mojo-range">46-69</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -4598,7 +3764,7 @@
             <span class="pr-mojo-range">36-63</span>
         </div>
     </div>
-    <div class="player-row bench player-gtd" onclick="openPlayerSheet(this)"
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
          data-name="Jonathan Kuminga" data-arch="Small-Ball 4" data-mojo="52" data-range="48-68"
          data-pts="12.1" data-ast="2.5" data-reb="5.9"
          data-stl="0.4" data-blk="0.3" data-ts="54.3"
@@ -4613,7 +3779,7 @@
          data-top-pairs="[&quot;J. Butler III (+65.7 SYN, 28 poss)&quot;, &quot;Q. Post (+61.4 SYN, 20 poss)&quot;, &quot;D. Green (+50.8 SYN, 28 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630228.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">J. Kuminga <span class="rw-status-badge rw-gtd">GTD</span></span>
+            <span class="pr-name">J. Kuminga <span class="rw-status-badge rw-out">OUT</span></span>
             <span class="pr-meta">F ⚡ Small-Ball 4</span>
         </div>
         <div class="pr-stats">
@@ -4628,7 +3794,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="3" data-edge="1.0" data-total="212.5" data-idx="2">
+    <div class="matchup-card" data-conf="3" data-edge="1.0" data-total="213.0" data-idx="1">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612751/global/L/logo.svg" class="mc-logo" alt="BKN" onerror="this.style.display='none'">
@@ -4640,7 +3806,7 @@
             </div>
             <div class="mc-center">
                 <div class="mc-spread ma-premium" style="color:#888">DET -13.0</div>
-                <div class="mc-total">O/U 212.5</div>
+                <div class="mc-total">O/U 213.0</div>
                 <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> BKN +13.0 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
                 <div class="mc-implied">BKN 100 — DET 113</div>
                 <div class="mc-sim-proj ma-premium">DET -12.0 (SIM) · EDGE 1.0 BKN</div>
@@ -4721,6 +3887,25 @@
         </div>
 
         
+        
+        <!-- Prediction Markets -->
+        <div class="mc-sportsbooks mc-prediction-markets">
+            <span class="sb-header">MARKETS</span>
+            <a href="https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+                <span class="sb-name" style="color:#00C480">KLSH</span>
+                <span class="sb-line">DET 86%</span>
+            </a><a href="https://polymarket.com/event/nba-bkn-det-2026-03-07" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
+                <span class="sb-name" style="color:#0066FF">POLY</span>
+                <span class="sb-line">DET 86%</span>
+            </a>
+        </div>
+        
+        <div class="mc-sportsbooks mc-bethog-row">
+            <a href="https://bethog.com/r/alphamale" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:#ff6b0060">
+                <span class="sb-name" style="color:#ff6b00">HOG</span>
+                <span class="sb-line">BET NOW</span>
+            </a>
+        </div>
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -5196,30 +4381,30 @@
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Kevin Huerter" data-arch="Stretch Forward" data-mojo="52" data-range="48-65"
-         data-pts="10.3" data-ast="2.5" data-reb="3.7"
-         data-stl="0.8" data-blk="0.6" data-ts="55.4"
-         data-net="-1.0" data-usg="18.7" data-mpg="22.6"
-         data-team="DET" data-pid="1628989"
-         data-scoring-pct="30.0" data-playmaking-pct="11.0"
-         data-defense-pct="31.0" data-efficiency-pct="53.0"
-         data-impact-pct="-9.0"
-         data-raw-mojo="46" data-solo-impact="50.01"
-         data-syn-score="48.29" data-fit-score="48.29"
-         data-inj-delta="-1"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628989.png" class="pr-face" onerror="this.style.display='none'">
+         data-name="Javonte Green" data-arch="Defensive Specialist" data-mojo="62" data-range="56-70"
+         data-pts="6.8" data-ast="0.7" data-reb="2.7"
+         data-stl="1.3" data-blk="0.3" data-ts="58.6"
+         data-net="5.8" data-usg="14.1" data-mpg="18.4"
+         data-team="DET" data-pid="1629750"
+         data-scoring-pct="23.0" data-playmaking-pct="4.0"
+         data-defense-pct="77.0" data-efficiency-pct="67.0"
+         data-impact-pct="38.0"
+         data-raw-mojo="60" data-solo-impact="57.57"
+         data-syn-score="62.32" data-fit-score="62.3"
+         data-inj-delta="-2"
+         data-top-pairs="[&quot;C. Cunningham (+67.6 SYN, 21 poss)&quot;, &quot;R. Holland II (+60.7 SYN, 23 poss)&quot;, &quot;I. Stewart (+55.0 SYN, 19 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629750.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
-            <span class="pr-name">K. Huerter </span>
-            <span class="pr-meta">G-F 📐 Stretch Forward</span>
+            <span class="pr-name">J. Green </span>
+            <span class="pr-meta">G 🛡️ Defensive Specialist</span>
         </div>
         <div class="pr-stats">
-            <span>10p 2a 4r</span>
-            <span>23 mpg</span>
+            <span>7p 1a 3r</span>
+            <span>18 mpg</span>
         </div>
         <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">52</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">48-65</span>
+            <span class="pr-mojo-num">62</span><span class="pr-inj-delta inj-down">-2</span>
+            <span class="pr-mojo-range">56-70</span>
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
@@ -5277,6 +4462,33 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
+         data-name="Kevin Huerter" data-arch="Stretch Forward" data-mojo="52" data-range="48-65"
+         data-pts="10.3" data-ast="2.5" data-reb="3.7"
+         data-stl="0.8" data-blk="0.6" data-ts="55.4"
+         data-net="-1.0" data-usg="18.7" data-mpg="22.6"
+         data-team="DET" data-pid="1628989"
+         data-scoring-pct="30.0" data-playmaking-pct="11.0"
+         data-defense-pct="31.0" data-efficiency-pct="53.0"
+         data-impact-pct="-9.0"
+         data-raw-mojo="46" data-solo-impact="50.01"
+         data-syn-score="48.29" data-fit-score="48.29"
+         data-inj-delta="-1"
+         data-top-pairs="[]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628989.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">K. Huerter </span>
+            <span class="pr-meta">G-F 📐 Stretch Forward</span>
+        </div>
+        <div class="pr-stats">
+            <span>10p 2a 4r</span>
+            <span>23 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-avg">
+            <span class="pr-mojo-num">52</span><span class="pr-inj-delta inj-down">-1</span>
+            <span class="pr-mojo-range">48-65</span>
+        </div>
+    </div>
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Ronald Holland II" data-arch="3-and-D Wing" data-mojo="70" data-range="64-73"
          data-pts="8.3" data-ast="1.4" data-reb="4.4"
          data-stl="1.3" data-blk="0.4" data-ts="51.2"
@@ -5328,33 +4540,6 @@
         <div class="pr-mojo mojo-avg">
             <span class="pr-mojo-num">60</span><span class="pr-inj-delta inj-down">-1</span>
             <span class="pr-mojo-range">54-68</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Javonte Green" data-arch="Defensive Specialist" data-mojo="62" data-range="56-70"
-         data-pts="6.8" data-ast="0.7" data-reb="2.7"
-         data-stl="1.3" data-blk="0.3" data-ts="58.6"
-         data-net="5.8" data-usg="14.1" data-mpg="18.4"
-         data-team="DET" data-pid="1629750"
-         data-scoring-pct="23.0" data-playmaking-pct="4.0"
-         data-defense-pct="77.0" data-efficiency-pct="67.0"
-         data-impact-pct="38.0"
-         data-raw-mojo="60" data-solo-impact="57.57"
-         data-syn-score="62.32" data-fit-score="62.3"
-         data-inj-delta="-2"
-         data-top-pairs="[&quot;C. Cunningham (+67.6 SYN, 21 poss)&quot;, &quot;R. Holland II (+60.7 SYN, 23 poss)&quot;, &quot;I. Stewart (+55.0 SYN, 19 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629750.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Green </span>
-            <span class="pr-meta">G 🛡️ Defensive Specialist</span>
-        </div>
-        <div class="pr-stats">
-            <span>7p 1a 3r</span>
-            <span>18 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">62</span><span class="pr-inj-delta inj-down">-2</span>
-            <span class="pr-mojo-range">56-70</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -5522,7 +4707,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="4" data-edge="1.5" data-total="231.5" data-idx="3">
+    <div class="matchup-card" data-conf="3" data-edge="0.5" data-total="231.0" data-idx="2">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg" class="mc-logo" alt="UTA" onerror="this.style.display='none'">
@@ -5533,11 +4718,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread ma-premium" style="color:#FFD600">MIL -10.0</div>
-                <div class="mc-total">O/U 231.5</div>
-                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> UTA +10.0 <span class="mc-conf-num" style="color:#FFD600">4</span></div>
-                <div class="mc-implied">UTA 111 — MIL 121</div>
-                <div class="mc-sim-proj ma-premium">MIL -8.5 (SIM) · EDGE 1.5 UTA</div>
+                <div class="mc-spread ma-premium" style="color:#888">MIL -10.0</div>
+                <div class="mc-total">O/U 231.0</div>
+                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> MIL -10.0 <span class="mc-conf-num" style="color:#FF8C00">3</span></div>
+                <div class="mc-implied">UTA 110 — MIL 120</div>
+                <div class="mc-sim-proj ma-premium">MIL -10.5 (SIM) · EDGE 0.5 MIL</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -5574,47 +4759,66 @@
         <div class="moji-breakdown">
             <div class="moji-row">
                 <span class="moji-label">MOJI</span>
-                <span class="moji-val">UTA 36.5</span>
+                <span class="moji-val">UTA 33.2</span>
                 <div class="moji-bar-mini">
-                    <div class="moji-bar-away" style="width:43%; background:#002B5C;"></div>
-                    <div class="moji-bar-home" style="width:57%; background:#00471B;"></div>
+                    <div class="moji-bar-away" style="width:41%; background:#002B5C;"></div>
+                    <div class="moji-bar-home" style="width:59%; background:#00471B;"></div>
                 </div>
                 <span class="moji-val">MIL 48.5</span>
-                <span class="moji-edge-sm">MIL +12.0</span>
+                <span class="moji-edge-sm">MIL +15.3</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">NRtg</span>
-                <span class="moji-val">UTA -12.2</span>
+                <span class="moji-val">UTA -13.1</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MIL -3.6</span>
-                <span class="moji-edge-sm">MIL +8.5</span>
+                <span class="moji-edge-sm">MIL +9.5</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">L10</span>
                 <span class="moji-val">UTA -2.6</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MIL -1.3</span>
-                <span class="moji-edge-sm">MIL +6.8</span>
+                <span class="moji-edge-sm">MIL +7.8</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">SYN</span>
-                <span class="moji-val">UTA 29.0</span>
+                <span class="moji-val">UTA 30.2</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MIL 47.9</span>
-                <span class="moji-edge-sm">MIL +18.9</span>
+                <span class="moji-edge-sm">MIL +17.8</span>
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI (+5.4) + 10% NRtg (+0.9) + 25% L10 (+1.7) + 20% SYN (+0.6) = <strong>PROJ MIL -8.5</strong></span>
+                <span class="moji-model-formula">45% MOJI (+6.9) + 10% NRtg (+1.0) + 25% L10 (+1.9) + 20% SYN (+0.5) = <strong>PROJ MIL -10.5</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA ▲1.8 MIL</span>
                 
-                <span class="out-badge">MIL: 2 OUT</span><span class="out-badge">UTA: 5 OUT</span>
+                <span class="out-badge">MIL: 2 OUT</span><span class="out-badge">UTA: 6 OUT</span>
             </div>
         </div>
 
         
+        
+        <!-- Prediction Markets -->
+        <div class="mc-sportsbooks mc-prediction-markets">
+            <span class="sb-header">MARKETS</span>
+            <a href="https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+                <span class="sb-name" style="color:#00C480">KLSH</span>
+                <span class="sb-line">MIL 80%</span>
+            </a><a href="https://polymarket.com/event/nba-uta-mil-2026-03-07" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
+                <span class="sb-name" style="color:#0066FF">POLY</span>
+                <span class="sb-line">MIL 80%</span>
+            </a>
+        </div>
+        
+        <div class="mc-sportsbooks mc-bethog-row">
+            <a href="https://bethog.com/r/alphamale" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:#ff6b0060">
+                <span class="sb-name" style="color:#ff6b00">HOG</span>
+                <span class="sb-line">BET NOW</span>
+            </a>
+        </div>
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -5759,33 +4963,6 @@
         <div class="pr-mojo mojo-avg">
             <span class="pr-mojo-num">58</span>
             <span class="pr-mojo-range">48-70</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Jusuf Nurkić" data-arch="Traditional Center" data-mojo="54" data-range="51-64"
-         data-pts="10.9" data-ast="4.8" data-reb="10.4"
-         data-stl="1.3" data-blk="0.5" data-ts="54.8"
-         data-net="-7.9" data-usg="18.6" data-mpg="26.4"
-         data-team="UTA" data-pid="203994"
-         data-scoring-pct="28.0" data-playmaking-pct="19.0"
-         data-defense-pct="27.0" data-efficiency-pct="47.0"
-         data-impact-pct="-64.0"
-         data-raw-mojo="49" data-solo-impact="62.7"
-         data-syn-score="24.81" data-fit-score="24.8"
-         data-inj-delta="1"
-         data-top-pairs="[&quot;W. Clayton Jr. (+43.4 SYN, 20 poss)&quot;, &quot;L. Markkanen (+41.2 SYN, 46 poss)&quot;, &quot;C. Williams (+37.9 SYN, 22 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203994.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">J. Nurkić </span>
-            <span class="pr-meta">C 🏋️ Traditional Center</span>
-        </div>
-        <div class="pr-stats">
-            <span>11p 5a 10r</span>
-            <span>26 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">54</span><span class="pr-inj-delta inj-up">+1</span>
-            <span class="pr-mojo-range">51-64</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -5975,6 +5152,33 @@
         <div class="pr-mojo mojo-avg">
             <span class="pr-mojo-num">66</span>
             <span class="pr-mojo-range">63-72</span>
+        </div>
+    </div>
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
+         data-name="Jusuf Nurkić" data-arch="Traditional Center" data-mojo="53" data-range="50-64"
+         data-pts="10.9" data-ast="4.8" data-reb="10.4"
+         data-stl="1.3" data-blk="0.5" data-ts="54.8"
+         data-net="-7.9" data-usg="18.6" data-mpg="26.4"
+         data-team="UTA" data-pid="203994"
+         data-scoring-pct="28.0" data-playmaking-pct="19.0"
+         data-defense-pct="27.0" data-efficiency-pct="47.0"
+         data-impact-pct="-64.0"
+         data-raw-mojo="49" data-solo-impact="62.7"
+         data-syn-score="24.81" data-fit-score="24.8"
+         data-inj-delta="0"
+         data-top-pairs="[&quot;W. Clayton Jr. (+43.4 SYN, 20 poss)&quot;, &quot;L. Markkanen (+41.2 SYN, 46 poss)&quot;, &quot;C. Williams (+37.9 SYN, 22 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/203994.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">J. Nurkić <span class="rw-status-badge rw-out">OUT</span></span>
+            <span class="pr-meta">C 🏋️ Traditional Center</span>
+        </div>
+        <div class="pr-stats">
+            <span>11p 5a 10r</span>
+            <span>26 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-avg">
+            <span class="pr-mojo-num">53</span>
+            <span class="pr-mojo-range">50-64</span>
         </div>
     </div>
     <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
@@ -6443,7 +5647,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="5" data-edge="2.5" data-total="229.0" data-idx="4">
+    <div class="matchup-card" data-conf="8" data-edge="4.5" data-total="229.0" data-idx="3">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612746/global/L/logo.svg" class="mc-logo" alt="LAC" onerror="this.style.display='none'">
@@ -6454,11 +5658,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread ma-premium" style="color:#FFD600">LAC -6.5</div>
+                <div class="mc-spread ma-premium" style="color:#00FF55">LAC -6.5</div>
                 <div class="mc-total">O/U 229.0</div>
-                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> MEM +6.5 <span class="mc-conf-num" style="color:#FFD600">5</span></div>
+                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> MEM +6.5 <span class="mc-conf-num" style="color:#00FF55">8</span></div>
                 <div class="mc-implied">LAC 118 — MEM 111</div>
-                <div class="mc-sim-proj ma-premium">LAC -4.0 (SIM) · EDGE 2.5 MEM</div>
+                <div class="mc-sim-proj ma-premium">LAC -2.0 (SIM) · EDGE 4.5 MEM</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -6495,47 +5699,66 @@
         <div class="moji-breakdown">
             <div class="moji-row">
                 <span class="moji-label">MOJI</span>
-                <span class="moji-val">LAC 49.1</span>
+                <span class="moji-val">LAC 45.9</span>
                 <div class="moji-bar-mini">
-                    <div class="moji-bar-away" style="width:53%; background:#C8102E;"></div>
-                    <div class="moji-bar-home" style="width:47%; background:#5D76A9;"></div>
+                    <div class="moji-bar-away" style="width:52%; background:#C8102E;"></div>
+                    <div class="moji-bar-home" style="width:48%; background:#5D76A9;"></div>
                 </div>
                 <span class="moji-val">MEM 43.0</span>
-                <span class="moji-edge-sm">LAC +6.1</span>
+                <span class="moji-edge-sm">LAC +2.9</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">NRtg</span>
-                <span class="moji-val">LAC -3.7</span>
+                <span class="moji-val">LAC -4.6</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MEM -3.3</span>
-                <span class="moji-edge-sm">MEM +0.4</span>
+                <span class="moji-edge-sm">MEM +1.4</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">L10</span>
                 <span class="moji-val">LAC -1.0</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MEM -5.4</span>
-                <span class="moji-edge-sm">LAC +2.4</span>
+                <span class="moji-edge-sm">LAC +1.4</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">SYN</span>
-                <span class="moji-val">LAC 57.7</span>
+                <span class="moji-val">LAC 55.6</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">MEM 34.7</span>
-                <span class="moji-edge-sm">LAC +23.0</span>
+                <span class="moji-edge-sm">LAC +20.9</span>
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI (-2.7) + 10% NRtg (+0.0) + 25% L10 (-0.6) + 20% SYN (-0.7) = <strong>PROJ LAC -4.0</strong></span>
+                <span class="moji-model-formula">45% MOJI (-1.3) + 10% NRtg (+0.1) + 25% L10 (-0.3) + 20% SYN (-0.6) = <strong>PROJ LAC -2.0</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA ▲1.8 MEM</span>
                 <span class="b2b-badge" style="color:#FF6B6B">LAC B2B ▼2.5</span>
-                <span class="out-badge">MEM: 5 OUT</span><span class="out-badge">LAC: 2 OUT</span>
+                <span class="out-badge">MEM: 5 OUT</span><span class="out-badge">LAC: 4 OUT</span>
             </div>
         </div>
 
         
+        
+        <!-- Prediction Markets -->
+        <div class="mc-sportsbooks mc-prediction-markets">
+            <span class="sb-header">MARKETS</span>
+            <a href="https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+                <span class="sb-name" style="color:#00C480">KLSH</span>
+                <span class="sb-line">LAC 72%</span>
+            </a><a href="https://polymarket.com/event/nba-lac-mem-2026-03-07" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
+                <span class="sb-name" style="color:#0066FF">POLY</span>
+                <span class="sb-line">LAC 72%</span>
+            </a>
+        </div>
+        
+        <div class="mc-sportsbooks mc-bethog-row">
+            <a href="https://bethog.com/r/alphamale" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:#ff6b0060">
+                <span class="sb-name" style="color:#ff6b00">HOG</span>
+                <span class="sb-line">BET NOW</span>
+            </a>
+        </div>
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -6629,7 +5852,7 @@
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Kobe Sanders" data-arch="Slasher" data-mojo="49" data-range="40-66"
+         data-name="Kobe Sanders" data-arch="Slasher" data-mojo="48" data-range="40-66"
          data-pts="6.9" data-ast="1.7" data-reb="2.6"
          data-stl="0.6" data-blk="0.1" data-ts="55.4"
          data-net="-1.3" data-usg="15.1" data-mpg="21.2"
@@ -6639,7 +5862,7 @@
          data-impact-pct="-14.0"
          data-raw-mojo="38" data-solo-impact="68.29"
          data-syn-score="47.54" data-fit-score="47.55"
-         data-inj-delta="0"
+         data-inj-delta="-1"
          data-top-pairs="[&quot;K. Leonard (+62.0 SYN, 21 poss)&quot;, &quot;I. Zubac (+54.8 SYN, 23 poss)&quot;, &quot;B. Bogdanovi\u0107 (+54.4 SYN, 21 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642920.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -6651,7 +5874,7 @@
             <span>21 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">49</span>
+            <span class="pr-mojo-num">48</span><span class="pr-inj-delta inj-down">-1</span>
             <span class="pr-mojo-range">40-66</span>
         </div>
     </div>
@@ -6710,33 +5933,6 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Darius Garland" data-arch="Playmaking Guard" data-mojo="57" data-range="54-69"
-         data-pts="18.0" data-ast="6.9" data-reb="2.4"
-         data-stl="0.8" data-blk="0.1" data-ts="56.7"
-         data-net="-3.0" data-usg="25.0" data-mpg="30.5"
-         data-team="LAC" data-pid="1629636"
-         data-scoring-pct="36.0" data-playmaking-pct="21.0"
-         data-defense-pct="14.0" data-efficiency-pct="38.0"
-         data-impact-pct="-28.0"
-         data-raw-mojo="52" data-solo-impact="56.4"
-         data-syn-score="45.5" data-fit-score="45.47"
-         data-inj-delta="0"
-         data-top-pairs="[]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629636.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">D. Garland </span>
-            <span class="pr-meta">G 🎯 Playmaking Guard</span>
-        </div>
-        <div class="pr-stats">
-            <span>18p 7a 2r</span>
-            <span>30 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">57</span>
-            <span class="pr-mojo-range">54-69</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Bogdan Bogdanović" data-arch="Slasher" data-mojo="44" data-range="36-61"
          data-pts="7.6" data-ast="2.6" data-reb="2.8"
          data-stl="0.5" data-blk="0.1" data-ts="50.2"
@@ -6791,7 +5987,7 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Nicolas Batum" data-arch="3-and-D Wing" data-mojo="46" data-range="34-66"
+         data-name="Nicolas Batum" data-arch="3-and-D Wing" data-mojo="45" data-range="34-66"
          data-pts="4.3" data-ast="0.9" data-reb="2.6"
          data-stl="0.7" data-blk="0.4" data-ts="58.7"
          data-net="-1.2" data-usg="9.4" data-mpg="19.2"
@@ -6801,7 +5997,7 @@
          data-impact-pct="-14.0"
          data-raw-mojo="33" data-solo-impact="63.73"
          data-syn-score="53.71" data-fit-score="53.73"
-         data-inj-delta="0"
+         data-inj-delta="-1"
          data-top-pairs="[&quot;Y. Konan Niederh\u00e4user (+80.7 SYN, 19 poss)&quot;, &quot;C. Christie (+63.0 SYN, 17 poss)&quot;, &quot;J. Miller (+57.6 SYN, 24 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/201587.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -6813,7 +6009,7 @@
             <span>19 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">46</span>
+            <span class="pr-mojo-num">45</span><span class="pr-inj-delta inj-down">-1</span>
             <span class="pr-mojo-range">34-66</span>
         </div>
     </div>
@@ -6872,7 +6068,7 @@
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
-         data-name="Cam Christie" data-arch="Defensive Specialist" data-mojo="51" data-range="38-68"
+         data-name="Cam Christie" data-arch="Defensive Specialist" data-mojo="50" data-range="38-68"
          data-pts="3.4" data-ast="0.6" data-reb="1.6"
          data-stl="0.3" data-blk="0.1" data-ts="51.4"
          data-net="2.6" data-usg="16.8" data-mpg="10.0"
@@ -6882,7 +6078,7 @@
          data-impact-pct="33.0"
          data-raw-mojo="41" data-solo-impact="64.36"
          data-syn-score="64.56" data-fit-score="64.51"
-         data-inj-delta="0"
+         data-inj-delta="-1"
          data-top-pairs="[&quot;B. Lopez (+65.4 SYN, 19 poss)&quot;, &quot;N. Batum (+63.0 SYN, 17 poss)&quot;, &quot;J. Miller (+46.9 SYN, 16 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1642353.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -6894,8 +6090,35 @@
             <span>10 mpg</span>
         </div>
         <div class="pr-mojo mojo-low">
-            <span class="pr-mojo-num">51</span>
+            <span class="pr-mojo-num">50</span><span class="pr-inj-delta inj-down">-1</span>
             <span class="pr-mojo-range">38-68</span>
+        </div>
+    </div>
+    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
+         data-name="Darius Garland" data-arch="Playmaking Guard" data-mojo="57" data-range="54-69"
+         data-pts="18.0" data-ast="6.9" data-reb="2.4"
+         data-stl="0.8" data-blk="0.1" data-ts="56.7"
+         data-net="-3.0" data-usg="25.0" data-mpg="30.5"
+         data-team="LAC" data-pid="1629636"
+         data-scoring-pct="36.0" data-playmaking-pct="21.0"
+         data-defense-pct="14.0" data-efficiency-pct="38.0"
+         data-impact-pct="-28.0"
+         data-raw-mojo="52" data-solo-impact="56.4"
+         data-syn-score="45.5" data-fit-score="45.47"
+         data-inj-delta="0"
+         data-top-pairs="[]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629636.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">D. Garland <span class="rw-status-badge rw-out">OUT</span></span>
+            <span class="pr-meta">G 🎯 Playmaking Guard</span>
+        </div>
+        <div class="pr-stats">
+            <span>18p 7a 2r</span>
+            <span>30 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-avg">
+            <span class="pr-mojo-num">57</span>
+            <span class="pr-mojo-range">54-69</span>
         </div>
     </div>
     <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
@@ -7364,7 +6587,7 @@
             </div>
         </div>
     </div>
-    <div class="matchup-card" data-conf="10" data-edge="6.5" data-total="219.5" data-idx="5">
+    <div class="matchup-card" data-conf="8" data-edge="5.0" data-total="219.0" data-idx="4">
         <div class="mc-header">
             <div class="mc-team mc-away">
                 <img src="https://cdn.nba.com/logos/nba/1610612744/global/L/logo.svg" class="mc-logo" alt="GSW" onerror="this.style.display='none'">
@@ -7375,11 +6598,11 @@
                 </div>
             </div>
             <div class="mc-center">
-                <div class="mc-spread ma-premium" style="color:#00FF55">OKC -15.0</div>
-                <div class="mc-total">O/U 219.5</div>
-                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> GSW +15.0 <span class="mc-conf-num" style="color:#00FF55">10</span></div>
-                <div class="mc-implied">GSW 102 — OKC 117</div>
-                <div class="mc-sim-proj ma-premium">OKC -8.5 (SIM) · EDGE 6.5 GSW</div>
+                <div class="mc-spread ma-premium" style="color:#00FF55">OKC -13.5</div>
+                <div class="mc-total">O/U 219.0</div>
+                <div class="mc-pick ma-premium"><span class="pick-label">SPREAD</span> GSW +13.5 <span class="mc-conf-num" style="color:#00FF55">8</span></div>
+                <div class="mc-implied">GSW 103 — OKC 116</div>
+                <div class="mc-sim-proj ma-premium">OKC -8.5 (SIM) · EDGE 5.0 GSW</div>
             </div>
             <div class="mc-team mc-home">
                 <div class="mc-team-info right">
@@ -7393,13 +6616,13 @@
 
         <!-- Tug of war bar -->
         <div class="tow-bar">
-            <div class="tow-fill tow-away" style="width:45.7%; background:#1D428A;"></div>
-            <div class="tow-fill tow-home" style="width:54.3%; background:#007AC1;"></div>
+            <div class="tow-fill tow-away" style="width:45.6%; background:#1D428A;"></div>
+            <div class="tow-fill tow-home" style="width:54.4%; background:#007AC1;"></div>
             <div class="tow-mid"></div>
         </div>
         <div class="tow-labels">
             <span>GSW MOJO 325</span>
-            <span>OKC MOJO 386</span>
+            <span>OKC MOJO 387</span>
         </div>
 
         <!-- Schemes row -->
@@ -7421,42 +6644,61 @@
                     <div class="moji-bar-away" style="width:45%; background:#1D428A;"></div>
                     <div class="moji-bar-home" style="width:55%; background:#007AC1;"></div>
                 </div>
-                <span class="moji-val">OKC 49.5</span>
-                <span class="moji-edge-sm">OKC +9.0</span>
+                <span class="moji-val">OKC 49.1</span>
+                <span class="moji-edge-sm">OKC +8.6</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">NRtg</span>
                 <span class="moji-val">GSW -5.4</span>
                 <div class="moji-mid-spacer"></div>
-                <span class="moji-val">OKC +5.2</span>
-                <span class="moji-edge-sm">OKC +10.6</span>
+                <span class="moji-val">OKC +5.1</span>
+                <span class="moji-edge-sm">OKC +10.5</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">L10</span>
                 <span class="moji-val">GSW -4.9</span>
                 <div class="moji-mid-spacer"></div>
                 <span class="moji-val">OKC +6.4</span>
-                <span class="moji-edge-sm">OKC +12.4</span>
+                <span class="moji-edge-sm">OKC +12.3</span>
             </div>
             <div class="moji-row">
                 <span class="moji-label">SYN</span>
                 <span class="moji-val">GSW 52.1</span>
                 <div class="moji-mid-spacer"></div>
-                <span class="moji-val">OKC 70.4</span>
-                <span class="moji-edge-sm">OKC +18.4</span>
+                <span class="moji-val">OKC 66.4</span>
+                <span class="moji-edge-sm">OKC +14.4</span>
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI (+4.0) + 10% NRtg (+1.1) + 25% L10 (+3.1) + 20% SYN (+0.6) = <strong>PROJ OKC -8.5</strong></span>
+                <span class="moji-model-formula">45% MOJI (+3.9) + 10% NRtg (+1.1) + 25% L10 (+3.1) + 20% SYN (+0.4) = <strong>PROJ OKC -8.5</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA ▲1.8 OKC</span>
                 
-                <span class="out-badge">OKC: 5 OUT</span><span class="out-badge">GSW: 5 OUT</span>
+                <span class="out-badge">OKC: 6 OUT</span><span class="out-badge">GSW: 5 OUT</span>
             </div>
         </div>
 
         
+        
+        <!-- Prediction Markets -->
+        <div class="mc-sportsbooks mc-prediction-markets">
+            <span class="sb-header">MARKETS</span>
+            <a href="https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
+                <span class="sb-name" style="color:#00C480">KLSH</span>
+                <span class="sb-line">OKC 86%</span>
+            </a><a href="https://polymarket.com/event/nba-gsw-okc-2026-03-07" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#0066FF40">
+                <span class="sb-name" style="color:#0066FF">POLY</span>
+                <span class="sb-line">OKC 84%</span>
+            </a>
+        </div>
+        
+        <div class="mc-sportsbooks mc-bethog-row">
+            <a href="https://bethog.com/r/alphamale" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:#ff6b0060">
+                <span class="sb-name" style="color:#ff6b00">HOG</span>
+                <span class="sb-line">BET NOW</span>
+            </a>
+        </div>
 
         <!-- Expand button -->
         <button class="expand-btn" onclick="toggleExpand(this)">
@@ -7851,7 +7093,7 @@
                 <div class="lineup-team-header" style="border-color:#007AC1">OKC Thunder</div>
                 
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Shai Gilgeous-Alexander" data-arch="Scoring Guard" data-mojo="91" data-range="88-94"
+         data-name="Shai Gilgeous-Alexander" data-arch="Scoring Guard" data-mojo="90" data-range="87-94"
          data-pts="31.8" data-ast="6.4" data-reb="4.4"
          data-stl="1.3" data-blk="0.8" data-ts="67.0"
          data-net="15.5" data-usg="32.2" data-mpg="33.3"
@@ -7861,7 +7103,7 @@
          data-impact-pct="48.0"
          data-raw-mojo="99" data-solo-impact="85.89"
          data-syn-score="93.66" data-fit-score="93.65"
-         data-inj-delta="-4"
+         data-inj-delta="-5"
          data-top-pairs="[&quot;J. Williams (+91.4 SYN, 29 poss)&quot;, &quot;A. Caruso (+90.8 SYN, 26 poss)&quot;, &quot;C. Holmgren (+87.8 SYN, 41 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1628983.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -7873,39 +7115,12 @@
             <span>33 mpg</span>
         </div>
         <div class="pr-mojo mojo-elite">
-            <span class="pr-mojo-num">91</span><span class="pr-inj-delta inj-down">-4</span>
-            <span class="pr-mojo-range">88-94</span>
+            <span class="pr-mojo-num">90</span><span class="pr-inj-delta inj-down">-5</span>
+            <span class="pr-mojo-range">87-94</span>
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Chet Holmgren" data-arch="Rim Protector" data-mojo="84" data-range="81-87"
-         data-pts="17.4" data-ast="1.7" data-reb="8.8"
-         data-stl="0.5" data-blk="1.9" data-ts="64.9"
-         data-net="14.6" data-usg="21.7" data-mpg="29.2"
-         data-team="OKC" data-pid="1631096"
-         data-scoring-pct="39.0" data-playmaking-pct="6.0"
-         data-defense-pct="91.0" data-efficiency-pct="49.0"
-         data-impact-pct="43.0"
-         data-raw-mojo="91" data-solo-impact="66.78"
-         data-syn-score="92.09" data-fit-score="92.07"
-         data-inj-delta="-4"
-         data-top-pairs="[&quot;I. Hartenstein (+90.1 SYN, 37 poss)&quot;, &quot;S. Gilgeous-Alexander (+87.8 SYN, 41 poss)&quot;, &quot;C. Wallace (+83.4 SYN, 37 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">C. Holmgren </span>
-            <span class="pr-meta">C-F 🏰 Rim Protector</span>
-        </div>
-        <div class="pr-stats">
-            <span>17p 2a 9r</span>
-            <span>29 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-elite">
-            <span class="pr-mojo-num">84</span><span class="pr-inj-delta inj-down">-4</span>
-            <span class="pr-mojo-range">81-87</span>
-        </div>
-    </div>
-    <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Luguentz Dort" data-arch="Combo Guard" data-mojo="62" data-range="58-70"
+         data-name="Luguentz Dort" data-arch="Combo Guard" data-mojo="61" data-range="58-70"
          data-pts="8.8" data-ast="1.3" data-reb="3.7"
          data-stl="0.9" data-blk="0.5" data-ts="53.6"
          data-net="8.7" data-usg="13.7" data-mpg="27.9"
@@ -7915,7 +7130,7 @@
          data-impact-pct="38.0"
          data-raw-mojo="60" data-solo-impact="41.25"
          data-syn-score="77.84" data-fit-score="77.83"
-         data-inj-delta="-2"
+         data-inj-delta="-3"
          data-top-pairs="[&quot;S. Gilgeous-Alexander (+77.6 SYN, 50 poss)&quot;, &quot;C. Wallace (+74.8 SYN, 33 poss)&quot;, &quot;C. Holmgren (+74.0 SYN, 41 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1629652.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -7927,12 +7142,12 @@
             <span>28 mpg</span>
         </div>
         <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">62</span><span class="pr-inj-delta inj-down">-2</span>
+            <span class="pr-mojo-num">61</span><span class="pr-inj-delta inj-down">-3</span>
             <span class="pr-mojo-range">58-70</span>
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Cason Wallace" data-arch="Defensive Specialist" data-mojo="73" data-range="69-78"
+         data-name="Cason Wallace" data-arch="Defensive Specialist" data-mojo="72" data-range="69-78"
          data-pts="8.3" data-ast="2.5" data-reb="3.1"
          data-stl="2.1" data-blk="0.3" data-ts="52.6"
          data-net="13.0" data-usg="13.7" data-mpg="26.9"
@@ -7942,7 +7157,7 @@
          data-impact-pct="50.0"
          data-raw-mojo="75" data-solo-impact="55.02"
          data-syn-score="85.77" data-fit-score="85.79"
-         data-inj-delta="-3"
+         data-inj-delta="-4"
          data-top-pairs="[&quot;S. Gilgeous-Alexander (+83.4 SYN, 40 poss)&quot;, &quot;C. Holmgren (+83.4 SYN, 37 poss)&quot;, &quot;L. Dort (+74.8 SYN, 33 poss)&quot;]">
         <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1641717.png" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -7954,38 +7169,11 @@
             <span>27 mpg</span>
         </div>
         <div class="pr-mojo mojo-good">
-            <span class="pr-mojo-num">73</span><span class="pr-inj-delta inj-down">-3</span>
+            <span class="pr-mojo-num">72</span><span class="pr-inj-delta inj-down">-4</span>
             <span class="pr-mojo-range">69-78</span>
         </div>
     </div>
     <div class="player-row starter " onclick="openPlayerSheet(this)"
-         data-name="Isaiah Joe" data-arch="Sharpshooter" data-mojo="65" data-range="62-73"
-         data-pts="10.8" data-ast="1.4" data-reb="2.6"
-         data-stl="0.7" data-blk="0.2" data-ts="64.9"
-         data-net="9.9" data-usg="17.6" data-mpg="21.3"
-         data-team="OKC" data-pid="1630198"
-         data-scoring-pct="29.0" data-playmaking-pct="6.0"
-         data-defense-pct="54.0" data-efficiency-pct="59.0"
-         data-impact-pct="48.0"
-         data-raw-mojo="62" data-solo-impact="54.17"
-         data-syn-score="72.71" data-fit-score="72.72"
-         data-inj-delta="-1"
-         data-top-pairs="[&quot;A. Caruso (+75.2 SYN, 17 poss)&quot;, &quot;S. Gilgeous-Alexander (+74.4 SYN, 26 poss)&quot;, &quot;A. Mitchell (+68.9 SYN, 25 poss)&quot;]">
-        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630198.png" class="pr-face" onerror="this.style.display='none'">
-        <div class="pr-info">
-            <span class="pr-name">I. Joe </span>
-            <span class="pr-meta">G 🎯 Sharpshooter</span>
-        </div>
-        <div class="pr-stats">
-            <span>11p 1a 3r</span>
-            <span>21 mpg</span>
-        </div>
-        <div class="pr-mojo mojo-avg">
-            <span class="pr-mojo-num">65</span><span class="pr-inj-delta inj-down">-1</span>
-            <span class="pr-mojo-range">62-73</span>
-        </div>
-    </div>
-    <div class="player-row bench " onclick="openPlayerSheet(this)"
          data-name="Aaron Wiggins" data-arch="Defensive Specialist" data-mojo="66" data-range="62-72"
          data-pts="10.4" data-ast="1.8" data-reb="3.5"
          data-stl="1.0" data-blk="0.5" data-ts="55.5"
@@ -8010,6 +7198,33 @@
         <div class="pr-mojo mojo-avg">
             <span class="pr-mojo-num">66</span><span class="pr-inj-delta inj-down">-2</span>
             <span class="pr-mojo-range">62-72</span>
+        </div>
+    </div>
+    <div class="player-row bench " onclick="openPlayerSheet(this)"
+         data-name="Isaiah Joe" data-arch="Sharpshooter" data-mojo="64" data-range="61-73"
+         data-pts="10.8" data-ast="1.4" data-reb="2.6"
+         data-stl="0.7" data-blk="0.2" data-ts="64.9"
+         data-net="9.9" data-usg="17.6" data-mpg="21.3"
+         data-team="OKC" data-pid="1630198"
+         data-scoring-pct="29.0" data-playmaking-pct="6.0"
+         data-defense-pct="54.0" data-efficiency-pct="59.0"
+         data-impact-pct="48.0"
+         data-raw-mojo="62" data-solo-impact="54.17"
+         data-syn-score="72.71" data-fit-score="72.72"
+         data-inj-delta="-2"
+         data-top-pairs="[&quot;A. Caruso (+75.2 SYN, 17 poss)&quot;, &quot;S. Gilgeous-Alexander (+74.4 SYN, 26 poss)&quot;, &quot;A. Mitchell (+68.9 SYN, 25 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1630198.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">I. Joe </span>
+            <span class="pr-meta">G 🎯 Sharpshooter</span>
+        </div>
+        <div class="pr-stats">
+            <span>11p 1a 3r</span>
+            <span>21 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-avg">
+            <span class="pr-mojo-num">64</span><span class="pr-inj-delta inj-down">-2</span>
+            <span class="pr-mojo-range">61-73</span>
         </div>
     </div>
     <div class="player-row bench " onclick="openPlayerSheet(this)"
@@ -8094,6 +7309,33 @@
         </div>
     </div>
     <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
+         data-name="Chet Holmgren" data-arch="Rim Protector" data-mojo="88" data-range="85-90"
+         data-pts="17.4" data-ast="1.7" data-reb="8.8"
+         data-stl="0.5" data-blk="1.9" data-ts="64.9"
+         data-net="14.6" data-usg="21.7" data-mpg="29.2"
+         data-team="OKC" data-pid="1631096"
+         data-scoring-pct="39.0" data-playmaking-pct="6.0"
+         data-defense-pct="91.0" data-efficiency-pct="49.0"
+         data-impact-pct="43.0"
+         data-raw-mojo="91" data-solo-impact="66.78"
+         data-syn-score="92.09" data-fit-score="92.07"
+         data-inj-delta="0"
+         data-top-pairs="[&quot;I. Hartenstein (+90.1 SYN, 37 poss)&quot;, &quot;S. Gilgeous-Alexander (+87.8 SYN, 41 poss)&quot;, &quot;C. Wallace (+83.4 SYN, 37 poss)&quot;]">
+        <img src="https://cdn.nba.com/headshots/nba/latest/260x190/1631096.png" class="pr-face" onerror="this.style.display='none'">
+        <div class="pr-info">
+            <span class="pr-name">C. Holmgren <span class="rw-status-badge rw-out">OUT</span></span>
+            <span class="pr-meta">C-F 🏰 Rim Protector</span>
+        </div>
+        <div class="pr-stats">
+            <span>17p 2a 9r</span>
+            <span>29 mpg</span>
+        </div>
+        <div class="pr-mojo mojo-elite">
+            <span class="pr-mojo-num">88</span>
+            <span class="pr-mojo-range">85-90</span>
+        </div>
+    </div>
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Jalen Williams" data-arch="Point Forward" data-mojo="76" data-range="73-78"
          data-pts="17.5" data-ast="5.4" data-reb="4.7"
          data-stl="1.3" data-blk="0.3" data-ts="55.5"
@@ -8174,7 +7416,7 @@
             <span class="pr-mojo-range">79-84</span>
         </div>
     </div>
-    <div class="player-row bench player-out" onclick="openPlayerSheet(this)"
+    <div class="player-row starter player-out" onclick="openPlayerSheet(this)"
          data-name="Jaylin Williams" data-arch="Stretch Big" data-mojo="70" data-range="64-77"
          data-pts="6.4" data-ast="2.5" data-reb="4.8"
          data-stl="0.6" data-blk="0.7" data-ts="54.2"
@@ -8777,131 +8019,6 @@
             </div>
             <div class="proj-lines-list">
                 
-        <div class="proj-matchup">
-            <div class="proj-matchup-header">
-                <img src="https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
-                <span>ORL @ MIN</span>
-                <img src="https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
-            </div>
-            <div class="proj-grid">
-                <div class="proj-half">
-                    <div class="proj-row">
-                        <span class="proj-name">P. Banchero</span>
-                        <span class="proj-line">21.7p</span>
-                        <span class="proj-line">5.1a</span>
-                        <span class="proj-line">8.4r</span>
-                        <span class="proj-pra">35.2</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">D. Bane</span>
-                        <span class="proj-line">20.3p</span>
-                        <span class="proj-line">4.2a</span>
-                        <span class="proj-line">4.2r</span>
-                        <span class="proj-pra">28.7</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">F. Wagner</span>
-                        <span class="proj-line">21.5p</span>
-                        <span class="proj-line">3.7a</span>
-                        <span class="proj-line">5.8r</span>
-                        <span class="proj-pra">31.0</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">A. Black</span>
-                        <span class="proj-line">16.0p</span>
-                        <span class="proj-line">4.0a</span>
-                        <span class="proj-line">4.0r</span>
-                        <span class="proj-pra">24.0</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">W. Carter Jr.</span>
-                        <span class="proj-line">11.5p</span>
-                        <span class="proj-line">2.1a</span>
-                        <span class="proj-line">7.6r</span>
-                        <span class="proj-pra">21.2</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">J. Suggs</span>
-                        <span class="proj-line">14.0p</span>
-                        <span class="proj-line">5.5a</span>
-                        <span class="proj-line">4.0r</span>
-                        <span class="proj-pra">23.5</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">T. da Silva</span>
-                        <span class="proj-line">8.7p</span>
-                        <span class="proj-line">1.2a</span>
-                        <span class="proj-line">3.4r</span>
-                        <span class="proj-pra">13.3</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">G. Bitadze</span>
-                        <span class="proj-line">5.9p</span>
-                        <span class="proj-line">1.1a</span>
-                        <span class="proj-line">5.0r</span>
-                        <span class="proj-pra">12.0</span>
-                    </div>
-                </div>
-                <div class="proj-half">
-                    <div class="proj-row">
-                        <span class="proj-name">A. Edwards</span>
-                        <span class="proj-line">30.3p</span>
-                        <span class="proj-line">3.7a</span>
-                        <span class="proj-line">5.3r</span>
-                        <span class="proj-pra">39.3</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">J. Randle</span>
-                        <span class="proj-line">22.7p</span>
-                        <span class="proj-line">5.4a</span>
-                        <span class="proj-line">6.9r</span>
-                        <span class="proj-pra">35.0</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">J. McDaniels</span>
-                        <span class="proj-line">15.3p</span>
-                        <span class="proj-line">2.9a</span>
-                        <span class="proj-line">4.4r</span>
-                        <span class="proj-pra">22.6</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">R. Gobert</span>
-                        <span class="proj-line">11.5p</span>
-                        <span class="proj-line">1.7a</span>
-                        <span class="proj-line">11.3r</span>
-                        <span class="proj-pra">24.5</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">D. DiVincenzo</span>
-                        <span class="proj-line">13.0p</span>
-                        <span class="proj-line">4.3a</span>
-                        <span class="proj-line">4.5r</span>
-                        <span class="proj-pra">21.8</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">A. Dosunmu</span>
-                        <span class="proj-line">15.2p</span>
-                        <span class="proj-line">3.7a</span>
-                        <span class="proj-line">2.9r</span>
-                        <span class="proj-pra">21.8</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">N. Reid</span>
-                        <span class="proj-line">14.7p</span>
-                        <span class="proj-line">2.5a</span>
-                        <span class="proj-line">6.4r</span>
-                        <span class="proj-pra">23.6</span>
-                    </div>
-                    <div class="proj-row">
-                        <span class="proj-name">M. Conley</span>
-                        <span class="proj-line">4.4p</span>
-                        <span class="proj-line">2.9a</span>
-                        <span class="proj-line">1.8r</span>
-                        <span class="proj-pra">9.1</span>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="proj-matchup">
             <div class="proj-matchup-header">
                 <img src="https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg" class="proj-logo" onerror="this.style.display='none'">
