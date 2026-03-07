@@ -270,5 +270,26 @@
     "conf_label": "TAKE SAS",
     "ml_odds": null,
     "generated_at": "2026-03-06T17:59:44.046748+00:00"
+  },
+  {
+    "slate_date": "2026-03-07",
+    "matchup": "GSW @ OKC",
+    "side": "GSW +15.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 15.0,
+    "confidence": 96,
+    "conf_1_10": 10,
+    "risk": 50,
+    "sim_spread": -4.5,
+    "book_spread": -15.0,
+    "spread_edge": 10.5,
+    "sim_total": 228.0,
+    "book_total": 219.5,
+    "raw_edge": 4.5,
+    "captured_at": "2026-03-07T17:46:31.771200+00:00",
+    "conf_label": "TAKE GSW",
+    "ml_odds": null,
+    "generated_at": "2026-03-07T17:46:29.907915+00:00"
   }
 ]
