@@ -3080,7 +3080,7 @@ def get_matchups():
     # Per-bookmaker odds from Odds API (for sportsbook buttons on cards)
     bookmaker_lines = api_bookmaker_lines
 
-    # ── Fetch prediction market win probabilities (Polymarket + Kalshi) ──
+    # ── Fetch prediction market win probabilities (Kalshi) ──
     prediction_market_data = {}
     try:
         from collectors.prediction_markets import fetch_all_prediction_markets
@@ -5644,7 +5644,7 @@ def render_matchup_card(m, idx, team_map):
         "betmgm": "MGM",
         "bovada": "BOV",
         "pointsbetus": "PBU",
-        "bethog": "HOG",
+        "bethog": "BetHOG",
     }
 
     BOOK_COLORS = {
@@ -5698,7 +5698,7 @@ def render_matchup_card(m, idx, team_map):
     bethog_btn = f'''
         <div class="mc-sportsbooks mc-bethog-row">
             <a href="{AFFILIATE_LINKS['bethog']}" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:{BOOK_COLORS['bethog']}60">
-                <span class="sb-name" style="color:{BOOK_COLORS['bethog']}">HOG</span>
+                <span class="sb-name" style="color:{BOOK_COLORS['bethog']}">BetHOG</span>
                 <span class="sb-line">BET NOW</span>
             </a>
         </div>'''
@@ -5721,7 +5721,7 @@ def render_matchup_card(m, idx, team_map):
             k_prob = k_away
         k_link = "https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7"
         pm_btn_html = f'''<a href="{k_link}" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
-            <span class="sb-name" style="color:#00C480">KLSH</span>
+            <span class="sb-name" style="color:#00C480">KALSHI</span>
             <span class="sb-line">{k_team} {k_prob*100:.0f}%</span>
         </a>'''
 
