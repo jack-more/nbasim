@@ -98,13 +98,11 @@ jobs:
             sleep 60
           done
 
-      # ── Capture picks on final pre-game run (10:00 AM PST) ──
+      # ── Capture picks on every run (dedup prevents double-counting) ──
       - name: Capture picks
-        if: github.event.schedule == '0 18 * * *' || inputs.full_pipeline == 'true'
         run: python scripts/capture_picks.py
 
       - name: Generate blog entry
-        if: github.event.schedule == '0 18 * * *' || inputs.full_pipeline == 'true'
         run: python scripts/generate_blog_entry.py
 
       # ── Commit + push ──
@@ -166,8 +164,7 @@ jobs:
       - name: Sync pick data to blog
         run: python nbasim/scripts/update_blog.py nbasim/index.html morellosims/index.html
 
-      - name: Inject new blog entry (post-game 11:30 PM PST only)
-        if: github.event.schedule == '30 7 * * *' || inputs.full_pipeline == 'true'
+      - name: Inject blog entry (if new snippet exists)
         run: |
           if [ -f nbasim/data/blog_snippet.html ]; then
             python nbasim/scripts/inject_blog_entry.py nbasim/data/blog_snippet.html morellosims/index.html
@@ -249,6 +246,12 @@ jobs:
             sleep 30
           done
 
+      - name: Capture picks
+        run: python scripts/capture_picks.py
+
+      - name: Generate blog entry
+        run: python scripts/generate_blog_entry.py
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
@@ -257,6 +260,10 @@ jobs:
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
           git add index.html nba_sim.html db/nba_sim.db
+          if [ -f data/picks.csv ]; then git add data/picks.csv; fi
+          if [ -f data/pick_log.json ]; then git add data/pick_log.json; fi
+          if [ -f data/blog_snippet.html ]; then git add data/blog_snippet.html; fi
+          if [ -f data/daily_picks.json ]; then git add data/daily_picks.json; fi
 
           if git diff --cached --quiet; then
             echo "No trend changes to commit"
