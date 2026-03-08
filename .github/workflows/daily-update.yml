@@ -48,6 +48,11 @@ on:
         options:
           - 'false'
           - 'true'
+      inject_pick:
+        description: 'Manual pick injection — e.g. "BOS @ CLE" "BOS -0.5" --risk 50'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write
@@ -122,6 +127,11 @@ jobs:
 
       - name: Generate blog entry
         run: python scripts/generate_blog_entry.py
+
+      # ── Manual pick injection (workflow_dispatch only) ──
+      - name: Inject manual pick
+        if: inputs.inject_pick != ''
+        run: python scripts/inject_pick.py ${{ inputs.inject_pick }}
 
       # ── Commit + push ──
       - name: Commit and push
