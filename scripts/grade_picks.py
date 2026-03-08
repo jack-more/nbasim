@@ -28,7 +28,7 @@ PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
 RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
 
 STARTING_BANKROLL = 1150.0
-CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds"]
+CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds", "home_score", "away_score"]
 
 
 # ── CSV I/O ──────────────────────────────────────────────────────────
@@ -46,6 +46,8 @@ def read_picks():
             row["result"] = row.get("result", "").strip()
             row["profit"] = row.get("profit", "").strip()
             row["odds"] = row.get("odds", "").strip()
+            row["home_score"] = row.get("home_score", "").strip()
+            row["away_score"] = row.get("away_score", "").strip()
             rows.append(row)
         return rows
 

@@ -258,24 +258,27 @@ def patch_pick_cards(html, picks):
         result = p["result"]
         profit = p["profit"]
 
-        # Skip FINAL score line if scores not available in settlement data
-        if h_score is None or a_score is None:
-            continue
-
         if pick_type not in ("spread", "ml"):
             continue
 
+        has_scores = h_score is not None and a_score is not None
+
         # Skip if FINAL already exists for this matchup
-        if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
+        if has_scores and re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
             continue
 
         result_emoji = "+" if result == "W" else "-" if result == "L" else "="
         result_color = "#00FF55" if result == "W" else "#FF4444" if result == "L" else "#FFD600"
 
-        final_text = (
-            f'FINAL: {away} {a_score} — {home} {h_score} | '
-            f'{p["side"]} {result} ({result_emoji}{abs(profit):.0f} $PP)'
-        )
+        if has_scores:
+            final_text = (
+                f'FINAL: {away} {a_score} — {home} {h_score} | '
+                f'{p["side"]} {result} ({result_emoji}{abs(profit):.0f} $PP)'
+            )
+        else:
+            final_text = (
+                f'{p["side"]} {result} ({result_emoji}{abs(profit):.0f} $PP)'
+            )
 
         # Strategy 1: Replace PENDING text inside a pick card with matching matchup
         # Match: data-matchup="XXX @ YYY" ... >PENDING</p>

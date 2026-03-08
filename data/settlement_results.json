@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-08T04:48:17.642658+00:00",
+  "graded_at": "2026-03-08T04:54:19.856517+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -200,6 +200,17 @@
       "away_score": 84
     },
     {
+      "date": "2026-02-26",
+      "matchup": "LAL @ PHX",
+      "side": "LAL +3.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 113,
+      "away_score": 110
+    },
+    {
       "date": "2026-02-27",
       "matchup": "NYK @ MIL",
       "side": "NYK -8.5",
@@ -316,7 +327,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 81,
+      "away_score": 108
     },
     {
       "date": "2026-03-03",
@@ -325,7 +338,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 91,
+      "away_score": 131
     },
     {
       "date": "2026-03-03",
@@ -334,7 +349,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 103,
+      "away_score": 114
     },
     {
       "date": "2026-03-03",
@@ -343,7 +360,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 113,
+      "away_score": 109
     },
     {
       "date": "2026-03-03",
@@ -352,7 +371,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 124,
+      "away_score": 98
     },
     {
       "date": "2026-03-03",
@@ -361,7 +382,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 126,
+      "away_score": 109
     },
     {
       "date": "2026-03-03",
@@ -370,7 +393,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 108,
+      "away_score": 116
     },
     {
       "date": "2026-03-04",
@@ -379,7 +404,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 89,
+      "away_score": 118
     },
     {
       "date": "2026-03-04",
@@ -388,7 +415,9 @@
       "type": "spread",
       "risk": 20.0,
       "result": "W",
-      "profit": 18.18
+      "profit": 18.18,
+      "home_score": 106,
+      "away_score": 102
     },
     {
       "date": "2026-03-04",
@@ -397,7 +426,9 @@
       "type": "ml",
       "risk": 30.0,
       "result": "W",
-      "profit": 39.0
+      "profit": 39.0,
+      "home_score": 113,
+      "away_score": 131
     },
     {
       "date": "2026-03-04",
@@ -406,7 +437,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 130,
+      "away_score": 107
     },
     {
       "date": "2026-03-05",
@@ -415,7 +448,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 113,
+      "away_score": 115
     },
     {
       "date": "2026-03-05",
@@ -424,7 +459,9 @@
       "type": "ml",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 121,
+      "away_score": 106
     },
     {
       "date": "2026-03-05",
@@ -433,7 +470,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 103,
+      "away_score": 105
     },
     {
       "date": "2026-03-05",
@@ -442,7 +481,9 @@
       "type": "ml",
       "risk": 30.0,
       "result": "L",
-      "profit": -30.0
+      "profit": -30.0,
+      "home_score": 120,
+      "away_score": 113
     },
     {
       "date": "2026-03-05",
@@ -451,7 +492,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 123,
+      "away_score": 133
     },
     {
       "date": "2026-03-06",
@@ -460,7 +503,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 120,
+      "away_score": 128
     },
     {
       "date": "2026-03-06",
@@ -469,7 +514,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 118,
+      "away_score": 116
     },
     {
       "date": "2026-03-06",
@@ -478,7 +525,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "L",
-      "profit": -30.0
+      "profit": -30.0,
+      "home_score": 116,
+      "away_score": 112
     },
     {
       "date": "2026-03-07",
@@ -487,17 +536,19 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 104,
+      "away_score": 97
     }
   ],
-  "pending_count": 1,
+  "pending_count": 0,
   "record": {
-    "W": 33,
+    "W": 34,
     "L": 15,
     "P": 0
   },
-  "total_profit": 591.16,
+  "total_profit": 636.61,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1741.16,
-  "status": "PARTIAL"
+  "new_bankroll": 1786.61,
+  "status": "SETTLED"
 }
