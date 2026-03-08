@@ -243,7 +243,7 @@ def patch_hero_stats(html, record, bankroll, total_picks, total_risked):
 
 
 def patch_pick_cards(html, picks):
-    """Add FINAL score line to pick cards that have been graded."""
+    """Replace PENDING with FINAL score line on pick cards that have been graded."""
     changes = 0
 
     for p in picks:
@@ -262,31 +262,123 @@ def patch_pick_cards(html, picks):
         if h_score is None or a_score is None:
             continue
 
-        if pick_type in ("spread", "ml"):
-            # Skip if FINAL already exists for this matchup
-            if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
-                continue
+        if pick_type not in ("spread", "ml"):
+            continue
 
-            result_emoji = "+" if result == "W" else "-" if result == "L" else "="
-            result_color = "#00FF55" if result == "W" else "#FF4444" if result == "L" else "#FFD600"
+        # Skip if FINAL already exists for this matchup
+        if re.search(rf'FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+', html):
+            continue
 
-            # Find the IMPLIED line for this matchup and add FINAL after it
-            implied_pattern = re.compile(
-                rf'(IMPLIED: {re.escape(away)} \d+ .{{1,5}} {re.escape(home)} \d+)'
+        result_emoji = "+" if result == "W" else "-" if result == "L" else "="
+        result_color = "#00FF55" if result == "W" else "#FF4444" if result == "L" else "#FFD600"
+
+        final_text = (
+            f'FINAL: {away} {a_score} — {home} {h_score} | '
+            f'{p["side"]} {result} ({result_emoji}{abs(profit):.0f} $PP)'
+        )
+
+        # Strategy 1: Replace PENDING text inside a pick card with matching matchup
+        # Match: data-matchup="XXX @ YYY" ... >PENDING</p>
+        pending_pattern = re.compile(
+            rf'(data-matchup="{re.escape(matchup)}".*?)'
+            rf'<p class="mono"[^>]*color:#FFD600[^>]*>\s*PENDING\s*</p>',
+            re.DOTALL,
+        )
+        final_replacement = (
+            rf'\1<p class="mono" style="font-size:8px; color:{result_color}; '
+            f'margin:0 0 4px; font-weight:700; letter-spacing:0.5px;">'
+            f'{final_text}</p>'
+        )
+        new_html = pending_pattern.sub(final_replacement, html, count=1)
+        if new_html != html:
+            changes += 1
+            html = new_html
+            print(f"  Updated card: {matchup} — PENDING → {final_text}")
+
+            # Also update data-status from pending to settled
+            status_pattern = re.compile(
+                rf'data-status="pending"(\s+data-matchup="{re.escape(matchup)}")'
             )
-            final_line = (
-                f'\\1</p>'
-                f'<p class="mono" style="font-size:8px; color:{result_color}; '
-                f'margin:0 0 4px; font-weight:700; letter-spacing:0.5px;">'
-                f'FINAL: {away} {a_score} — {home} {h_score} | '
-                f'{p["side"]} {result} ({result_emoji}{abs(profit):.0f} $PP)'
-            )
+            html = status_pattern.sub(r'data-status="settled"\1', html, count=1)
+            continue
 
-            new_html = implied_pattern.sub(final_line, html, count=1)
-            if new_html != html:
-                changes += 1
-                html = new_html
-                print(f"  Added FINAL: {matchup} — {away} {a_score}, {home} {h_score}")
+        # Strategy 2 (fallback): Find IMPLIED line and add FINAL after it
+        implied_pattern = re.compile(
+            rf'(IMPLIED: {re.escape(away)} \d+ .{{1,5}} {re.escape(home)} \d+)'
+        )
+        final_line = (
+            f'\\1</p>'
+            f'<p class="mono" style="font-size:8px; color:{result_color}; '
+            f'margin:0 0 4px; font-weight:700; letter-spacing:0.5px;">'
+            f'{final_text}'
+        )
+        new_html = implied_pattern.sub(final_line, html, count=1)
+        if new_html != html:
+            changes += 1
+            html = new_html
+            print(f"  Added FINAL (implied): {matchup} — {away} {a_score}, {home} {h_score}")
+
+    return html, changes
+
+
+def patch_day_summaries(html, picks):
+    """Update day summary records from PENDING to actual W-L record."""
+    changes = 0
+
+    # Group settled picks by date
+    from collections import defaultdict
+    daily = defaultdict(lambda: {"W": 0, "L": 0, "P": 0, "profit": 0.0})
+    for p in picks:
+        if not p.get("result"):
+            continue
+        date = p["date"]
+        daily[date][p["result"]] += 1
+        daily[date]["profit"] += float(p.get("profit", 0))
+
+    # Date label map: "2026-03-06" → "MAR 6"
+    month_names = {
+        "01": "JAN", "02": "FEB", "03": "MAR", "04": "APR",
+        "05": "MAY", "06": "JUN", "07": "JUL", "08": "AUG",
+        "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC",
+    }
+
+    for date_str, rec in daily.items():
+        parts = date_str.split("-")
+        month = month_names.get(parts[1], parts[1])
+        day = str(int(parts[2]))  # Remove leading zero
+        label = f"{month} {day}"
+
+        wins = rec["W"]
+        losses = rec["L"]
+        total_profit = rec["profit"]
+
+        # Determine color: green if winning, red if losing
+        if wins > losses:
+            color = "#00FF55"
+        elif losses > wins:
+            color = "#FF4444"
+        else:
+            color = "#FFD600"
+
+        profit_sign = "+" if total_profit >= 0 else ""
+        record_text = f'{wins}-{losses} · {profit_sign}{total_profit:.0f} $PP'
+
+        # Find the day summary with this label and PENDING
+        day_pattern = re.compile(
+            rf'(<span class="slate-day-label">{re.escape(label)} · [A-Z]+</span>'
+            rf'.*?</div>\s*)'
+            rf'<span class="slate-day-record"[^>]*>PENDING</span>',
+            re.DOTALL,
+        )
+        replacement = (
+            rf'\1<span class="slate-day-record" style="color:{color};">'
+            f'{record_text}</span>'
+        )
+        new_html = day_pattern.sub(replacement, html, count=1)
+        if new_html != html:
+            changes += 1
+            html = new_html
+            print(f"  Updated day: {label} → {record_text}")
 
     return html, changes
 
@@ -358,6 +450,11 @@ def main():
     # Patch pick cards with FINAL scores
     print("Patching pick cards with final scores...")
     html, c = patch_pick_cards(html, picks)
+    total_changes += c
+
+    # Patch day summary records (PENDING → W-L · profit)
+    print("Patching day summaries...")
+    html, c = patch_day_summaries(html, picks)
     total_changes += c
 
     # Compute stats from CSV (source of truth) for hero stats + bankroll

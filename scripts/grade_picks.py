@@ -281,8 +281,14 @@ def grade_all():
 
     print(f"\n{len(pending)} pending picks to grade\n")
 
+    # Auto-compute lookback: go back far enough to cover oldest pending pick
+    oldest_date = min(p["date"] for p in pending)
+    days_needed = (datetime.now(timezone.utc) - datetime.strptime(oldest_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)).days + 2
+    days_needed = max(days_needed, 3)  # Minimum 3 days
+    print(f"Oldest pending: {oldest_date} → fetching {days_needed} days of scores")
+
     # Fetch scores
-    scores = fetch_scores()
+    scores = fetch_scores(days_from=days_needed)
 
     # Grade each pending pick
     graded = 0
