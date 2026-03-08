@@ -1,267 +1,6 @@
 {
-  "graded_at": "2026-03-08T04:29:27.429599+00:00",
+  "graded_at": "2026-03-08T04:33:21.154180+00:00",
   "picks": [
-    {
-      "date": "2026-02-19",
-      "matchup": "BKN @ CLE",
-      "side": "CLE -8.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-19",
-      "matchup": "PHX @ SAS",
-      "side": "SAS -12.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-20",
-      "matchup": "DAL @ MIN",
-      "side": "MIN -5.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-20",
-      "matchup": "UTA @ MEM",
-      "side": "MEM -3.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-21",
-      "matchup": "PHI @ NOP",
-      "side": "NOP -5.0",
-      "type": "spread",
-      "risk": 40.0,
-      "result": "W",
-      "profit": 36.36
-    },
-    {
-      "date": "2026-02-21",
-      "matchup": "SAC @ SAS",
-      "side": "SAS -12.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "L",
-      "profit": -30.0
-    },
-    {
-      "date": "2026-02-21",
-      "matchup": "HOU @ NYK",
-      "side": "HOU -3.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "DEN @ GSW",
-      "side": "GSW ML",
-      "type": "ml",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "BOS @ LAL",
-      "side": "BOS -7.0",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "POR @ PHX",
-      "side": "PHX ML",
-      "type": "ml",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-22",
-      "matchup": "ORL @ LAC",
-      "side": "ORL +3.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-23",
-      "matchup": "SAC @ MEM",
-      "side": "MEM -3.0",
-      "type": "spread",
-      "risk": 20.0,
-      "result": "L",
-      "profit": -20.0
-    },
-    {
-      "date": "2026-02-23",
-      "matchup": "UTA @ HOU",
-      "side": "HOU -3.0",
-      "type": "spread",
-      "risk": 20.0,
-      "result": "W",
-      "profit": 18.18
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "PHI @ IND",
-      "side": "IND +9.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "WAS @ ATL",
-      "side": "WAS +12.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "ORL @ LAL",
-      "side": "ORL +5.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-24",
-      "matchup": "BOS @ PHX",
-      "side": "BOS -5.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-25",
-      "matchup": "BOS @ DEN",
-      "side": "BOS +4.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
-    },
-    {
-      "date": "2026-02-26",
-      "matchup": "PHX @ LAL",
-      "side": "LAL +3.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-27",
-      "matchup": "NYK @ MIL",
-      "side": "NYK -8.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-27",
-      "matchup": "MEM @ DAL",
-      "side": "MEM +5.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-02-28",
-      "matchup": "LAL @ GSW",
-      "side": "LAL -4.0",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-28",
-      "matchup": "HOU @ MIA",
-      "side": "MIA +2.0",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-02-28",
-      "matchup": "NOP @ UTA",
-      "side": "NOP -6.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-03-01",
-      "matchup": "MIN @ DEN",
-      "side": "MIN ML",
-      "type": "ml",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 65.0
-    },
-    {
-      "date": "2026-03-01",
-      "matchup": "MIL @ CHI",
-      "side": "CHI +3.5",
-      "type": "spread",
-      "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
-    },
-    {
-      "date": "2026-03-01",
-      "matchup": "CLE @ BKN",
-      "side": "BKN +12.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-03-01",
-      "matchup": "OKC @ DAL",
-      "side": "DAL +15.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
-    },
-    {
-      "date": "2026-03-01",
-      "matchup": "NOP @ LAC",
-      "side": "NOP +8.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "L",
-      "profit": -30.0
-    },
     {
       "date": "2026-03-02",
       "matchup": "BOS @ MIL",
@@ -269,7 +8,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 81,
+      "away_score": 108
     },
     {
       "date": "2026-03-03",
@@ -278,7 +19,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 91,
+      "away_score": 131
     },
     {
       "date": "2026-03-03",
@@ -287,7 +30,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 103,
+      "away_score": 114
     },
     {
       "date": "2026-03-03",
@@ -296,7 +41,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 113,
+      "away_score": 109
     },
     {
       "date": "2026-03-03",
@@ -305,7 +52,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 124,
+      "away_score": 98
     },
     {
       "date": "2026-03-03",
@@ -314,7 +63,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 126,
+      "away_score": 109
     },
     {
       "date": "2026-03-03",
@@ -323,7 +74,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 108,
+      "away_score": 116
     },
     {
       "date": "2026-03-04",
@@ -332,7 +85,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "W",
-      "profit": 45.45
+      "profit": 45.45,
+      "home_score": 89,
+      "away_score": 118
     },
     {
       "date": "2026-03-04",
@@ -341,7 +96,9 @@
       "type": "spread",
       "risk": 20.0,
       "result": "W",
-      "profit": 18.18
+      "profit": 18.18,
+      "home_score": 106,
+      "away_score": 102
     },
     {
       "date": "2026-03-04",
@@ -350,7 +107,9 @@
       "type": "ml",
       "risk": 30.0,
       "result": "W",
-      "profit": 39.0
+      "profit": 39.0,
+      "home_score": 113,
+      "away_score": 131
     },
     {
       "date": "2026-03-04",
@@ -359,7 +118,9 @@
       "type": "spread",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 130,
+      "away_score": 107
     },
     {
       "date": "2026-03-05",
@@ -367,8 +128,10 @@
       "side": "HOU -8.5",
       "type": "spread",
       "risk": 50.0,
-      "result": "W",
-      "profit": 45.45
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 113,
+      "away_score": 115
     },
     {
       "date": "2026-03-05",
@@ -377,7 +140,9 @@
       "type": "ml",
       "risk": 50.0,
       "result": "L",
-      "profit": -50.0
+      "profit": -50.0,
+      "home_score": 121,
+      "away_score": 106
     },
     {
       "date": "2026-03-05",
@@ -385,8 +150,10 @@
       "side": "CHI +10.5",
       "type": "spread",
       "risk": 30.0,
-      "result": "L",
-      "profit": -30.0
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 103,
+      "away_score": 105
     },
     {
       "date": "2026-03-05",
@@ -395,7 +162,9 @@
       "type": "ml",
       "risk": 30.0,
       "result": "L",
-      "profit": -30.0
+      "profit": -30.0,
+      "home_score": 120,
+      "away_score": 113
     },
     {
       "date": "2026-03-05",
@@ -404,7 +173,9 @@
       "type": "spread",
       "risk": 30.0,
       "result": "W",
-      "profit": 27.27
+      "profit": 27.27,
+      "home_score": 123,
+      "away_score": 133
     },
     {
       "date": "2026-03-06",
@@ -412,8 +183,10 @@
       "side": "MIA +8.5",
       "type": "spread",
       "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 120,
+      "away_score": 128
     },
     {
       "date": "2026-03-06",
@@ -421,8 +194,10 @@
       "side": "NOP +7.5",
       "type": "spread",
       "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 118,
+      "away_score": 116
     },
     {
       "date": "2026-03-06",
@@ -430,8 +205,10 @@
       "side": "SAS -8.0",
       "type": "spread",
       "risk": 30.0,
-      "result": "W",
-      "profit": 27.27
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 116,
+      "away_score": 112
     },
     {
       "date": "2026-03-07",
@@ -439,18 +216,20 @@
       "side": "GSW +15.0",
       "type": "spread",
       "risk": 50.0,
-      "result": "L",
-      "profit": -50.0
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 104,
+      "away_score": 97
     }
   ],
-  "pending_count": 0,
+  "pending_count": 29,
   "record": {
-    "W": 31,
-    "L": 18,
+    "W": 12,
+    "L": 8,
     "P": 0
   },
-  "total_profit": 350.26,
+  "total_profit": 78.96,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1500.26,
-  "status": "SETTLED"
+  "new_bankroll": 1228.96,
+  "status": "PARTIAL"
 }
