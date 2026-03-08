@@ -374,6 +374,10 @@ jobs:
         with:
           path: nbasim
 
+      - name: Pull latest nbasim (grade-picks may have pushed new data)
+        working-directory: nbasim
+        run: git pull origin main
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
