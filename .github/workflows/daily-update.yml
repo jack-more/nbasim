@@ -76,6 +76,24 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # ── Refresh rosters + player stats every run (keeps lineups current) ──
+      - name: Refresh rosters and player stats
+        timeout-minutes: 10
+        run: |
+          python -c "
+          import sys, os, logging
+          sys.path.insert(0, os.getcwd())
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+          from config import DB_PATH
+          from collectors.players import PlayerCollector
+          pc = PlayerCollector(DB_PATH)
+          pc.collect_teams()
+          pc.collect_rosters('2025-26')
+          pc.collect_player_season_stats('2025-26')
+          pc.collect_team_season_stats('2025-26')
+          print('=== Rosters + season stats refreshed ===')
+          "
+
       # ── Optional: full pipeline (manual trigger only) ──
       - name: Run full pipeline
         if: inputs.full_pipeline == 'true'
@@ -120,10 +138,8 @@ jobs:
           if [ -f data/pick_log.json ]; then git add data/pick_log.json; fi
           if [ -f data/blog_snippet.html ]; then git add data/blog_snippet.html; fi
 
-          # Include DB if full pipeline ran
-          if [ "${{ inputs.full_pipeline }}" = "true" ]; then
-            git add db/nba_sim.db
-          fi
+          # Always include DB (rosters + stats refresh on every run)
+          git add db/nba_sim.db
 
           if git diff --cached --quiet; then
             echo "No changes to commit"

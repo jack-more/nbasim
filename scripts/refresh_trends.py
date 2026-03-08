@@ -21,6 +21,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from config import DB_PATH
 from db.connection import read_query, execute
+from collectors.players import PlayerCollector
 from collectors.boxscores import BoxScoreCollector
 from collectors.games import GameCollector
 from collectors.lineups import LineupCollector
@@ -142,22 +143,43 @@ def refresh_synergy_data():
         logger.warning(f"Value scores refresh failed (non-fatal): {e}")
 
 
+def refresh_rosters_and_stats():
+    """Refresh team rosters and player/team season stats daily.
+
+    This ensures new signings, trades, and updated stat lines are reflected
+    in the lineup displays and projection model.  ~40 lightweight API calls.
+    """
+    logger.info("=== Refreshing rosters + player/team season stats ===")
+    player_collector = PlayerCollector(DB_PATH)
+    try:
+        player_collector.collect_teams()
+        player_collector.collect_rosters(SEASON_ID)
+        player_collector.collect_player_season_stats(SEASON_ID)
+        player_collector.collect_team_season_stats(SEASON_ID)
+        logger.info("Rosters + season stats refreshed.")
+    except Exception as e:
+        logger.warning(f"Roster/stats refresh failed (non-fatal): {e}")
+
+
 def main():
     logger.info("=" * 60)
     logger.info("NBA SIM — DAILY TRENDS REFRESH")
     logger.info(f"Lookback: {LOOKBACK_DAYS} days | Season: {SEASON_ID}")
     logger.info("=" * 60)
 
-    # Step 1: Make sure we have recent game records
+    # Step 1: Refresh rosters + player/team season stats (lineups, trades, stat lines)
+    refresh_rosters_and_stats()
+
+    # Step 2: Make sure we have recent game records
     refresh_recent_games()
 
-    # Step 2: Collect any missing boxscores (the key data for player trends)
+    # Step 3: Collect any missing boxscores (the key data for player trends)
     new_boxscores = collect_missing_boxscores()
 
-    # Step 3: Refresh lineup combo stats (for hot/cold combos)
+    # Step 4: Refresh lineup combo stats (for hot/cold combos)
     refresh_lineup_stats()
 
-    # Step 4: Recompute synergy + value scores (for WOWY trends + projection model)
+    # Step 5: Recompute synergy + value scores (for WOWY trends + projection model)
     refresh_synergy_data()
 
     logger.info("=" * 60)
