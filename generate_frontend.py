@@ -6175,7 +6175,7 @@ def render_info_page():
             <h2 class="info-title">MOJI SPREAD MODEL — 10-STEP PIPELINE</h2>
             <p class="info-text">
                 The SIM runs a 10-step pipeline to produce projected spreads and totals for every game.
-                Lines are SIM-projected from team net ratings, MOJI differentials, and home-court advantage.
+                <strong>Real lines</strong> from sportsbooks via RotoWire. Projected lines marked <strong>(PROJ.)</strong> where real data is unavailable.
             </p>
             <div class="info-formula">
                 <div class="formula-row"><span>Step 0</span><span>Filter out started/completed games</span></div>
