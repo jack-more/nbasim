@@ -2,8 +2,9 @@
 """
 grade_picks.py — CSV-based pick tracker with auto-grading.
 
-Reads picks from data/picks.csv, fetches scores from The Odds API,
-grades ungraded picks W/L/P, updates the CSV in-place.
+Reads picks from data/picks.csv, fetches scores from the local SQLite
+database (db/nba_sim.db), grades ungraded picks W/L/P, updates the CSV
+in-place.
 
 Usage:
   python scripts/grade_picks.py                          # Grade pending picks
@@ -14,42 +15,16 @@ Usage:
 import csv
 import os
 import re
+import sqlite3
 import sys
-from datetime import datetime, timezone
-
-import requests
+from datetime import datetime, timedelta, timezone
 
 # ── Paths ──
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
 RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
-
-# ── API config ──
-ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
-if not ODDS_API_KEY:
-    sys.path.insert(0, PROJECT_ROOT)
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
-        ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
-    except ImportError:
-        pass
-
-ODDS_TEAM_MAP = {
-    "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
-    "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
-    "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
-    "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
-    "Los Angeles Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
-    "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
-    "New Orleans Pelicans": "NOP", "New York Knicks": "NYK",
-    "Oklahoma City Thunder": "OKC", "Orlando Magic": "ORL",
-    "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
-    "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC",
-    "San Antonio Spurs": "SAS", "Toronto Raptors": "TOR",
-    "Utah Jazz": "UTA", "Washington Wizards": "WAS",
-}
+DB_PATH = os.path.join(PROJECT_ROOT, "db", "nba_sim.db")
 
 STARTING_BANKROLL = 1150.0
 CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds"]
@@ -109,58 +84,47 @@ def add_pick(raw_str):
 
 # ── Score Fetching ───────────────────────────────────────────────────
 
-def fetch_scores(days_from=5):
-    """Fetch completed NBA game scores from The Odds API."""
-    if not ODDS_API_KEY:
-        print("No ODDS_API_KEY set — cannot auto-grade. Set result column manually.")
+def fetch_scores(days_from=7):
+    """Fetch completed NBA game scores from the local SQLite database."""
+    if not os.path.exists(DB_PATH):
+        print(f"Database not found at {DB_PATH} — cannot auto-grade.")
         return {}
 
-    url = "https://api.the-odds-api.com/v4/sports/basketball_nba/scores"
-    resp = requests.get(url, params={
-        "apiKey": ODDS_API_KEY,
-        "daysFrom": days_from,
-    })
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_from)).strftime("%Y-%m-%d")
 
-    if resp.status_code != 200:
-        print(f"Scores API error: {resp.status_code}")
-        return {}
-
-    remaining = resp.headers.get("x-requests-remaining", "?")
-    print(f"[Scores API] {remaining} requests remaining")
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                ht.abbreviation AS home_abbr,
+                at.abbreviation AS away_abbr,
+                g.home_score,
+                g.away_score
+            FROM games g
+            JOIN teams ht ON g.home_team_id = ht.team_id
+            JOIN teams at ON g.away_team_id = at.team_id
+            WHERE g.game_date >= ?
+              AND g.home_score IS NOT NULL
+            ORDER BY g.game_date DESC
+            """,
+            (cutoff_date,),
+        ).fetchall()
+    finally:
+        conn.close()
 
     scores = {}
-    for event in resp.json():
-        if not event.get("completed", False):
-            continue
+    for row in rows:
+        key = f"{row['away_abbr']} @ {row['home_abbr']}"
+        scores[key] = {
+            "home_abbr": row["home_abbr"],
+            "away_abbr": row["away_abbr"],
+            "home_score": row["home_score"],
+            "away_score": row["away_score"],
+        }
 
-        home_full = event.get("home_team", "")
-        away_full = event.get("away_team", "")
-        home_abbr = ODDS_TEAM_MAP.get(home_full, "")
-        away_abbr = ODDS_TEAM_MAP.get(away_full, "")
-
-        if not home_abbr or not away_abbr:
-            continue
-
-        event_scores = event.get("scores", [])
-        home_score = away_score = None
-        for s in event_scores:
-            team_name = s.get("name", "")
-            score_val = int(s.get("score", 0))
-            if team_name == home_full:
-                home_score = score_val
-            elif team_name == away_full:
-                away_score = score_val
-
-        if home_score is not None and away_score is not None:
-            key = f"{away_abbr} @ {home_abbr}"
-            scores[key] = {
-                "home_abbr": home_abbr,
-                "away_abbr": away_abbr,
-                "home_score": home_score,
-                "away_score": away_score,
-            }
-
-    print(f"  Found {len(scores)} completed games")
+    print(f"[Local DB] Found {len(scores)} completed games (last {days_from} days)")
     return scores
 
 
@@ -274,7 +238,7 @@ def grade_ml(matchup, side_str, scores):
 # ── Main ─────────────────────────────────────────────────────────────
 
 def grade_all():
-    """Grade all pending picks from CSV using Odds API scores."""
+    """Grade all pending picks from CSV using local DB scores."""
     picks = read_picks()
     if not picks:
         print("No picks in CSV")
