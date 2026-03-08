@@ -30,8 +30,14 @@ PICK_LOG = os.path.join(os.path.dirname(__file__), "..", "data", "pick_log.json"
 
 
 def conf_to_1_10(confidence):
-    """Convert 35-96 confidence to 1-10 display scale."""
-    return round((abs(confidence - 50) / 46) * 10)
+    """Convert model confidence (0-100) to 1-10 display scale.
+
+    Must match generate_frontend.py formula exactly:
+        conf_grade_100 = min(100, int(abs(conf_pct - 50) * 2.5 + 20))
+        conf_10 = max(1, min(10, round(conf_grade_100 / 10)))
+    """
+    conf_grade_100 = min(100, int(abs(confidence - 50) * 2.5 + 20))
+    return max(1, min(10, round(conf_grade_100 / 10)))
 
 
 def risk_amount(conf_1_10):
@@ -178,10 +184,10 @@ def capture(threshold=65, dry_run=False):
     with open(PICKS_CSV, "a", newline="") as f:
         writer = csv.writer(f)
         if not csv_exists:
-            writer.writerow(["date", "matchup", "side", "type", "risk", "result", "profit", "odds"])
+            writer.writerow(["date", "matchup", "side", "type", "risk", "result", "profit", "odds", "home_score", "away_score"])
         for p in picks:
             odds_val = p.get("ml_odds") or ""
-            writer.writerow([p["slate_date"], p["matchup"], p["side"], p["pick_type"], p["risk"], "", "", odds_val])
+            writer.writerow([p["slate_date"], p["matchup"], p["side"], p["pick_type"], p["risk"], "", "", odds_val, "", ""])
 
     print(f"[capture] Appended {len(picks)} picks to {PICKS_CSV}")
 

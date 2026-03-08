@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-08T04:55:06.864693+00:00",
+  "graded_at": "2026-03-08T06:13:00.739284+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -531,6 +531,17 @@
     },
     {
       "date": "2026-03-07",
+      "matchup": "LAC @ MEM",
+      "side": "MEM +6.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 120,
+      "away_score": 123
+    },
+    {
+      "date": "2026-03-07",
       "matchup": "GSW @ OKC",
       "side": "GSW +15.0",
       "type": "spread",
@@ -543,12 +554,12 @@
   ],
   "pending_count": 0,
   "record": {
-    "W": 34,
+    "W": 35,
     "L": 15,
     "P": 0
   },
-  "total_profit": 636.61,
+  "total_profit": 682.06,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1786.61,
+  "new_bankroll": 1832.06,
   "status": "SETTLED"
 }
