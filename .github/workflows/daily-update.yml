@@ -76,9 +76,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create .env
-        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
-
       # ── Optional: full pipeline (manual trigger only) ──
       - name: Run full pipeline
         if: inputs.full_pipeline == 'true'
@@ -233,9 +230,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create .env
-        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
-
       - name: Refresh trends (collect missing boxscores + lineup stats)
         timeout-minutes: 25
         run: |
@@ -352,7 +346,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add data/settlement_results.json db/nba_sim.db
+          git add data/picks.csv data/settlement_results.json
 
           if git diff --cached --quiet; then
             echo "No settlement changes"

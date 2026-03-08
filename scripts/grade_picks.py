@@ -2,9 +2,9 @@
 """
 grade_picks.py — CSV-based pick tracker with auto-grading.
 
-Reads picks from data/picks.csv, fetches scores from the local SQLite
-database (db/nba_sim.db), grades ungraded picks W/L/P, updates the CSV
-in-place.
+Reads picks from data/picks.csv, fetches scores from ESPN's public API
+(works from GitHub Actions IPs), grades ungraded picks W/L/P, updates
+the CSV in-place.
 
 Usage:
   python scripts/grade_picks.py                          # Grade pending picks
@@ -13,10 +13,12 @@ Usage:
 """
 
 import csv
+import json
 import os
 import re
-import sqlite3
 import sys
+import urllib.request
+import urllib.error
 from datetime import datetime, timedelta, timezone
 
 # ── Paths ──
@@ -24,7 +26,6 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
 RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
-DB_PATH = os.path.join(PROJECT_ROOT, "db", "nba_sim.db")
 
 STARTING_BANKROLL = 1150.0
 CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds"]
@@ -82,49 +83,75 @@ def add_pick(raw_str):
     print(f"Added: {new_pick['date']} | {new_pick['matchup']} | {new_pick['side']} | risk {new_pick['risk']}")
 
 
+# ── ESPN abbreviation → standard NBA abbreviation mapping ────────────
+ESPN_ABBR_MAP = {
+    "GS": "GSW", "SA": "SAS", "NO": "NOP", "NY": "NYK",
+    "UTAH": "UTA", "WSH": "WAS",
+}
+
+
+def _normalize_abbr(espn_abbr):
+    """Convert ESPN team abbreviation to standard 3-letter NBA abbreviation."""
+    return ESPN_ABBR_MAP.get(espn_abbr, espn_abbr)
+
+
 # ── Score Fetching ───────────────────────────────────────────────────
 
 def fetch_scores(days_from=7):
-    """Fetch completed NBA game scores from the local SQLite database."""
-    if not os.path.exists(DB_PATH):
-        print(f"Database not found at {DB_PATH} — cannot auto-grade.")
-        return {}
+    """Fetch completed NBA game scores from ESPN's public API.
 
-    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_from)).strftime("%Y-%m-%d")
-
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute(
-            """
-            SELECT
-                ht.abbreviation AS home_abbr,
-                at.abbreviation AS away_abbr,
-                g.home_score,
-                g.away_score
-            FROM games g
-            JOIN teams ht ON g.home_team_id = ht.team_id
-            JOIN teams at ON g.away_team_id = at.team_id
-            WHERE g.game_date >= ?
-              AND g.home_score IS NOT NULL
-            ORDER BY g.game_date DESC
-            """,
-            (cutoff_date,),
-        ).fetchall()
-    finally:
-        conn.close()
-
+    Uses the ESPN scoreboard endpoint which works reliably from
+    GitHub Actions cloud IPs (unlike BBRef/stats.nba.com).
+    """
     scores = {}
-    for row in rows:
-        key = f"{row['away_abbr']} @ {row['home_abbr']}"
-        scores[key] = {
-            "home_abbr": row["home_abbr"],
-            "away_abbr": row["away_abbr"],
-            "home_score": row["home_score"],
-            "away_score": row["away_score"],
-        }
+    today = datetime.now(timezone.utc)
 
-    print(f"[Local DB] Found {len(scores)} completed games (last {days_from} days)")
+    for day_offset in range(days_from):
+        date = today - timedelta(days=day_offset)
+        date_str = date.strftime("%Y%m%d")
+
+        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode())
+        except (urllib.error.URLError, TimeoutError, Exception) as e:
+            print(f"[ESPN] Failed to fetch {date_str}: {e}")
+            continue
+
+        for event in data.get("events", []):
+            competition = event.get("competitions", [{}])[0]
+            status = competition.get("status", {}).get("type", {})
+
+            # Only process completed games
+            if not status.get("completed", False):
+                continue
+
+            competitors = competition.get("competitors", [])
+            home = away = None
+            for team_entry in competitors:
+                if team_entry.get("homeAway") == "home":
+                    home = team_entry
+                else:
+                    away = team_entry
+
+            if not home or not away:
+                continue
+
+            home_abbr = _normalize_abbr(home["team"]["abbreviation"])
+            away_abbr = _normalize_abbr(away["team"]["abbreviation"])
+            home_score = int(home.get("score", 0))
+            away_score = int(away.get("score", 0))
+
+            key = f"{away_abbr} @ {home_abbr}"
+            scores[key] = {
+                "home_abbr": home_abbr,
+                "away_abbr": away_abbr,
+                "home_score": home_score,
+                "away_score": away_score,
+            }
+
+    print(f"[ESPN] Found {len(scores)} completed games (last {days_from} days)")
     return scores
 
 

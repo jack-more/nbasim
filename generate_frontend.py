@@ -4864,7 +4864,7 @@ def generate_html():
                 <span class="section-sub">{len(matchups)} games</span>
             </div>
             <div class="proj-disclaimer" style="margin-bottom:12px">
-                {"Lines from sportsbooks via The Odds API. Projected lines marked (PROJ. SPREAD) / (PROJ O/U) where real data unavailable." if has_some_real else "All lines marked <strong>(PROJ. SPREAD)</strong> and <strong>(PROJ O/U)</strong> are SIM-projected from team net ratings + home court advantage. Real sportsbook lines will replace projections when available."}
+                <strong>MOJO</strong> (33–99) rates each player using 25% box-score stats + 75% lineup impact (WOWY on/off, 2-to-5-man synergy, and archetype fit). <strong>MOJI</strong> (0–99) converts team lineups into a quality score by weighting player MOJOs by projected minutes with fatigue and DNP adjustments.
             </div>
             <div class="sort-bar">
                 <button class="sort-btn active" data-sort="default">All Games</button>
@@ -6175,7 +6175,7 @@ def render_info_page():
             <h2 class="info-title">MOJI SPREAD MODEL — 10-STEP PIPELINE</h2>
             <p class="info-text">
                 The SIM runs a 10-step pipeline to produce projected spreads and totals for every game.
-                <strong>Real lines</strong> from sportsbooks replace projections when available via The Odds API.
+                Lines are SIM-projected from team net ratings, MOJI differentials, and home-court advantage.
             </p>
             <div class="info-formula">
                 <div class="formula-row"><span>Step 0</span><span>Filter out started/completed games</span></div>
