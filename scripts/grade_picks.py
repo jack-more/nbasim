@@ -208,14 +208,15 @@ def grade_spread(matchup, side_str, scores):
     actual_margin = home_score - away_score
 
     if team == home_abbr:
-        # Picked home team with this spread
-        # Home -16.0: home needs to win by more than 16
-        # Home +4.5: home can lose by up to 4
-        cover_margin = actual_margin - line  # positive means cover
+        # Picked home team: margin from home perspective + line
+        # HOU -8.5: actual_margin=10 → 10+(-8.5)=1.5 → covers (won by more than 8.5)
+        # HOU -8.5: actual_margin=5  → 5+(-8.5)=-3.5 → doesn't cover
+        cover_margin = actual_margin + line
     elif team == away_abbr:
-        # Picked away team with this spread
-        # Away +4.5 means line is +4.5, away covers if they lose by less than 4.5
-        cover_margin = -actual_margin - line  # flip perspective
+        # Picked away team: flip margin to away perspective + line
+        # GSW +15: actual_margin=7 (home won by 7) → -7+15=8 → covers (lost by less than 15)
+        # GSW +15: actual_margin=20 → -20+15=-5 → doesn't cover
+        cover_margin = -actual_margin + line
     else:
         return None
 
