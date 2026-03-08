@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-08T17:22:27.051133+00:00",
+  "graded_at": "2026-03-08T18:17:43.333248+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -70,11 +70,11 @@
     {
       "date": "2026-02-21",
       "matchup": "HOU @ NYK",
-      "side": "HOU -3.0",
+      "side": "HOU +3.5",
       "type": "spread",
       "risk": 30.0,
-      "result": "L",
-      "profit": -30.0,
+      "result": "W",
+      "profit": 27.27,
       "home_score": 108,
       "away_score": 106
     },
@@ -554,12 +554,12 @@
   ],
   "pending_count": 0,
   "record": {
-    "W": 35,
-    "L": 15,
+    "W": 36,
+    "L": 14,
     "P": 0
   },
-  "total_profit": 682.06,
+  "total_profit": 739.33,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1832.06,
+  "new_bankroll": 1889.33,
   "status": "SETTLED"
 }
