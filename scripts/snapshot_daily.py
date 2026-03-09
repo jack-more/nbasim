@@ -52,11 +52,10 @@ def _safe(val, typ=float):
         pass
     return typ(val)
 
-# ── Usage decay model (mirrors generate_frontend.py) ──
-USAGE_DECAY = 0.995        # TS% multiplier per 1% USG increase
-USAGE_DECAY_DEF = 0.985    # Defensive archetypes decay faster
+# ── Potential model constants ──
 MIN_GAMES = 10             # Minimum games to compute potential
 MIN_MINUTES = 10.0         # Minimum MPG to be considered
+MIN_GAMES_FOR_CURVE = 20   # Need enough games to fit a reliable USG-efficiency curve
 
 
 def snapshot_mojo_scores():
@@ -249,24 +248,98 @@ def _compute_player_trends():
     return trends
 
 
+def _compute_usg_efficiency_curves():
+    """Build empirical USG vs TS% curves per player from game logs.
+
+    For each player, splits their games into low/high USG halves and
+    measures the ACTUAL efficiency relationship. This captures:
+    - Load-bearers (Giannis, Trae): TS stays flat or RISES with more usage
+    - Role players (Clingan): TS drops when usage increases
+    - Volume scorers (SGA): moderate decay at extreme usage
+
+    Returns dict: player_id → {
+        "low_usg": avg USG in low-usage games,
+        "low_ts": avg TS% in low-usage games,
+        "high_usg": avg USG in high-usage games,
+        "high_ts": avg TS% in high-usage games,
+        "ts_per_usg": TS% change per 1% USG increase (negative = decay, positive = load-bearer),
+        "is_load_bearer": True if player gets MORE efficient at higher usage,
+        "n_games": number of qualifying games,
+    }
+    """
+    logger.info("  Computing empirical USG-efficiency curves from game logs...")
+
+    game_data = read_query("""
+        SELECT pgs.player_id, pgs.usg_pct, pgs.ts_pct, pgs.minutes, pgs.pts
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE g.season_id = ? AND pgs.minutes >= 15
+    """, DB_PATH, [SEASON_ID])
+
+    if game_data.empty:
+        return {}
+
+    curves = {}
+    for pid, group in game_data.groupby("player_id"):
+        pid = int(pid)
+        if len(group) < MIN_GAMES_FOR_CURVE:
+            continue
+
+        median_usg = group["usg_pct"].median()
+        low = group[group["usg_pct"] <= median_usg]
+        high = group[group["usg_pct"] > median_usg]
+
+        if len(low) < 5 or len(high) < 5:
+            continue
+
+        low_usg = float(low["usg_pct"].mean())
+        low_ts = float(low["ts_pct"].mean())
+        high_usg = float(high["usg_pct"].mean())
+        high_ts = float(high["ts_pct"].mean())
+
+        usg_diff = (high_usg - low_usg) * 100  # in percentage points
+        ts_diff = (high_ts - low_ts) * 100  # in percentage points
+
+        if usg_diff < 1:  # need meaningful USG spread
+            continue
+
+        ts_per_usg = ts_diff / usg_diff  # TS% change per 1% USG increase
+
+        curves[pid] = {
+            "low_usg": low_usg,
+            "low_ts": low_ts,
+            "high_usg": high_usg,
+            "high_ts": high_ts,
+            "ts_per_usg": ts_per_usg,
+            "is_load_bearer": ts_per_usg > -0.5,  # flat or positive = can handle load
+            "n_games": len(group),
+        }
+
+    load_bearers = sum(1 for c in curves.values() if c["is_load_bearer"])
+    logger.info(f"  Built curves for {len(curves)} players — {load_bearers} are load-bearers")
+    return curves
+
+
 def compute_player_potential():
-    """Compute potential MOJO for every player — the Clingan detector.
+    """Compute potential MOJO for every player — the Clingan detector + inverse Clingan.
 
-    For each player, asks: "If this player got more minutes and higher usage,
-    what would their efficiency and MOJO look like?"
+    Uses EMPIRICAL per-player USG-efficiency curves from actual game data instead of
+    a uniform decay constant. This correctly handles:
 
-    Uses per-minute and per-possession rates from actual game data, then
-    models efficiency decay at higher usage via the USAGE_DECAY constant.
+    - Clingan-type (role player): efficient at low usage, decays at higher usage
+    - Inverse Clingan (Giannis/Trae): NEEDS high usage to be efficient, gets WORSE
+      with fewer touches. These players have a higher floor when given more load.
+    - Volume stars (SGA): moderate decay at extreme usage but still productive
 
-    Identifies:
-    - High per-min efficiency + low minutes = minutes headroom
-    - High TS% + low USG = usage headroom
-    - Teammate with lower efficiency + higher USG = usage waste
-    - Large gap between current MOJO and potential = breakout candidate
+    Also identifies teammate usage waste — players who hog possessions less efficiently
+    than a teammate who could use them better.
     """
     logger.info("=== Computing player potential model ===")
 
-    # Get per-minute rates from game logs (more granular than season averages)
+    # Build empirical USG-efficiency curves from game logs
+    usg_curves = _compute_usg_efficiency_curves()
+
+    # Get season stats
     players = read_query("""
         SELECT
             ps.player_id, ps.team_id, ps.gp,
@@ -305,17 +378,6 @@ def compute_player_potential():
             "mpg": float(row["minutes_per_game"] or 0),
         })
 
-    # Get archetype info for decay rate selection
-    archetypes = read_query("""
-        SELECT player_id, archetype_label
-        FROM player_archetypes
-        WHERE season_id = ?
-    """, DB_PATH, [SEASON_ID])
-    arch_map = dict(zip(archetypes["player_id"].astype(int), archetypes["archetype_label"]))
-
-    DEFENSIVE_ARCHS = {"Rim-Protector", "Switchable-Defender", "Point-of-Attack-Defender",
-                       "Wing-Stopper", "Paint-Anchor"}
-
     rows = []
     for _, p in players.iterrows():
         pid = int(p["player_id"])
@@ -338,56 +400,65 @@ def compute_player_potential():
         )
 
         # ── Minutes headroom ──
-        # How many more minutes could this player realistically get?
-        max_minutes = 36.0  # realistic max for non-iron-man players
+        max_minutes = 36.0
         minutes_headroom = max(0, max_minutes - current_mpg)
 
-        # ── Usage headroom ──
-        # How much higher could usage go before efficiency decay makes it negative EV?
-        # NOTE: USG and TS stored as decimals (0.30 = 30%, 0.56 = 56%)
-        arch = arch_map.get(pid, "")
-        decay = USAGE_DECAY_DEF if arch in DEFENSIVE_ARCHS else USAGE_DECAY
-
-        # Find the usage rate where TS% would drop to league average (~0.56)
+        # ── Usage headroom (using EMPIRICAL curve, not fake decay constant) ──
+        curve = usg_curves.get(pid)
         league_avg_ts = 0.560
-        max_usg = current_usg
-        projected_ts = current_ts
-        while projected_ts > league_avg_ts and max_usg < 0.35:
-            max_usg += 0.005  # 0.5% increments
-            usg_increase = (max_usg - current_usg) * 100  # convert to percentage points for decay
-            projected_ts = current_ts * (decay ** usg_increase)
 
-        usage_headroom = max(0, (max_usg - current_usg) * 100)  # as percentage points
+        if curve:
+            ts_per_usg = curve["ts_per_usg"]  # TS% change per 1% USG increase (can be positive!)
+
+            if ts_per_usg >= 0:
+                # LOAD-BEARER: efficiency stays flat or improves with usage
+                # They can handle up to 35% USG without TS dropping below league avg
+                max_usg = 0.35
+                projected_ts_at_max = current_ts + ts_per_usg * (max_usg - current_usg) * 100
+                # But cap: even load-bearers probably won't improve forever
+                projected_ts_at_max = min(projected_ts_at_max, current_ts + 0.05)
+            else:
+                # ROLE PLAYER / VOLUME SCORER: find where TS would drop to league avg
+                if current_ts > league_avg_ts:
+                    usg_room_pct = (current_ts - league_avg_ts) * 100 / abs(ts_per_usg)
+                    max_usg = min(0.35, current_usg + usg_room_pct / 100)
+                else:
+                    max_usg = current_usg  # already at or below league avg
+                projected_ts_at_max = current_ts + ts_per_usg * (max_usg - current_usg) * 100
+
+            usage_headroom = max(0, (max_usg - current_usg) * 100)
+        else:
+            # No curve data — use conservative default decay
+            usage_headroom = 0
+            projected_ts_at_max = current_ts
 
         # ── Project at higher role ──
-        projected_usg = min(current_usg + (usage_headroom * 0.5) / 100, 0.30)  # conservative
-        projected_mpg = min(current_mpg + minutes_headroom * 0.4, 34)  # conservative
-        usg_increase_pct = (projected_usg - current_usg) * 100
-        projected_ts_final = current_ts * (decay ** usg_increase_pct)
+        projected_usg = min(current_usg + (usage_headroom * 0.5) / 100, 0.32)
+        projected_mpg = min(current_mpg + minutes_headroom * 0.4, 34)
 
-        # Per-possession efficiency (production adjusted for projected minutes)
-        mins_multiplier = projected_mpg / max(current_mpg, 1)
-        per_poss_eff = per36_prod * (projected_ts_final / max(current_ts, 1))
+        if curve:
+            ts_change = curve["ts_per_usg"] * (projected_usg - current_usg) * 100
+            projected_ts_final = min(current_ts + ts_change / 100, current_ts + 0.05)
+            projected_ts_final = max(projected_ts_final, league_avg_ts - 0.02)
+        else:
+            projected_ts_final = current_ts
+
+        # Per-possession efficiency at projected role
+        per_poss_eff = per36_prod * (projected_ts_final / max(current_ts, 0.01))
 
         # ── Teammate usage waste ──
-        # Are there teammates with HIGHER usage but LOWER TS%?
-        # Values in decimal form (0.30 = 30% USG, 0.56 = 56% TS)
         waste = 0.0
         if tid and tid in team_players:
             for tm in team_players[tid]:
                 if tm["pid"] == pid:
                     continue
-                # Teammate uses more possessions less efficiently
-                # 0.02 = 2 percentage points of TS% difference threshold
                 if tm["usg"] > current_usg and tm["ts"] < current_ts - 0.02:
-                    usage_diff = (tm["usg"] - current_usg) * 100  # as percentage points
-                    eff_diff = (current_ts - tm["ts"]) * 100  # as percentage points
+                    usage_diff = (tm["usg"] - current_usg) * 100
+                    eff_diff = (current_ts - tm["ts"]) * 100
                     waste += (usage_diff * eff_diff * tm["mpg"]) / 100.0
 
-        # ── Compute potential MOJO (simplified projection) ──
-        # Scale per-36 production by projected minutes/usage bump
+        # ── Compute potential MOJO ──
         projected_per36 = per36_prod * (projected_ts_final / max(current_ts, 0.01))
-        # Map to MOJO scale (rough: per36_prod of 30 ≈ MOJO 80, 20 ≈ 60, 10 ≈ 45)
         potential_raw = 33 + (projected_per36 / 40) * 66
         potential_mojo = max(33, min(99, int(potential_raw)))
 
@@ -404,16 +475,25 @@ def compute_player_potential():
         mojo_gap = potential_mojo - current_mojo
 
         # ── Breakout signal ──
-        # Combines: mojo_gap, minutes_headroom, usage_headroom, teammate_waste
+        is_load_bearer = curve["is_load_bearer"] if curve else False
         breakout = (
-            mojo_gap * 0.4 +
-            minutes_headroom * 0.2 +
+            mojo_gap * 0.35 +
+            minutes_headroom * 0.15 +
             usage_headroom * 0.15 +
-            waste * 0.25
+            waste * 0.20 +
+            (5.0 if is_load_bearer and current_mpg < 30 else 0)  # bonus for underused load-bearers
         )
 
-        # Role mismatch flag: high efficiency + low minutes + gap > 10
-        role_mismatch = 1 if (current_ts > 58 and current_mpg < 25 and mojo_gap > 10) else 0
+        # Role mismatch: high efficiency + low minutes/usage + gap > 10
+        role_mismatch = 1 if (current_ts > 0.58 and current_mpg < 25 and mojo_gap > 10) else 0
+
+        # Build notes with curve info
+        notes = None
+        if curve:
+            if curve["is_load_bearer"]:
+                notes = f"LOAD-BEARER: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)"
+            else:
+                notes = f"DECAY: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)"
 
         rows.append((
             pid, TODAY, tid,
@@ -429,7 +509,7 @@ def compute_player_potential():
             round(waste, 2),
             role_mismatch,
             round(breakout, 2),
-            None,  # notes
+            notes,
         ))
 
     with get_connection(DB_PATH, foreign_keys=False) as conn:
