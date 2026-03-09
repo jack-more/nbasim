@@ -81,9 +81,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── Refresh rosters + player stats every run (keeps lineups current) ──
+      - name: Create .env
+        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+
+      # ── Refresh rosters + player stats (non-blocking — cached DB is fine if API is down) ──
       - name: Refresh rosters and player stats
-        timeout-minutes: 10
+        continue-on-error: true
+        timeout-minutes: 5
         run: |
           python -c "
           import sys, os, logging
@@ -93,10 +97,19 @@ jobs:
           from collectors.players import PlayerCollector
           pc = PlayerCollector(DB_PATH)
           pc.collect_teams()
-          pc.collect_rosters('2025-26')
-          pc.collect_player_season_stats('2025-26')
-          pc.collect_team_season_stats('2025-26')
-          print('=== Rosters + season stats refreshed ===')
+          try:
+              pc.collect_rosters('2025-26')
+          except Exception as e:
+              print(f'Roster refresh failed (using cached): {e}')
+          try:
+              pc.collect_player_season_stats('2025-26')
+          except Exception as e:
+              print(f'Player stats refresh failed (using cached): {e}')
+          try:
+              pc.collect_team_season_stats('2025-26')
+          except Exception as e:
+              print(f'Team stats refresh failed (using cached): {e}')
+          print('=== Rosters + season stats step complete ===')
           "
 
       # ── Optional: full pipeline (manual trigger only) ──

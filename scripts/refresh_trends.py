@@ -148,17 +148,37 @@ def refresh_rosters_and_stats():
 
     This ensures new signings, trades, and updated stat lines are reflected
     in the lineup displays and projection model.  ~40 lightweight API calls.
+
+    Uses a hard 3-minute timeout — if stats.nba.com is down, bail fast
+    and use cached data from the DB. Yesterday's rosters are fine.
     """
+    import signal
+
+    class _Timeout(Exception):
+        pass
+
+    def _handler(signum, frame):
+        raise _Timeout("Roster refresh exceeded 3-minute limit — using cached data")
+
     logger.info("=== Refreshing rosters + player/team season stats ===")
     player_collector = PlayerCollector(DB_PATH)
+
+    # Hard 3-minute wall clock limit
+    old_handler = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(180)
     try:
         player_collector.collect_teams()
         player_collector.collect_rosters(SEASON_ID)
         player_collector.collect_player_season_stats(SEASON_ID)
         player_collector.collect_team_season_stats(SEASON_ID)
         logger.info("Rosters + season stats refreshed.")
+    except _Timeout as e:
+        logger.warning(f"Roster refresh timed out (non-fatal, using cached): {e}")
     except Exception as e:
         logger.warning(f"Roster/stats refresh failed (non-fatal): {e}")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 def main():
