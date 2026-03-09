@@ -134,6 +134,11 @@ jobs:
             sleep 60
           done
 
+      # ── Daily intelligence snapshot (MOJO trajectories + potential model) ──
+      - name: Intelligence snapshot
+        continue-on-error: true
+        run: python scripts/snapshot_daily.py
+
       # ── Capture picks on every run (dedup prevents double-counting) ──
       - name: Capture picks
         run: python scripts/capture_picks.py
@@ -283,6 +288,10 @@ jobs:
             echo "Attempt $attempt failed, waiting 30s before retry..."
             sleep 30
           done
+
+      - name: Intelligence snapshot
+        continue-on-error: true
+        run: python scripts/snapshot_daily.py
 
       - name: Capture picks
         continue-on-error: true

@@ -424,6 +424,102 @@ CREATE TABLE IF NOT EXISTS predictions (
     PRIMARY KEY (game_id, model_version),
     FOREIGN KEY (game_id) REFERENCES games(game_id)
 );
+
+-- ============================================================
+-- INTELLIGENCE: DAILY MOJO SNAPSHOTS
+-- Tracks every player's MOJO + components daily for trajectory analysis
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS mojo_snapshots (
+    player_id           INTEGER NOT NULL,
+    snapshot_date       TEXT NOT NULL,
+    team_id             INTEGER,
+    mojo_score          INTEGER,
+    mojo_floor          INTEGER,
+    mojo_ceiling        INTEGER,
+    raw_mojo            INTEGER,
+    contextual_mojo     INTEGER,
+    off_score           REAL,
+    def_score           REAL,
+    orapm_pctl          INTEGER,
+    drapm_pctl          INTEGER,
+    composite_value     REAL,
+    base_value          REAL,
+    solo_impact         REAL,
+    two_man_synergy     REAL,
+    three_man_synergy   REAL,
+    four_man_synergy    REAL,
+    five_man_synergy    REAL,
+    archetype_fit       REAL,
+    minutes_per_game    REAL,
+    usg_pct             REAL,
+    ts_pct              REAL,
+    net_rating          REAL,
+    games_played        INTEGER,
+    trend_5g            REAL,
+    trend_10g           REAL,
+    PRIMARY KEY (player_id, snapshot_date),
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mojo_snap_date ON mojo_snapshots(snapshot_date);
+CREATE INDEX IF NOT EXISTS idx_mojo_snap_player ON mojo_snapshots(player_id, snapshot_date);
+
+-- ============================================================
+-- INTELLIGENCE: PLAYER POTENTIAL MODEL
+-- "What would this player's MOJO be at higher usage/minutes?"
+-- Updated daily — identifies miscast players (high efficiency, low role)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS player_potential (
+    player_id           INTEGER NOT NULL,
+    snapshot_date       TEXT NOT NULL,
+    team_id             INTEGER,
+    current_mojo        INTEGER,
+    potential_mojo      INTEGER,
+    mojo_gap            INTEGER,
+    current_usg         REAL,
+    projected_usg       REAL,
+    current_mpg         REAL,
+    projected_mpg       REAL,
+    per_min_efficiency  REAL,
+    per_poss_efficiency REAL,
+    ts_at_current_usg   REAL,
+    projected_ts        REAL,
+    usage_headroom      REAL,
+    minutes_headroom    REAL,
+    teammate_usg_waste  REAL,
+    role_mismatch_flag  INTEGER DEFAULT 0,
+    breakout_signal     REAL,
+    notes               TEXT,
+    PRIMARY KEY (player_id, snapshot_date),
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_potential_gap ON player_potential(mojo_gap DESC);
+CREATE INDEX IF NOT EXISTS idx_potential_date ON player_potential(snapshot_date);
+
+-- ============================================================
+-- INTELLIGENCE: BALL KNOWLEDGE / SCOUTING NOTES
+-- Structured observations from user or AI agents
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS player_intel (
+    intel_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id           INTEGER NOT NULL,
+    source              TEXT NOT NULL,
+    intel_type          TEXT NOT NULL,
+    signal_strength     REAL,
+    content             TEXT NOT NULL,
+    game_id             TEXT,
+    created_at          TEXT NOT NULL,
+    expires_at          TEXT,
+    is_active           INTEGER DEFAULT 1,
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_intel_player ON player_intel(player_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_intel_type ON player_intel(intel_type);
 """
 
 
