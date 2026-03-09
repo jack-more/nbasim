@@ -266,15 +266,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create .env
+        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+
       - name: Refresh trends (collect missing boxscores + lineup stats)
-        timeout-minutes: 25
+        continue-on-error: true
+        timeout-minutes: 15
         run: |
-          for attempt in 1 2 3; do
-            echo "=== Trends refresh attempt $attempt/3 ==="
-            python scripts/refresh_trends.py && break
-            echo "Attempt $attempt failed, waiting 60s before retry..."
-            sleep 60
-          done
+          python scripts/refresh_trends.py || echo "Trends refresh had errors — continuing with available data"
 
       - name: Regenerate dashboard with fresh trends
         run: |
@@ -286,9 +285,11 @@ jobs:
           done
 
       - name: Capture picks
+        continue-on-error: true
         run: python scripts/capture_picks.py
 
       - name: Generate blog entry
+        continue-on-error: true
         run: python scripts/generate_blog_entry.py
 
       - name: Commit and push
