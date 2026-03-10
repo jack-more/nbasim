@@ -143,13 +143,14 @@ jobs:
       - name: Capture picks
         run: python scripts/capture_picks.py
 
-      - name: Generate blog entry
-        run: python scripts/generate_blog_entry.py
-
       # ── Manual pick injection (workflow_dispatch only) ──
       - name: Inject manual pick
         if: inputs.inject_pick != ''
         run: python scripts/inject_pick.py ${{ inputs.inject_pick }}
+
+      # ── Generate blog entry AFTER manual picks so all picks get cards ──
+      - name: Generate blog entry
+        run: python scripts/generate_blog_entry.py
 
       # ── Commit + push ──
       - name: Commit and push
@@ -275,10 +276,8 @@ jobs:
         run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
 
       - name: Refresh trends (collect missing boxscores + lineup stats)
-        continue-on-error: true
         timeout-minutes: 15
-        run: |
-          python scripts/refresh_trends.py || echo "Trends refresh had errors — continuing with available data"
+        run: python scripts/refresh_trends.py
 
       - name: Regenerate dashboard with fresh trends
         run: |

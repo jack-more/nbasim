@@ -40,26 +40,77 @@ SEASON_ID = "2025-26"
 
 
 def refresh_recent_games():
-    """Collect game schedule using Basketball-Reference (primary) or NBA API (fallback)."""
-    logger.info(f"=== Refreshing game schedule ===")
+    """Collect recent game scores — ESPN primary, BBRef fallback.
 
-    # Try Basketball-Reference first (doesn't get blocked from cloud IPs)
+    ESPN's public scoreboard API works reliably from GitHub Actions IPs
+    (unlike stats.nba.com and Basketball-Reference which block datacenter traffic).
+    We fetch 21 days of history to ensure no gaps.
+    """
+    logger.info("=== Refreshing game scores ===")
+
+    # ── PRIMARY: ESPN (works from cloud IPs) ──
+    try:
+        from collectors.games_espn import ESPNGameCollector
+        espn = ESPNGameCollector(DB_PATH)
+        new_count = espn.update_games_table(SEASON_ID, days=21)
+        logger.info(f"ESPN: {new_count} games added/updated")
+        if new_count >= 0:
+            # Verify we actually have recent data (fail if DB is stale)
+            _verify_game_freshness()
+            return
+    except Exception as e:
+        logger.warning(f"ESPN game collection failed: {e}")
+
+    # ── FALLBACK: Basketball-Reference ──
     try:
         from collectors.games_bbref import BRefGameCollector
         bbref = BRefGameCollector(DB_PATH)
         new_count = bbref.update_games_table(SEASON_ID)
-        logger.info(f"Basketball-Reference: {new_count} games added/updated")
+        logger.info(f"Basketball-Reference fallback: {new_count} games added/updated")
+        _verify_game_freshness()
         return
     except Exception as e:
-        logger.warning(f"Basketball-Reference failed: {e}")
+        logger.warning(f"Basketball-Reference also failed: {e}")
 
-    # Fallback to NBA API
+    # ── LAST RESORT: NBA API ──
     try:
         game_collector = GameCollector(DB_PATH)
         game_collector.collect_for_season(SEASON_ID)
-        logger.info("Game schedule refreshed via NBA API.")
+        logger.info("Game schedule refreshed via NBA API (last resort).")
+        _verify_game_freshness()
     except Exception as e:
-        logger.warning(f"Both data sources failed. NBA API error: {e}")
+        logger.error(
+            f"ALL THREE game data sources failed! ESPN, BBRef, NBA API. "
+            f"The model is flying blind on recent form. Last error: {e}"
+        )
+        # Raise so the pipeline step actually fails (no more silent degradation)
+        raise RuntimeError(
+            "Game score collection failed from all sources. "
+            "Recent NRtg and momentum data is STALE."
+        ) from e
+
+
+def _verify_game_freshness():
+    """Verify the DB has game scores within the last 4 days.
+
+    If the most recent scored game is more than 4 days old (outside of
+    All-Star break), something is wrong and we should flag it.
+    """
+    from datetime import datetime, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=4)).strftime("%Y-%m-%d")
+    recent = read_query(
+        "SELECT COUNT(*) as cnt FROM games "
+        "WHERE season_id = ? AND game_date >= ? AND home_score IS NOT NULL",
+        DB_PATH, [SEASON_ID, cutoff],
+    )
+    count = int(recent.iloc[0]["cnt"]) if not recent.empty else 0
+    if count == 0:
+        logger.warning(
+            f"⚠️  No game scores found after {cutoff}! "
+            f"Trailing NRtg and momentum data may be stale."
+        )
+    else:
+        logger.info(f"Game freshness check: {count} scored games in last 4 days ✓")
 
 
 def collect_missing_boxscores():

@@ -2762,7 +2762,21 @@ def _compute_full_strength_moji(roster_df):
 
 
 def get_trailing_nrtg(team_id, n_games=10):
-    """Average point differential over last N games (rolling NRtg proxy)."""
+    """Recency-weighted, blowout-capped trailing net rating proxy.
+
+    Improvements over naive average margin:
+    1. **Blowout cap** (±20): A +49 win counts as +20. This prevents single
+       garbage-time-inflated games from dominating the signal.
+    2. **Exponential recency decay**: Most recent game has ~2× the weight of
+       game 10. Teams that are *currently* hot/cold get properly represented
+       instead of mixing in stale form from 3+ weeks ago.
+    3. Still uses point margin (not per-100 NRtg) but the cap + decay make
+       it a much better momentum signal.
+    """
+    import math
+    BLOWOUT_CAP = 20.0   # Max margin that counts (±20)
+    DECAY_RATE = 0.85     # Each older game gets 0.85× the weight of the next newer one
+
     df = read_query("""
         SELECT
             CASE WHEN home_team_id = ? THEN home_score - away_score
@@ -2776,7 +2790,18 @@ def get_trailing_nrtg(team_id, n_games=10):
     """, DB_PATH, [team_id, team_id, team_id, n_games])
     if df.empty:
         return 0.0
-    return df["margin"].mean()
+
+    total_weight = 0.0
+    weighted_sum = 0.0
+    for i, margin in enumerate(df["margin"]):
+        # Cap blowouts
+        capped = max(-BLOWOUT_CAP, min(BLOWOUT_CAP, float(margin)))
+        # Exponential decay: game 0 (most recent) = weight 1.0, game 1 = 0.85, game 2 = 0.72, etc.
+        weight = DECAY_RATE ** i
+        weighted_sum += capped * weight
+        total_weight += weight
+
+    return weighted_sum / total_weight if total_weight > 0 else 0.0
 
 
 def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
