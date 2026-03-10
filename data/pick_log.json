@@ -522,5 +522,26 @@
     "conf_label": "TAKE CHI",
     "ml_odds": null,
     "generated_at": "2026-03-10T14:16:42.239641+00:00"
+  },
+  {
+    "slate_date": "2026-03-10",
+    "matchup": "PHX @ MIL",
+    "side": "PHX ML",
+    "pick_type": "ml",
+    "direction": "HOME",
+    "line_value": 0.0,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": 2.5,
+    "book_spread": -1.0,
+    "spread_edge": 3.5,
+    "sim_total": 220.5,
+    "book_total": 217.5,
+    "raw_edge": -2.5,
+    "captured_at": "2026-03-10T17:00:40.928219+00:00",
+    "conf_label": "TAKE PHX",
+    "ml_odds": null,
+    "generated_at": "2026-03-10T17:00:36.344280+00:00"
   }
 ]
