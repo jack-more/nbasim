@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from db.connection import read_query, execute, save_dataframe
+from db.connection import read_query, execute, save_dataframe, load_team_map
 from config import DB_PATH
 
 logger = logging.getLogger(__name__)
@@ -49,11 +49,7 @@ class BRefGameCollector:
 
     def _load_team_maps(self):
         """Build abbreviation -> team_id mapping from the teams table."""
-        teams = read_query(
-            "SELECT team_id, abbreviation FROM teams", self.db_path
-        )
-        return {row["abbreviation"]: int(row["team_id"])
-                for _, row in teams.iterrows()}
+        return load_team_map(self.db_path)
 
     def _normalize_abbr(self, bbref_abbr: str) -> str:
         """Convert Basketball-Reference abbreviation to NBA standard."""

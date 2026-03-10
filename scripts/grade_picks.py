@@ -17,8 +17,6 @@ import json
 import os
 import re
 import sys
-import urllib.request
-import urllib.error
 from datetime import datetime, timedelta, timezone
 
 # ── Paths ──
@@ -27,8 +25,9 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
 RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, PROJECT_ROOT)
 from config import STARTING_BANKROLL
+from collectors.games_espn import fetch_scores_for_grading
 CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds", "home_score", "away_score"]
 
 
@@ -86,76 +85,8 @@ def add_pick(raw_str):
     print(f"Added: {new_pick['date']} | {new_pick['matchup']} | {new_pick['side']} | risk {new_pick['risk']}")
 
 
-# ── ESPN abbreviation → standard NBA abbreviation mapping ────────────
-ESPN_ABBR_MAP = {
-    "GS": "GSW", "SA": "SAS", "NO": "NOP", "NY": "NYK",
-    "UTAH": "UTA", "WSH": "WAS",
-}
 
-
-def _normalize_abbr(espn_abbr):
-    """Convert ESPN team abbreviation to standard 3-letter NBA abbreviation."""
-    return ESPN_ABBR_MAP.get(espn_abbr, espn_abbr)
-
-
-# ── Score Fetching ───────────────────────────────────────────────────
-
-def fetch_scores(days_from=7):
-    """Fetch completed NBA game scores from ESPN's public API.
-
-    Uses the ESPN scoreboard endpoint which works reliably from
-    GitHub Actions cloud IPs (unlike BBRef/stats.nba.com).
-    """
-    scores = {}
-    today = datetime.now(timezone.utc)
-
-    for day_offset in range(days_from):
-        date = today - timedelta(days=day_offset)
-        date_str = date.strftime("%Y%m%d")
-
-        url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={date_str}"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode())
-        except (urllib.error.URLError, TimeoutError, Exception) as e:
-            print(f"[ESPN] Failed to fetch {date_str}: {e}")
-            continue
-
-        for event in data.get("events", []):
-            competition = event.get("competitions", [{}])[0]
-            status = competition.get("status", {}).get("type", {})
-
-            # Only process completed games
-            if not status.get("completed", False):
-                continue
-
-            competitors = competition.get("competitors", [])
-            home = away = None
-            for team_entry in competitors:
-                if team_entry.get("homeAway") == "home":
-                    home = team_entry
-                else:
-                    away = team_entry
-
-            if not home or not away:
-                continue
-
-            home_abbr = _normalize_abbr(home["team"]["abbreviation"])
-            away_abbr = _normalize_abbr(away["team"]["abbreviation"])
-            home_score = int(home.get("score", 0))
-            away_score = int(away.get("score", 0))
-
-            key = f"{away_abbr} @ {home_abbr}"
-            scores[key] = {
-                "home_abbr": home_abbr,
-                "away_abbr": away_abbr,
-                "home_score": home_score,
-                "away_score": away_score,
-            }
-
-    print(f"[ESPN] Found {len(scores)} completed games (last {days_from} days)")
-    return scores
+# ── Score Fetching (delegated to collectors.games_espn) ──────────────
 
 
 # ── Grading Logic ────────────────────────────────────────────────────
@@ -291,7 +222,7 @@ def grade_all():
     print(f"Oldest pending: {oldest_date} → fetching {days_needed} days of scores")
 
     # Fetch scores
-    scores = fetch_scores(days_from=days_needed)
+    scores = fetch_scores_for_grading(days=days_needed)
 
     # Grade each pending pick
     graded = 0

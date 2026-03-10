@@ -3,10 +3,13 @@
 Primary source for game scores — reliably works from GitHub Actions cloud IPs
 (unlike stats.nba.com and Basketball-Reference which block datacenter traffic).
 
-Uses the same endpoint that grade_picks.py has been successfully using:
+Uses the ESPN scoreboard endpoint:
   https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard
 
-Upserts into the games table without deleting existing rows.
+Provides:
+  - ESPNGameCollector class for DB upserts (used by the pipeline)
+  - fetch_scores_for_grading()  for scripts/grade_picks.py
+  - fetch_single_game_score()   for scripts/inject_pick.py
 """
 
 import json
@@ -17,85 +20,168 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-from db.connection import read_query, execute, save_dataframe
+from db.connection import read_query, execute, save_dataframe, load_team_map
 from config import DB_PATH
+from utils.constants import ESPN_ABBR_MAP
 
 logger = logging.getLogger(__name__)
 
-# ESPN uses slightly different abbreviations than the standard NBA ones
-ESPN_ABBR_MAP = {
-    "GS": "GSW", "SA": "SAS", "NO": "NOP", "NY": "NYK",
-    "UTAH": "UTA", "WSH": "WAS",
-}
-
 
 def _normalize_abbr(espn_abbr: str) -> str:
+    """Convert ESPN team abbreviation to standard 3-letter NBA abbreviation."""
     return ESPN_ABBR_MAP.get(espn_abbr, espn_abbr)
 
 
+def _fetch_espn_day(date: datetime) -> list[dict]:
+    """Fetch all completed games for a single date from ESPN. No DB needed.
+
+    Returns list of dicts with keys:
+        game_date, home_abbr, away_abbr, home_score, away_score
+    """
+    date_str = date.strftime("%Y%m%d")
+    url = (
+        "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+        f"/scoreboard?dates={date_str}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; NBASIM/1.0)",
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, TimeoutError, Exception) as e:
+        logger.warning(f"ESPN fetch failed for {date_str}: {e}")
+        return []
+
+    games = []
+    for event in data.get("events", []):
+        competition = event.get("competitions", [{}])[0]
+        status = competition.get("status", {}).get("type", {})
+
+        if not status.get("completed", False):
+            continue
+
+        competitors = competition.get("competitors", [])
+        home = away = None
+        for team_entry in competitors:
+            if team_entry.get("homeAway") == "home":
+                home = team_entry
+            else:
+                away = team_entry
+
+        if not home or not away:
+            continue
+
+        game_date = date.strftime("%Y-%m-%d")
+        home_abbr = _normalize_abbr(home["team"]["abbreviation"])
+        away_abbr = _normalize_abbr(away["team"]["abbreviation"])
+
+        games.append({
+            "game_date": game_date,
+            "home_abbr": home_abbr,
+            "away_abbr": away_abbr,
+            "home_score": int(home.get("score", 0)),
+            "away_score": int(away.get("score", 0)),
+        })
+
+    return games
+
+
+# ── Standalone convenience functions (no DB, no class needed) ────────
+
+
+def fetch_scores_for_grading(days: int = 7) -> dict:
+    """Fetch recent scores keyed by matchup string for pick grading.
+
+    Returns: {"AWAY @ HOME": {home_abbr, away_abbr, home_score, away_score}, ...}
+    Used by: scripts/grade_picks.py
+    """
+    today = datetime.now(timezone.utc)
+    scores = {}
+
+    for day_offset in range(days):
+        date = today - timedelta(days=day_offset)
+        for game in _fetch_espn_day(date):
+            key = f"{game['away_abbr']} @ {game['home_abbr']}"
+            scores[key] = {
+                "home_abbr": game["home_abbr"],
+                "away_abbr": game["away_abbr"],
+                "home_score": game["home_score"],
+                "away_score": game["away_score"],
+            }
+
+    logger.info(f"ESPN: found {len(scores)} completed games (last {days} days)")
+    return scores
+
+
+def fetch_single_game_score(matchup: str, date_str: str) -> dict | None:
+    """Fetch the final score for one specific game.
+
+    Args:
+        matchup: "AWAY @ HOME" format, e.g. "BOS @ CLE"
+        date_str: "YYYY-MM-DD"
+
+    Returns: {home_score, away_score, status: "final"} or None
+    Used by: scripts/inject_pick.py
+    """
+    date = datetime.strptime(date_str, "%Y-%m-%d")
+    away_team, home_team = matchup.split(" @ ")
+
+    for game in _fetch_espn_day(date):
+        if game["home_abbr"] == home_team and game["away_abbr"] == away_team:
+            return {
+                "home_score": game["home_score"],
+                "away_score": game["away_score"],
+                "status": "final",
+            }
+
+    # Game not found or not completed — check if it exists but isn't final
+    date_fmt = date_str.replace("-", "")
+    url = (
+        "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+        f"/scoreboard?dates={date_fmt}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; NBASIM/1.0)",
+        })
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, TimeoutError, Exception):
+        return None
+
+    for event in data.get("events", []):
+        comp = event.get("competitions", [{}])[0]
+        competitors = comp.get("competitors", [])
+        home = away = None
+        for c in competitors:
+            if c.get("homeAway") == "home":
+                home = c
+            else:
+                away = c
+        if not home or not away:
+            continue
+        h_abbr = _normalize_abbr(home["team"]["abbreviation"])
+        a_abbr = _normalize_abbr(away["team"]["abbreviation"])
+        if h_abbr == home_team and a_abbr == away_team:
+            status_name = comp.get("status", {}).get("type", {}).get("name", "unknown")
+            return {"status": status_name}
+
+    return None
+
+
+# ── Class for pipeline DB operations ────────────────────────────────
+
+
 class ESPNGameCollector:
-    """Fetch game results from ESPN's public scoreboard API."""
+    """Fetch game results from ESPN and upsert into the games table."""
 
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
 
-    def _load_team_maps(self) -> dict:
-        """Build abbreviation -> team_id mapping from the teams table."""
-        teams = read_query(
-            "SELECT team_id, abbreviation FROM teams", self.db_path
-        )
-        return {row["abbreviation"]: int(row["team_id"])
-                for _, row in teams.iterrows()}
-
     def fetch_date(self, date: datetime) -> list[dict]:
         """Fetch all completed games for a single date from ESPN."""
-        date_str = date.strftime("%Y%m%d")
-        url = (
-            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
-            f"/scoreboard?dates={date_str}"
-        )
-        try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; NBASIM/1.0)",
-            })
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode())
-        except (urllib.error.URLError, TimeoutError, Exception) as e:
-            logger.warning(f"ESPN fetch failed for {date_str}: {e}")
-            return []
-
-        games = []
-        for event in data.get("events", []):
-            competition = event.get("competitions", [{}])[0]
-            status = competition.get("status", {}).get("type", {})
-
-            if not status.get("completed", False):
-                continue
-
-            competitors = competition.get("competitors", [])
-            home = away = None
-            for team_entry in competitors:
-                if team_entry.get("homeAway") == "home":
-                    home = team_entry
-                else:
-                    away = team_entry
-
-            if not home or not away:
-                continue
-
-            game_date = date.strftime("%Y-%m-%d")
-            home_abbr = _normalize_abbr(home["team"]["abbreviation"])
-            away_abbr = _normalize_abbr(away["team"]["abbreviation"])
-
-            games.append({
-                "game_date": game_date,
-                "home_abbr": home_abbr,
-                "away_abbr": away_abbr,
-                "home_score": int(home.get("score", 0)),
-                "away_score": int(away.get("score", 0)),
-            })
-
-        return games
+        return _fetch_espn_day(date)
 
     def fetch_range(self, start_date: datetime, end_date: datetime) -> list[dict]:
         """Fetch completed games for a date range (inclusive)."""
@@ -124,7 +210,7 @@ class ESPNGameCollector:
             season_id: e.g. '2025-26'
             days: How many days back to look (default 21 = 3 weeks)
         """
-        team_map = self._load_team_maps()
+        team_map = load_team_map(self.db_path)
         scraped = self.fetch_recent(days)
 
         if not scraped:

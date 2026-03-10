@@ -1,5 +1,12 @@
 """NBA team IDs, position mappings, and other constants."""
 
+# ESPN uses slightly different abbreviations than the standard NBA ones.
+# Shared by collectors/games_espn.py, scripts/grade_picks.py, scripts/inject_pick.py.
+ESPN_ABBR_MAP = {
+    "GS": "GSW", "SA": "SAS", "NO": "NOP", "NY": "NYK",
+    "UTAH": "UTA", "WSH": "WAS",
+}
+
 # Position group mappings - which listed positions belong to each group
 POSITION_GROUPS = {
     "PG": ["PG", "G"],

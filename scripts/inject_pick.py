@@ -24,19 +24,15 @@ Usage:
 
 import argparse
 import csv
-import json
 import os
 import sys
-import urllib.request
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config import STARTING_BANKROLL
+from collectors.games_espn import fetch_single_game_score
 
 PICKS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "picks.csv")
-
-# ESPN team abbreviation normalization (ESPN → standard)
-ESPN_ABBREV = {"GS": "GSW", "SA": "SAS", "NO": "NOP", "NY": "NYK", "UTAH": "UTA", "WSH": "WAS"}
 
 
 def parse_pick(side_text):
@@ -67,42 +63,6 @@ def check_existing(date_str, matchup, pick_type):
             if row["date"] == date_str and row["matchup"] == matchup and row.get("type", "spread") == pick_type:
                 return True
     return False
-
-
-def fetch_espn_score(matchup, date_str):
-    """Try to get final score from ESPN for this matchup."""
-    espn_date = date_str.replace("-", "")
-    url = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={espn_date}"
-
-    try:
-        data = json.loads(urllib.request.urlopen(url, timeout=10).read())
-    except Exception as e:
-        print(f"  [ESPN] Could not fetch scores: {e}")
-        return None
-
-    away_team, home_team = matchup.split(" @ ")
-
-    for ev in data.get("events", []):
-        comp = ev["competitions"][0]
-        status = comp["status"]["type"]["name"]
-
-        home = [c for c in comp["competitors"] if c["homeAway"] == "home"][0]
-        away = [c for c in comp["competitors"] if c["homeAway"] == "away"][0]
-
-        h_abbr = ESPN_ABBREV.get(home["team"]["abbreviation"], home["team"]["abbreviation"])
-        a_abbr = ESPN_ABBREV.get(away["team"]["abbreviation"], away["team"]["abbreviation"])
-
-        if (a_abbr == away_team and h_abbr == home_team) or (h_abbr == home_team and a_abbr == away_team):
-            if status == "STATUS_FINAL":
-                return {
-                    "home_score": int(home["score"]),
-                    "away_score": int(away["score"]),
-                    "status": "final",
-                }
-            else:
-                return {"status": status}
-
-    return None
 
 
 def grade_pick(side_text, pick_type, matchup, home_score, away_score, ml_odds=None):
@@ -183,7 +143,7 @@ def inject(matchup, side_text, risk=50, date_str=None, ml_odds=None, force=False
     if ml_odds:
         odds_val = f"+{ml_odds}" if ml_odds > 0 else str(ml_odds)
 
-    score_data = fetch_espn_score(matchup, date_str)
+    score_data = fetch_single_game_score(matchup, date_str)
     if score_data and score_data.get("status") == "final":
         h_score = score_data["home_score"]
         a_score = score_data["away_score"]
@@ -255,7 +215,7 @@ def main():
         losses = sum(1 for p in picks if p["result"] == "L")
         pending = sum(1 for p in picks if not p["result"])
         total_profit = sum(float(p.get("profit", 0) or 0) for p in picks)
-            bankroll = STARTING_BANKROLL + total_profit
+        bankroll = STARTING_BANKROLL + total_profit
         print(f"\n  RECORD: {wins}-{losses} | PENDING: {pending} | BANKROLL: {bankroll:,.0f} $PP")
 
 

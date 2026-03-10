@@ -53,3 +53,10 @@ def table_row_count(table_name: str, db_path: str) -> int:
     """Get the row count of a table."""
     df = read_query(f"SELECT COUNT(*) as cnt FROM {table_name}", db_path)
     return int(df["cnt"].iloc[0])
+
+
+def load_team_map(db_path: str) -> dict[str, int]:
+    """Build abbreviation → team_id mapping from the teams table."""
+    teams = read_query("SELECT team_id, abbreviation FROM teams", db_path)
+    return {row["abbreviation"]: int(row["team_id"])
+            for _, row in teams.iterrows()}
