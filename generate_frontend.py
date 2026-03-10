@@ -138,6 +138,34 @@ _build_orapm_percentiles()
 _PLAYER_PLAY_PROFILE = {}
 # League average PPP per offensive play type
 _LEAGUE_AVG_PPP = {}
+# Waste + potential intel from player_potential table
+_waste_data = {}
+_waste_data_loaded = False
+
+
+def _load_waste_data():
+    """Load teammate waste / MOJO gap / intel from player_potential."""
+    global _waste_data, _waste_data_loaded
+    if _waste_data_loaded:
+        return
+    _waste_data_loaded = True
+    try:
+        waste_df = read_query("""
+            SELECT player_id, teammate_usg_waste, mojo_gap, breakout_signal,
+                   role_mismatch_flag, notes
+            FROM player_potential
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM player_potential)
+        """, DB_PATH)
+        for _, wr in waste_df.iterrows():
+            _waste_data[int(wr["player_id"])] = {
+                "waste": round(float(wr["teammate_usg_waste"] or 0), 1),
+                "gap": int(wr["mojo_gap"] or 0),
+                "breakout": round(float(wr["breakout_signal"] or 0), 1),
+                "mismatch": int(wr["role_mismatch_flag"] or 0),
+                "notes": str(wr["notes"] or ""),
+            }
+    except Exception:
+        pass  # Table may not exist yet
 
 
 def _load_play_profiles():
@@ -1924,12 +1952,17 @@ def compute_adjusted_mojo(roster_df, out_player_ids, projected_minutes):
         return 50.0, {}, []
 
     # Calculate total usage + stocks being lost from OUT players
+    # Also track waste-clearing and shooter-gravity for scheme-aware adjustments
     missing_usage = 0
     missing_stocks = 0.0
     missing_archetypes = []
     missing_positions = []
+    waste_clearing_bonus = 0.0  # positive = inefficient player OUT, remaining players benefit
+    missing_shooter_gravity = 0.0  # positive = shooters OUT, spacing collapses
+
     for _, out_row in out_players.iterrows():
         usg = out_row.get("usg_pct", 0) or 0
+        ts = out_row.get("ts_pct", 0) or 0
         missing_usage += usg
         # Stocks loss: STL + BLK weighted by minutes share
         stl = out_row.get("stl_pg", 0) or 0
@@ -1942,6 +1975,29 @@ def compute_adjusted_mojo(roster_df, out_player_ids, projected_minutes):
             missing_archetypes.append(arch)
         if pos:
             missing_positions.append(pos)
+
+        # ── Waste clearing: was this OUT player an efficiency sink? ──
+        # If a high-USG, low-TS player is OUT, remaining efficient players benefit.
+        # League avg TS ~0.560 — players well below avg burning possessions = waste
+        if usg > 0.15 and ts < 0.540:
+            # Inefficiency magnitude: how far below avg × how much usage they burned
+            inefficiency = max(0, 0.560 - ts) * 100  # TS% points below league avg
+            waste_bonus = inefficiency * usg * (mpg / 30.0)  # scaled by role size
+            waste_clearing_bonus += waste_bonus
+
+        # ── Shooter gravity: losing a shooter collapses floor spacing ──
+        # Affects rim-runners, cutters, slashers who depend on spacing
+        out_profile = _PLAYER_PLAY_PROFILE.get(out_row["player_id"], {})
+        out_spotup = out_profile.get("Spotup", {})
+        out_3pt_ppp = out_spotup.get("ppp", 0)
+        # Elite spot-up shooter (>1.1 PPP) or Sharpshooter archetype
+        is_shooter = (
+            out_3pt_ppp > 1.10 or
+            arch in {"Sharpshooter", "3-and-D Wing"} or
+            (out_row.get("fg3_pct", 0) or 0) > 0.38
+        )
+        if is_shooter:
+            missing_shooter_gravity += mpg / 36.0  # weighted by minutes
 
     # Determine archetype category of missing players
     missing_is_scoring = any(a in _SCORING_ARCHETYPES for a in missing_archetypes)
@@ -2066,6 +2122,38 @@ def compute_adjusted_mojo(roster_df, out_player_ids, projected_minutes):
             efficiency_penalty = decay_rate ** usage_increase_pct
             ds = int(ds * efficiency_penalty)
             ds = max(33, ds)
+
+        # ── Step 3: Waste clearing boost ──
+        # When a high-USG low-efficiency player is OUT, remaining efficient
+        # players benefit: the freed possessions were being WASTED, and now
+        # they flow to players who convert better. This is the inverse of
+        # the normal "missing player = team gets worse" assumption.
+        if waste_clearing_bonus > 0:
+            player_ts = row.get("ts_pct", 0) or 0
+            if player_ts > 0.560:
+                # Only efficient players benefit from waste clearing
+                # Scale: ~0.5 MOJO per waste unit for an efficient absorber
+                ts_above_avg = (player_ts - 0.560) * 100
+                boost = min(3, waste_clearing_bonus * ts_above_avg * 0.01)
+                ds = min(99, int(ds + boost))
+
+        # ── Step 4: Shooter gravity penalty ──
+        # When shooters are OUT, floor spacing collapses. Rim-runners, cutters,
+        # and slashers who depend on spacing lose efficiency even if they don't
+        # absorb the shooter's possessions directly.
+        if missing_shooter_gravity > 0:
+            spacing_dependent = arch in {
+                "Traditional Center", "Rim Protector", "Versatile Big",
+                "Slasher", "Athletic Wing",
+            }
+            # Also check play type profile: heavy Cut/PnR Roll Man = spacing dependent
+            player_profile = _PLAYER_PLAY_PROFILE.get(pid, {})
+            cut_share = player_profile.get("Cut", {}).get("poss_share", 0)
+            roll_share = player_profile.get("PRRollMan", {}).get("poss_share", 0)
+            if spacing_dependent or (cut_share + roll_share) > 0.30:
+                # 1.0 MOJO penalty per missing shooter (weighted by their minutes)
+                gravity_penalty = missing_shooter_gravity * 1.0
+                ds = max(33, int(ds - gravity_penalty))
 
         player_mojo[pid] = ds
         total_weighted_mojo += ds * proj_min
@@ -3760,6 +3848,9 @@ def get_lab_data():
         ORDER BY t.abbreviation, ps.minutes_per_game DESC
     """, DB_PATH)
 
+    # Load teammate waste data from player_potential for card display
+    _load_waste_data()
+
     rosters = {}
     for _, row in rosters_df.iterrows():
         team = row["team"]
@@ -3807,6 +3898,11 @@ def get_lab_data():
             "rapm": _RAPM_DATA.get(pid, {}).get("rapm"),
             "rapm_off": _RAPM_DATA.get(pid, {}).get("rapm_off"),
             "rapm_def": _RAPM_DATA.get(pid, {}).get("rapm_def"),
+            "waste": _waste_data.get(pid, {}).get("waste", 0),
+            "mojo_gap": _waste_data.get(pid, {}).get("gap", 0),
+            "breakout": _waste_data.get(pid, {}).get("breakout", 0),
+            "role_mismatch": _waste_data.get(pid, {}).get("mismatch", 0),
+            "intel_notes": _waste_data.get(pid, {}).get("notes", ""),
         })
 
     # Build PID → name lookup for all roster players
@@ -4109,7 +4205,11 @@ def build_lab_html(lab_data):
                  data-pts="${{p.pts || 0}}" data-ast="${{p.ast || 0}}" data-reb="${{p.reb || 0}}"
                  data-stl="${{p.stl || 0}}" data-blk="${{p.blk || 0}}" data-ts="0"
                  data-net="0" data-usg="0" data-mpg="${{p.mpg || 0}}"
-                 data-team="${{team}}" data-pid="${{p.id}}">
+                 data-team="${{team}}" data-pid="${{p.id}}"
+                 data-waste="${{p.waste || 0}}" data-mojo-gap="${{p.mojo_gap || 0}}"
+                 data-breakout="${{p.breakout || 0}}" data-role-mismatch="${{p.role_mismatch || 0}}"
+                 data-intel="${{(p.intel_notes || '').replace('"', '&quot;')}}"
+                 data-ts="${{p.ts || 0}}" data-usg="${{p.usg || 0}}">
                 <div class="mc-frame">
                     <div class="mc-score-area">
                         <div class="mc-mojo-num">${{ds}}</div>
@@ -4136,6 +4236,8 @@ def build_lab_html(lab_data):
                     </div>
                     ${{p.rapm != null ? '<div class="mc-rapm-row"><span class="mc-rapm-label">RAPM</span><span class="mc-rapm-val" style="color:' + (p.rapm >= 0 ? '#2e7d32' : '#c62828') + '">' + (p.rapm >= 0 ? '+' : '') + p.rapm.toFixed(1) + '</span></div>' : ''}}
                     ${{bpName ? '<div class="mc-pair-row"><span class="mc-pair-label">w/ ' + bpName + '</span><span class="mc-pair-nrtg" style="color:' + bpColor + '">' + bpSign + bpNrtg.toFixed(1) + '</span></div>' : ''}}
+                    ${{p.waste > 5 ? '<div class="mc-waste-row"><span class="mc-waste-label">TM WASTE</span><span class="mc-waste-val" style="color:' + (p.waste >= 40 ? '#FF3333' : p.waste >= 20 ? '#FFB300' : '#8e8e8e') + '">' + p.waste.toFixed(1) + '</span></div>' : ''}}
+                    ${{p.mojo_gap > 10 ? '<div class="mc-gap-row"><span class="mc-gap-label">UPSIDE</span><span class="mc-gap-val" style="color:#00c6ff">+' + p.mojo_gap + '</span></div>' : ''}}
                 </div>
             </div>`;
         }});
@@ -4701,6 +4803,9 @@ def generate_html():
     all_projected = all(m.get("spread_is_projected", True) for m in matchups)
     has_some_real = not all_projected
 
+    # ── Load waste intel BEFORE building matchup cards so render_player_row can use it ──
+    _load_waste_data()
+
     # ── Build matchup cards HTML (with projected player lines) ──
     matchup_cards = ""
     if matchups:
@@ -4828,6 +4933,7 @@ def generate_html():
         team_logo = get_team_logo_url(p["team"])
 
         bd = p["breakdown"]
+        _rwd = _waste_data.get(int(p['player_id']), {})
         top50_rows += f"""
         <div class="rank-row" onclick="openPlayerSheet(this)"
              data-name="{p['name']}" data-arch="{p['archetype']}" data-mojo="{ds}" data-range="{p['low']}-{p['high']}"
@@ -4839,7 +4945,10 @@ def generate_html():
              data-defense-pct="{bd.get('defense_c', 0)}" data-efficiency-pct="{bd.get('efficiency_c', 0)}"
              data-impact-pct="{bd.get('impact_c', 0)}"
              data-raw-mojo="{bd.get('raw_mojo', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
-             data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}">
+             data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
+             data-waste="{_rwd.get('waste', 0)}" data-mojo-gap="{_rwd.get('gap', 0)}"
+             data-breakout="{_rwd.get('breakout', 0)}" data-role-mismatch="{_rwd.get('mismatch', 0)}"
+             data-intel="{str(_rwd.get('notes', '')).replace(chr(34), '&quot;')}">
             <span class="rank-num">#{p['rank']}</span>
             <img src="{headshot}" class="rank-face" onerror="this.style.display='none'">
             <img src="{team_logo}" class="rank-team-logo" onerror="this.style.display='none'">
@@ -6060,6 +6169,14 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
     top_pairs = _PLAYER_TOP_PAIRS.get(pid, [])
     top_pairs_json = json.dumps(top_pairs).replace('"', '&quot;')
 
+    # Scouting intel from player_potential
+    _wd = _waste_data.get(pid, {})
+    w_waste = _wd.get("waste", 0)
+    w_gap = _wd.get("gap", 0)
+    w_breakout = _wd.get("breakout", 0)
+    w_mismatch = _wd.get("mismatch", 0)
+    w_intel = str(_wd.get("notes", "")).replace('"', '&quot;')
+
     return f"""
     <div class="player-row {starter_class} {status_class}" onclick="openPlayerSheet(this)"
          data-name="{name}" data-arch="{arch}" data-mojo="{ds}" data-range="{low}-{high}"
@@ -6073,6 +6190,9 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
          data-raw-mojo="{bd.get('raw_mojo', ds)}" data-solo-impact="{bd.get('solo_impact', 50)}"
          data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
          data-inj-delta="{inj_delta}"
+         data-waste="{w_waste}" data-mojo-gap="{w_gap}"
+         data-breakout="{w_breakout}" data-role-mismatch="{w_mismatch}"
+         data-intel="{w_intel}"
          data-top-pairs="{top_pairs_json}">
         <img src="{headshot}" class="pr-face" onerror="this.style.display='none'">
         <div class="pr-info">
@@ -6211,10 +6331,14 @@ def render_combo_card(combo, is_fade=False):
         else:
             ds_cls = "mojo-low"
 
+        _cwd = _waste_data.get(int(pid), {})
         players_html += f"""
         <div class="combo-player" onclick="openPlayerSheet(this)"
              data-name="{pl['name']}" data-arch="{arch}" data-mojo="{ds}" data-range="{low}-{high}"
-             data-pid="{pid}" data-team="{combo['team']}">
+             data-pid="{pid}" data-team="{combo['team']}"
+             data-waste="{_cwd.get('waste', 0)}" data-mojo-gap="{_cwd.get('gap', 0)}"
+             data-role-mismatch="{_cwd.get('mismatch', 0)}"
+             data-intel="{str(_cwd.get('notes', '')).replace(chr(34), '&amp;quot;')}">
             <img src="{headshot}" class="combo-face" onerror="this.style.display='none'">
             <span class="combo-pname">{pl['name']}</span>
             <span class="combo-parch">{icon} {arch}</span>
@@ -7838,6 +7962,17 @@ def generate_css():
         .mc-pair-nrtg {
             font-family: var(--font-mono); font-size: 9px; font-weight: 700;
         }
+        .mc-waste-row, .mc-gap-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 3px; padding: 0 2px;
+        }
+        .mc-waste-label, .mc-gap-label {
+            font-family: var(--font-mono); font-size: 7px; font-weight: 700;
+            color: rgba(0,0,0,0.35); letter-spacing: 1px;
+        }
+        .mc-waste-val, .mc-gap-val {
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+        }
 
         .lineup-combos-header {
             font-family: var(--font-display); font-size: 18px;
@@ -8052,6 +8187,31 @@ def generate_css():
             transition: width 0.4s ease;
         }
         .sheet-bar-pct { font-family: var(--font-mono); font-size: 11px; width: 35px; text-align: right; }
+
+        /* ─── SCOUTING INTEL (player sheet) ─── */
+        .sheet-intel-row {
+            display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+            padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sheet-intel-label {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+            color: rgba(255,255,255,0.5); letter-spacing: 0.5px;
+        }
+        .sheet-intel-val {
+            font-family: var(--font-mono); font-size: 14px; font-weight: 800;
+        }
+        .sheet-intel-sub {
+            width: 100%; font-size: 9px; color: rgba(255,255,255,0.3);
+            margin-top: 2px; font-family: var(--font-mono);
+        }
+        .sheet-intel-badge {
+            text-align: center; margin-top: 6px;
+        }
+        .sheet-intel-notes {
+            font-family: var(--font-mono); font-size: 9px;
+            color: rgba(255,255,255,0.35); margin-top: 6px;
+            line-height: 1.4; word-break: break-word;
+        }
 
         /* ─── ENHANCED PLAYER CARD (DataBallr-inspired) ─── */
         .sheet-arch-badge {
@@ -9471,6 +9631,13 @@ def generate_js():
                     <div class="sheet-bar-bg"><div class="sheet-bar-fill" style="width:${Math.min(d.fitScore || 50, 100)}%; background:#10B981"></div></div>
                     <span class="sheet-bar-pct">${Math.round(d.fitScore || 50)}</span>
                 </div>
+
+                ${parseFloat(d.waste || 0) > 5 || parseInt(d.mojoGap || 0) > 5 ? '<div class="sheet-section">SCOUTING INTEL</div>' +
+                    (parseFloat(d.waste || 0) > 5 ? '<div class="sheet-intel-row"><span class="sheet-intel-label">Teammate Waste</span><span class="sheet-intel-val" style="color:' + (parseFloat(d.waste) >= 40 ? '#FF3333' : parseFloat(d.waste) >= 20 ? '#FFB300' : '#8e8e8e') + '">' + parseFloat(d.waste).toFixed(1) + '</span><span class="sheet-intel-sub">Less efficient teammates consuming possessions</span></div>' : '') +
+                    (parseInt(d.mojoGap || 0) > 5 ? '<div class="sheet-intel-row"><span class="sheet-intel-label">MOJO Upside</span><span class="sheet-intel-val" style="color:#00c6ff">+' + d.mojoGap + '</span><span class="sheet-intel-sub">Potential MOJO in an expanded role</span></div>' : '') +
+                    (parseInt(d.roleMismatch || 0) === 1 ? '<div class="sheet-intel-badge" style="background:rgba(255,179,0,0.15);color:#FFB300;font-size:10px;padding:4px 8px;border-radius:4px;margin-top:4px;font-weight:700;letter-spacing:0.5px">ROLE MISMATCH DETECTED</div>' : '') +
+                    (d.intel ? '<div class="sheet-intel-notes">' + d.intel.replace(/&quot;/g, '"') + '</div>' : '')
+                : ''}
             `;
 
             overlay.classList.add('show');

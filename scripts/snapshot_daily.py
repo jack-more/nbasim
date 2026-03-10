@@ -539,10 +539,11 @@ def compute_player_potential():
         return
 
     # Get team usage distribution for teammate waste analysis
+    # Includes def_rating for 70/30 TS%/defense blended waste metric
     team_usage = read_query("""
         SELECT
             ps.team_id, ps.player_id, ps.usg_pct, ps.ts_pct,
-            ps.minutes_per_game, ps.gp
+            ps.minutes_per_game, ps.gp, ps.def_rating
         FROM player_season_stats ps
         WHERE ps.season_id = ? AND ps.gp >= 10 AND ps.minutes_per_game >= 10
     """, DB_PATH, [SEASON_ID])
@@ -558,6 +559,7 @@ def compute_player_potential():
             "usg": float(row["usg_pct"] or 0),
             "ts": float(row["ts_pct"] or 0),
             "mpg": float(row["minutes_per_game"] or 0),
+            "drtg": float(row["def_rating"] or 112),  # default ~league avg
         })
 
     rows = []
@@ -628,7 +630,11 @@ def compute_player_potential():
         # Per-possession efficiency at projected role
         per_poss_eff = per36_prod * (projected_ts_final / max(current_ts, 0.01))
 
-        # ── Teammate usage waste ──
+        # ── Teammate usage waste (70% TS + 30% defense blended) ──
+        # A player burning possessions at bad TS% but anchoring the defense
+        # isn't as wasteful — their defensive contribution partially offsets
+        # the offensive inefficiency.
+        current_drtg = float(p.get("def_rating", 112) or 112)
         waste = 0.0
         if tid and tid in team_players:
             for tm in team_players[tid]:
@@ -636,8 +642,18 @@ def compute_player_potential():
                     continue
                 if tm["usg"] > current_usg and tm["ts"] < current_ts - 0.02:
                     usage_diff = (tm["usg"] - current_usg) * 100
-                    eff_diff = (current_ts - tm["ts"]) * 100
-                    waste += (usage_diff * eff_diff * tm["mpg"]) / 100.0
+
+                    # 70% offensive gap (TS%) + 30% defensive gap (DRtg, normalized)
+                    # Lower DRtg = better defense. If teammate has lower DRtg,
+                    # their defensive value reduces the waste.
+                    off_gap = (current_ts - tm["ts"]) * 100  # positive = player better offensively
+                    def_gap = (tm["drtg"] - current_drtg) / 100.0 * 100  # normalized to TS% scale
+                    # If teammate has LOWER DRtg (better D), def_gap is negative → reduces waste
+                    # If teammate has HIGHER DRtg (worse D), def_gap is positive → adds waste
+                    blended_gap = 0.70 * off_gap + 0.30 * def_gap
+
+                    if blended_gap > 0:
+                        waste += (usage_diff * blended_gap * tm["mpg"]) / 100.0
 
         # ── Compute potential MOJO ──
         projected_per36 = per36_prod * (projected_ts_final / max(current_ts, 0.01))
