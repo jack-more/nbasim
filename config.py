@@ -104,6 +104,9 @@ SCHEME_QUALITY_FACTORS = {
     "Poor":  {"advantage_scale": 1.10, "disadvantage_scale": 0.90},  # ≥116 DRtg
 }
 
+# Bankroll tracking
+STARTING_BANKROLL = 1150.0  # Starting $PP for the pick tracker
+
 # Projection model constants
 SYNERGY_WEIGHT = 0.10       # portion of projection blend for synergy
 SYNERGY_SCALE = 0.15        # conversion: (home_syn - away_syn) × SCALE = spread points

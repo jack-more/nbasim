@@ -27,7 +27,8 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PICKS_CSV = os.path.join(PROJECT_ROOT, "data", "picks.csv")
 RESULTS_JSON = os.path.join(PROJECT_ROOT, "data", "settlement_results.json")
 
-STARTING_BANKROLL = 1150.0
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config import STARTING_BANKROLL
 CSV_FIELDS = ["date", "matchup", "side", "type", "risk", "result", "profit", "odds", "home_score", "away_score"]
 
 

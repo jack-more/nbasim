@@ -18,6 +18,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config import STARTING_BANKROLL
+
 
 # Nickname → last name mappings for table matching
 PLAYER_NICKNAMES = {
@@ -100,7 +103,7 @@ def patch_results_table(html, picks):
     return html, changes
 
 
-def patch_bankroll(html, new_bankroll, starting=1000):
+def patch_bankroll(html, new_bankroll, starting=STARTING_BANKROLL):
     """Update bankroll display in the blog."""
     changes = 0
 
@@ -144,7 +147,7 @@ def patch_hero_stats(html, record, bankroll, total_picks, total_risked):
     record_str = f"{wins}-{losses}"
 
     # Compute ROI on settled risked
-    profit = bankroll - 1000
+    profit = bankroll - STARTING_BANKROLL
     roi_pct = round(profit / total_risked * 100) if total_risked > 0 else 0
     roi_sign = "+" if roi_pct >= 0 else ""
 
@@ -417,7 +420,7 @@ def compute_stats_from_csv(csv_path):
             elif result == "P":
                 pushes += 1
 
-    bankroll = 1000 + total_profit
+    bankroll = STARTING_BANKROLL + total_profit
     return {
         "record": {"W": wins, "L": losses, "P": pushes},
         "bankroll": round(bankroll),

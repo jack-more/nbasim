@@ -31,6 +31,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config import STARTING_BANKROLL
 
 PICKS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "picks.csv")
 
@@ -254,7 +255,7 @@ def main():
         losses = sum(1 for p in picks if p["result"] == "L")
         pending = sum(1 for p in picks if not p["result"])
         total_profit = sum(float(p.get("profit", 0) or 0) for p in picks)
-        bankroll = 1150 + total_profit
+            bankroll = STARTING_BANKROLL + total_profit
         print(f"\n  RECORD: {wins}-{losses} | PENDING: {pending} | BANKROLL: {bankroll:,.0f} $PP")
 
 
