@@ -57,6 +57,11 @@ on:
 permissions:
   contents: write
 
+# Prevent overlapping runs from racing on git push
+concurrency:
+  group: nba-sim-pipeline
+  cancel-in-progress: false
+
 jobs:
   # ════════════════════════════════════════════
   # PRE-GAME JOBS (evening cron + manual)
@@ -127,12 +132,20 @@ jobs:
       # ── Always: pull fresh odds + generate HTML (with retry) ──
       - name: Generate dashboard (fresh odds + props)
         run: |
+          success=false
           for attempt in 1 2 3; do
             echo "=== Attempt $attempt/3 ==="
-            python generate_frontend.py && break
+            if python generate_frontend.py; then
+              success=true
+              break
+            fi
             echo "Attempt $attempt failed, waiting 60s before retry..."
             sleep 60
           done
+          if [ "$success" = false ]; then
+            echo "::error::All 3 generate_frontend.py attempts failed"
+            exit 1
+          fi
 
       # ── Daily intelligence snapshot (MOJO trajectories + potential model) ──
       - name: Intelligence snapshot
@@ -176,6 +189,7 @@ jobs:
           fi
 
           git commit -m "Auto-update lines — ${DATE}"
+          git pull --rebase origin main || true
           git push
 
   # ── Sync to MORELLOSIMS (blog + nbasim dashboard) ──
@@ -247,6 +261,7 @@ jobs:
           fi
 
           git commit -m "Auto-sync lines from NBA SIM — ${DATE}"
+          git pull --rebase origin main || true
           git push
 
   # ════════════════════════════════════════════
@@ -281,12 +296,20 @@ jobs:
 
       - name: Regenerate dashboard with fresh trends
         run: |
+          success=false
           for attempt in 1 2 3; do
             echo "=== Generate attempt $attempt/3 ==="
-            python generate_frontend.py && break
+            if python generate_frontend.py; then
+              success=true
+              break
+            fi
             echo "Attempt $attempt failed, waiting 30s before retry..."
             sleep 30
           done
+          if [ "$success" = false ]; then
+            echo "::error::All 3 generate_frontend.py attempts failed"
+            exit 1
+          fi
 
       - name: Intelligence snapshot
         continue-on-error: true
@@ -319,6 +342,7 @@ jobs:
           fi
 
           git commit -m "Daily trends refresh — ${DATE}"
+          git pull --rebase origin main || true
           git push
 
   # Sync trends update to MORELLOSIMS
@@ -366,6 +390,7 @@ jobs:
           fi
 
           git commit -m "Daily trends refresh sync — ${DATE}"
+          git pull --rebase origin main || true
           git push
 
   # ════════════════════════════════════════════
@@ -409,6 +434,7 @@ jobs:
           fi
 
           git commit -m "Grade picks — ${DATE}"
+          git pull --rebase origin main || true
           git push
 
   settle-morellosims:
@@ -466,4 +492,5 @@ jobs:
           fi
 
           git commit -m "Settle picks — ${DATE}"
+          git pull --rebase origin main || true
           git push
