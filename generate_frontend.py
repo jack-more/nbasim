@@ -1116,9 +1116,9 @@ def compute_spread_and_total(home_data, away_data):
 # Model constants
 _MOJI_CONSTANTS = {
     "MOJO_SCALE":     1.0,    # 1pt MOJO gap → 1.0 points on spread scale
-    "MOJI_WEIGHT":   0.45,   # MOJI share in final blend (proven)
+    "MOJI_WEIGHT":   0.40,   # MOJI share in final blend (down from 0.45 — too sticky)
     "NRTG_SEASON_WEIGHT": 0.10,  # season-long NRtg (stabilizer)
-    "NRTG_RECENT_WEIGHT": 0.25,  # trailing 10-game NRtg (momentum, captures hot/cold teams)
+    "NRTG_RECENT_WEIGHT": 0.30,  # trailing 10-game NRtg (up from 0.25 — momentum matters)
     "SYN_WEIGHT":   0.20,   # lineup synergy share in final blend (SYN v2, unproven — modifier only)
     "SYN_SCALE":    0.15,   # (home_syn - away_syn) × SCALE = spread points
     "HCA":          1.8,    # base home court advantage (most arenas — modern NBA)
@@ -2919,6 +2919,62 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     print(f"  [NRtg] {home_abbr} season={h_net:+.1f} recent10={home_recent_nrtg:+.1f} | "
           f"{away_abbr} season={a_net:+.1f} recent10={away_recent_nrtg:+.1f}")
 
+    # ── Streak-collapse penalty: punish teams in obvious freefall ──
+    # If a team has lost 6+ of their last 7, or 8+ of last 10, they get a
+    # direct NRtg penalty. This catches IND-type collapses where season
+    # MOJI + synergy still look OK but the team is clearly broken right now.
+    COLLAPSE_PENALTY = 3.0   # NRtg points penalty for teams in freefall
+    home_collapse_penalty = 0.0
+    away_collapse_penalty = 0.0
+
+    for tag, tid, abbr in [("home", home_tid, home_abbr), ("away", away_tid, away_abbr)]:
+        loss_check = read_query("""
+            SELECT
+                CASE WHEN home_team_id = ?
+                     THEN CASE WHEN home_score > away_score THEN 1 ELSE 0 END
+                     ELSE CASE WHEN away_score > home_score THEN 1 ELSE 0 END
+                END as won
+            FROM games
+            WHERE (home_team_id = ? OR away_team_id = ?)
+              AND season_id = '2025-26'
+              AND home_score IS NOT NULL
+            ORDER BY game_date DESC
+            LIMIT 10
+        """, DB_PATH, [tid, tid, tid])
+
+        if loss_check.empty or len(loss_check) < 7:
+            continue
+
+        last_7_wins = int(loss_check.head(7)["won"].sum())
+        last_10_wins = int(loss_check["won"].sum()) if len(loss_check) >= 10 else None
+
+        # Severe collapse: 1 or fewer wins in last 7, OR 2 or fewer in last 10
+        if last_7_wins <= 1 or (last_10_wins is not None and last_10_wins <= 2):
+            penalty = COLLAPSE_PENALTY
+            if tag == "home":
+                home_collapse_penalty = penalty
+            else:
+                away_collapse_penalty = penalty
+            last_n = 10 if last_10_wins is not None else 7
+            last_w = last_10_wins if last_10_wins is not None else last_7_wins
+            print(f"  [COLLAPSE] {abbr} is {last_w}-{last_n - last_w} in last {last_n} — "
+                  f"applying -{penalty:.1f} NRtg penalty")
+        # Moderate collapse: 2 wins in last 7
+        elif last_7_wins <= 2:
+            penalty = COLLAPSE_PENALTY * 0.5
+            if tag == "home":
+                home_collapse_penalty = penalty
+            else:
+                away_collapse_penalty = penalty
+            print(f"  [COLLAPSE] {abbr} is {last_7_wins}-{7 - last_7_wins} in last 7 — "
+                  f"applying -{penalty:.1f} NRtg penalty")
+
+    # Apply collapse penalties to recent NRtg diff (shifts spread toward opponent)
+    if home_collapse_penalty > 0:
+        recent_nrtg_diff -= home_collapse_penalty
+    if away_collapse_penalty > 0:
+        recent_nrtg_diff += away_collapse_penalty
+
     # ── Compute lineup synergy vs opponent scheme ──
     # Get opponent defensive schemes from coaching_profiles
     away_scheme_df = read_query("""
@@ -2943,7 +2999,7 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     syn_diff = home_syn - away_syn
     synergy_as_points = syn_diff * K["SYN_SCALE"]
 
-    # ── Final blend: 45% MOJI + 10% season NRtg + 25% recent NRtg + 20% SYN ──
+    # ── Final blend: 40% MOJI + 10% season NRtg + 30% recent NRtg + 20% SYN ──
     moji_diff = home_moji - away_moji
     moji_as_points = moji_diff * K["MOJO_SCALE"]
 
@@ -2992,6 +3048,8 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         "away_out": len(away_out_ids),
         "home_lineup_q": round(home_lineup_q, 1),
         "away_lineup_q": round(away_lineup_q, 1),
+        "home_collapse": round(home_collapse_penalty, 1),
+        "away_collapse": round(away_collapse_penalty, 1),
         "raw_power": round(raw_power, 1),
     }
 
