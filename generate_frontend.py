@@ -1070,45 +1070,6 @@ def compute_mojo_range(score, player_id=None):
     return low, high
 
 
-def compute_spread_and_total(home_data, away_data):
-    """Compute projected spread and total from team ratings.
-
-    Spread = -(net_diff + HCA). Negative means home favored.
-    Total = estimated from offensive/defensive ratings and pace.
-    """
-    h_net = (home_data.get("net_rating", 0) or 0)
-    a_net = (away_data.get("net_rating", 0) or 0)
-    h_ortg = (home_data.get("off_rating", 111.7) or 111.7)
-    h_drtg = (home_data.get("def_rating", 111.7) or 111.7)
-    a_ortg = (away_data.get("off_rating", 111.7) or 111.7)
-    a_drtg = (away_data.get("def_rating", 111.7) or 111.7)
-    h_pace = (home_data.get("pace", 100) or 100)
-    a_pace = (away_data.get("pace", 100) or 100)
-
-    # Home court advantage — variable by arena (Denver/Boston elevated)
-    home_abbr = home_data.get("abbreviation", "")
-    HCA = TEAM_HCA.get(home_abbr, 1.8)
-    net_diff = h_net - a_net
-    raw_spread = -(net_diff + HCA)  # Negative = home favored
-    # Round to nearest 0.5
-    spread = round(raw_spread * 2) / 2
-
-    # Total estimation
-    # Expected pace for this matchup
-    league_pace = 99.87
-    matchup_pace = (h_pace * a_pace) / league_pace
-
-    # Home team expected score
-    home_pts = ((h_ortg + a_drtg) / 2) * (matchup_pace / 100)
-    away_pts = ((a_ortg + h_drtg) / 2) * (matchup_pace / 100)
-
-    raw_total = home_pts + away_pts
-    # Round to nearest 0.5
-    total = round(raw_total * 2) / 2
-
-    return spread, total
-
-
 # ────────────────────────────────────────────────────────────────────
 # MOJI SPREAD MODEL — Steps 1-8
 # ────────────────────────────────────────────────────────────────────
@@ -2713,42 +2674,6 @@ def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
     return max(0.0, min(100.0, syn_score))
 
 
-def compute_h2h(home_tid, away_tid, season="2025-26"):
-    """Head-to-head backstop: how these two teams have performed against each other.
-
-    Returns a spread-scale value from the home team's perspective.
-    Positive = home has dominated H2H, negative = away has dominated.
-    Returns 0.0 if no H2H games found.
-    """
-    h2h_df = read_query("""
-        SELECT home_team_id, away_team_id, home_score, away_score
-        FROM games
-        WHERE season_id = ?
-              AND ((home_team_id = ? AND away_team_id = ?)
-                OR (home_team_id = ? AND away_team_id = ?))
-              AND home_score IS NOT NULL AND away_score IS NOT NULL
-    """, DB_PATH, [season, home_tid, away_tid, away_tid, home_tid])
-
-    if h2h_df.empty:
-        return 0.0
-
-    # Compute average margin from home team's perspective
-    total_margin = 0.0
-    for _, g in h2h_df.iterrows():
-        if int(g["home_team_id"]) == home_tid:
-            total_margin += int(g["home_score"]) - int(g["away_score"])
-        else:
-            total_margin += int(g["away_score"]) - int(g["home_score"])
-
-    avg_margin = total_margin / len(h2h_df)
-
-    # Dampen: H2H sample is small (2-4 games), shrink toward 0
-    # More games = more confidence. At 4 games, ~67% of raw signal kept.
-    n_games = len(h2h_df)
-    dampening = n_games / (n_games + 2.0)
-    return avg_margin * dampening
-
-
 def _compute_full_strength_moji(roster_df):
     """Minutes-weighted avg MOJO for the full roster (no injuries)."""
     total = 0.0
@@ -3340,51 +3265,6 @@ def get_trending_combos():
     fading = sorted(trending_pairs, key=lambda x: x["delta"])[:4]
 
     return surging, fading
-
-
-def get_player_context(player, opponent_abbr, team_map):
-    """Generate a short context summary for a player entering a game."""
-    name = player.get("full_name", "?")
-    parts = name.split()
-    first_name = parts[0] if parts else name
-
-    arch = player.get("archetype_label", "") or "Unclassified"
-    pts = player.get("pts_pg", 0) or 0
-    ast = player.get("ast_pg", 0) or 0
-    ts = player.get("ts_pct", 0) or 0
-    mpg = player.get("minutes_per_game", 0) or 0
-
-    opp_data = team_map.get(opponent_abbr, {})
-    opp_drtg = opp_data.get("def_rating", 112) or 112
-    opp_pace = opp_data.get("pace", 100) or 100
-
-    # Get trend
-    trend = get_player_trend(player.get("player_id", 0), "")
-
-    notes = []
-
-    # Matchup note
-    if opp_drtg > 115:
-        notes.append(f"Faces elite defense ({opp_drtg:.0f} DRTG)")
-    elif opp_drtg < 110:
-        notes.append(f"Favorable matchup ({opp_drtg:.0f} DRTG)")
-
-    # Trend note
-    if trend:
-        if trend["direction"] == "hot":
-            notes.append(f"On fire over last {trend['streak_games']} games (+{trend['pra_diff']:.0f} PRA)")
-        elif trend["direction"] == "cold":
-            notes.append(f"Struggling over last {trend['streak_games']} games ({trend['pra_diff']:.0f} PRA)")
-        elif trend["direction"] == "up":
-            notes.append(f"Trending up last {trend['streak_games']} ({trend['avg_pts']:.0f}p/{trend['avg_ast']:.0f}a/{trend['avg_reb']:.0f}r)")
-
-    # Efficiency note
-    if ts > 0.62:
-        notes.append("Elite efficiency")
-    elif ts < 0.50 and pts > 15:
-        notes.append("Inefficient scorer — UNDER candidate")
-
-    return " // ".join(notes[:2]) if notes else f"{arch} averaging {pts:.0f}p/{ast:.0f}a"
 
 
 def get_team_mojo_rankings():
@@ -6470,16 +6350,6 @@ def render_combo_card(combo, is_fade=False):
             </div>
         </div>
         <div class="combo-trend-note">{gp} games tracked</div>
-    </div>"""
-
-
-def render_lock_card(pick):
-    """Render a top pick card for the header."""
-    return f"""
-    <div class="lock-card">
-        <span class="lock-matchup">{pick['matchup']}</span>
-        <span class="lock-pick">{pick['label']}</span>
-        <span class="lock-score">{pick['score']:.0f}</span>
     </div>"""
 
 

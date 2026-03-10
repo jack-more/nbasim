@@ -3,3 +3,9 @@ __pycache__/
 .env
 *.db-journal
 .DS_Store
+
+# Prevent orphaned DB files at project root (canonical is db/nba_sim.db)
+/nba_sim.db
+/nba_model.db
+/data/nba_sim.db
+/data/nba_stats.db
