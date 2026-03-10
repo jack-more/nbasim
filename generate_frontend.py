@@ -132,6 +132,166 @@ def _build_orapm_percentiles():
 
 _build_orapm_percentiles()
 
+# ─── Play Type Intelligence Cache ────────────────────────────────
+# Loaded at module load — enables scheme-aware usage redistribution.
+# Maps player_id → {play_type: {ppp, poss_pct, possessions, poss_share}}
+_PLAYER_PLAY_PROFILE = {}
+# League average PPP per offensive play type
+_LEAGUE_AVG_PPP = {}
+
+
+def _load_play_profiles():
+    """Load offensive play type profiles for play-type-aware usage redistribution.
+
+    When a player goes OUT, their freed possessions aren't generic "usage" —
+    they're specific play types (PnR Ball Handler, ISO, Spotup, etc.).
+    Each remaining player absorbs those possessions with DIFFERENT efficiency
+    depending on whether those play types match their strengths.
+    """
+    global _PLAYER_PLAY_PROFILE, _LEAGUE_AVG_PPP
+
+    try:
+        df = read_query("""
+            SELECT player_id, play_type, poss_pct, ppp, possessions
+            FROM player_playtypes
+            WHERE season_id = '2025-26' AND type_grouping = 'Offensive'
+                  AND possessions > 0
+        """, DB_PATH)
+    except Exception:
+        return  # Table may not exist yet
+
+    if df.empty:
+        return
+
+    # League averages per play type (weighted by possessions)
+    for pt, group in df.groupby("play_type"):
+        total_poss = group["possessions"].sum()
+        if total_poss > 0:
+            _LEAGUE_AVG_PPP[pt] = float(
+                (group["ppp"] * group["possessions"]).sum() / total_poss
+            )
+        else:
+            _LEAGUE_AVG_PPP[pt] = 0.95
+
+    # Per-player offensive play profiles
+    for pid, group in df.groupby("player_id"):
+        pid = int(pid)
+        profile = {}
+        total_poss = group["possessions"].sum()
+        for _, row in group.iterrows():
+            pt = row["play_type"]
+            profile[pt] = {
+                "ppp": float(row["ppp"]),
+                "poss_pct": float(row["poss_pct"]),
+                "possessions": float(row["possessions"]),
+                "poss_share": float(row["possessions"]) / total_poss if total_poss > 0 else 0,
+            }
+        _PLAYER_PLAY_PROFILE[pid] = profile
+
+
+_load_play_profiles()
+
+# ─── USG-Efficiency Curves Cache ─────────────────────────────────
+# Maps player_id → {ts_per_usg (float), is_load_bearer (bool)}
+# Built from empirical game-by-game USG vs TS% data in player_potential.
+# Load-bearers maintain or IMPROVE efficiency at higher usage (Giannis, Trae).
+# Decay players lose efficiency rapidly (bench specialists, some role bigs).
+_USG_CURVES = {}
+
+
+def _load_usg_curves():
+    """Load empirical USG-efficiency curves from latest potential snapshot.
+
+    Replaces the uniform 0.995 decay in compute_adjusted_mojo() with
+    per-player slopes derived from actual game data.
+    """
+    global _USG_CURVES
+    import re
+
+    try:
+        df = read_query("""
+            SELECT player_id, notes
+            FROM player_potential
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM player_potential)
+                  AND notes IS NOT NULL
+        """, DB_PATH)
+    except Exception:
+        return  # Table may not exist yet
+
+    if df.empty:
+        return
+
+    for _, row in df.iterrows():
+        pid = int(row["player_id"])
+        notes = str(row["notes"] or "")
+
+        is_load_bearer = "LOAD-BEARER" in notes
+
+        # Extract ts_per_usg from notes like "LOAD-BEARER: TS +0.24%/USG% (39g)"
+        match = re.search(r'TS ([+-]?\d+\.?\d*)%/USG%', notes)
+        if match:
+            ts_per_usg = float(match.group(1))
+        else:
+            ts_per_usg = -0.5  # default moderate decay
+
+        _USG_CURVES[pid] = {
+            "ts_per_usg": ts_per_usg,
+            "is_load_bearer": is_load_bearer,
+        }
+
+
+_load_usg_curves()
+
+
+def _compute_play_type_absorption(absorber_pid, out_pids):
+    """Score how well a player can absorb freed play types from OUT players.
+
+    When Player X goes OUT, their possessions aren't generic — they're
+    specific play types (PnR Ball Handler, Isolation, Spotup, etc.).
+    This function measures how well the absorbing player handles those
+    SPECIFIC play types relative to the league average.
+
+    Returns a quality ratio:
+    - > 1.0: above-average absorber for these play types (e.g., elite PnR guard
+             absorbing PnR possessions from another guard)
+    - 1.0: average compatibility
+    - < 1.0: poor match (e.g., a center absorbing guard isolation plays)
+    """
+    if not _PLAYER_PLAY_PROFILE or not _LEAGUE_AVG_PPP:
+        return 1.0  # No play type data — neutral
+
+    # Build profile of freed play types from OUT players
+    freed = {}
+    for out_pid in out_pids:
+        out_profile = _PLAYER_PLAY_PROFILE.get(int(out_pid), {})
+        for pt, data in out_profile.items():
+            freed[pt] = freed.get(pt, 0) + data["possessions"]
+
+    if not freed:
+        return 1.0  # No play type data for OUT players
+
+    # Score how well the absorber handles each freed play type
+    absorber_profile = _PLAYER_PLAY_PROFILE.get(int(absorber_pid), {})
+    if not absorber_profile:
+        return 0.95  # No profile → slightly below average assumption
+
+    weighted_quality = 0
+    total_freed = 0
+    for pt, freed_poss in freed.items():
+        league_avg = _LEAGUE_AVG_PPP.get(pt, 0.95)
+        if pt in absorber_profile:
+            player_ppp = absorber_profile[pt]["ppp"]
+            quality = player_ppp / league_avg if league_avg > 0 else 1.0
+        else:
+            # Player doesn't play this type at all → below average absorption
+            quality = 0.80
+
+        weighted_quality += quality * freed_poss
+        total_freed += freed_poss
+
+    return weighted_quality / total_freed if total_freed > 0 else 1.0
+
+
 # ─── Injury-Adjusted Value Scores Cache ──────────────────────────
 # Populated per-generation for tonight's playing teams only.
 # Maps player_id → adjusted composite (0-100) reflecting who's actually OUT.
@@ -1856,14 +2016,53 @@ def compute_adjusted_mojo(roster_df, out_player_ids, projected_minutes):
 
         ds, _ = compute_mojo_score(modified_row)
 
-        # Efficiency penalty: more usage = MOJO decay
+        # ── Efficiency penalty: scheme-aware + per-player curves ──
+        # Replaces uniform 0.995 decay with empirical USG-efficiency data
+        # and play-type compatibility scoring.
         if usage_boost > 0:
             usage_increase_pct = (usage_boost / base_usg * 100) if base_usg > 0 else 0
-            # Defensive archetypes suffer MORE from offensive usage absorption
-            if arch in _DEFENSIVE_ARCHETYPES:
-                decay_rate = K["USAGE_DECAY_DEF"]   # 0.985 — harsh
+
+            # Step 1: Per-player decay rate from empirical USG-TS curves
+            # (replaces uniform 0.995 for all players)
+            curve = _USG_CURVES.get(pid)
+            if curve:
+                ts_slope = curve["ts_per_usg"]  # TS% change per 1% USG increase
+                if ts_slope >= 0:
+                    # LOAD-BEARER: efficiency flat or rises with usage
+                    # (Giannis +0.05%, Trae +14.5%, Alex Sarr +0.24%)
+                    decay_rate = 1.0  # no penalty
+                elif ts_slope >= -0.5:
+                    # MODERATE: mild decay — can handle some extra load
+                    decay_rate = 0.998
+                elif ts_slope >= -1.5:
+                    # STANDARD: typical role expansion decay
+                    decay_rate = 0.995
+                else:
+                    # HEAVY DECAY: efficiency collapses under load
+                    # (e.g., -2.92%/USG or worse)
+                    decay_rate = 0.990
             else:
-                decay_rate = K["USAGE_DECAY"]        # 0.995 — standard
+                # No curve data — fall back to archetype-based defaults
+                if arch in _DEFENSIVE_ARCHETYPES:
+                    decay_rate = K["USAGE_DECAY_DEF"]   # 0.985
+                else:
+                    decay_rate = K["USAGE_DECAY"]        # 0.995
+
+            # Step 2: Play-type compatibility modifier
+            # Measures how well this player absorbs the SPECIFIC play types
+            # freed by OUT players (PnR, ISO, Spotup, etc.)
+            play_quality = _compute_play_type_absorption(pid, out_player_ids)
+            if play_quality > 1.05:
+                # Player is ABOVE average at absorbing these play types
+                # (e.g., elite PnR guard absorbing PnR possessions)
+                # Soften the decay — they handle these plays well
+                decay_rate = min(1.0, decay_rate + (play_quality - 1.0) * 0.02)
+            elif play_quality < 0.90:
+                # Player is BELOW average at these play types
+                # (e.g., center absorbing guard isolation plays)
+                # Harsher penalty — play type mismatch
+                decay_rate = max(0.980, decay_rate - (1.0 - play_quality) * 0.02)
+
             efficiency_penalty = decay_rate ** usage_increase_pct
             ds = int(ds * efficiency_penalty)
             ds = max(33, ds)

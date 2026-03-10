@@ -320,6 +320,181 @@ def _compute_usg_efficiency_curves():
     return curves
 
 
+def _compute_play_type_context():
+    """Scheme-aware analysis: play type advantages, scheme alignment, teammate quality.
+
+    For each player, evaluates:
+    1. play_type_advantage: weighted PPP across their best play types vs league avg
+       (identifies WHAT they're good at, not just raw USG vs TS)
+    2. scheme_alignment: does the team's play type distribution support their strengths?
+       (Clingan is elite in PnR Roll Man/Cuts, but Portland barely runs those)
+    3. dependent_quality: for play types that need teammates (PnR Roll Man needs
+       good ball handlers), how well do teammates create?
+
+    Returns: dict[player_id] → {
+        "advantage": float (>1.0 = above avg, <1.0 = below avg),
+        "scheme_fit": float (0-1, 1.0 = perfect alignment),
+        "dependent_boost": float (>0 = teammates help, <0 = teammates hurt),
+        "best_plays": list of (play_type, ppp) top 3,
+        "wasted_plays": list of (play_type, ppp) — elite plays team doesn't run,
+        "detail": str description
+    }
+    """
+    logger.info("  Computing scheme-aware play type context...")
+
+    # Load player play types
+    player_pts = read_query("""
+        SELECT player_id, play_type, poss_pct, ppp, possessions
+        FROM player_playtypes
+        WHERE season_id = ? AND type_grouping = 'Offensive' AND possessions > 0
+    """, DB_PATH, [SEASON_ID])
+
+    if player_pts.empty:
+        logger.warning("  No play type data available — skipping scheme context")
+        return {}
+
+    # Load team play types for scheme alignment
+    team_pts = read_query("""
+        SELECT team_id, play_type, poss_pct, ppp, possessions
+        FROM team_playtypes
+        WHERE season_id = ? AND type_grouping = 'Offensive' AND possessions > 0
+    """, DB_PATH, [SEASON_ID])
+
+    # Player-team mapping
+    player_teams = read_query("""
+        SELECT player_id, team_id FROM player_season_stats
+        WHERE season_id = ? AND gp >= 10
+    """, DB_PATH, [SEASON_ID])
+    pid_to_tid = dict(zip(player_teams["player_id"].astype(int), player_teams["team_id"].astype(int)))
+
+    # League avg PPP per play type (possession-weighted)
+    league_avg = {}
+    for pt, group in player_pts.groupby("play_type"):
+        total_poss = group["possessions"].sum()
+        if total_poss > 0:
+            league_avg[pt] = float((group["ppp"] * group["possessions"]).sum() / total_poss)
+
+    # Team play type distributions: team_id → {play_type → poss_pct}
+    team_schemes = {}
+    for tid, group in team_pts.groupby("team_id"):
+        tid = int(tid)
+        total_poss = group["possessions"].sum()
+        team_schemes[tid] = {}
+        for _, row in group.iterrows():
+            team_schemes[tid][row["play_type"]] = {
+                "poss_share": float(row["possessions"]) / total_poss if total_poss > 0 else 0,
+                "ppp": float(row["ppp"]),
+            }
+
+    # Team PnR Ball Handler quality (for PnR Roll Man dependents)
+    team_pnr_quality = {}
+    for tid, scheme in team_schemes.items():
+        pnr_bh = scheme.get("PRBallHandler", {})
+        team_pnr_quality[tid] = pnr_bh.get("ppp", 0.88)  # league avg ~0.879
+
+    # Dependent play types: play type → what teammate quality it depends on
+    PLAY_DEPENDENCIES = {
+        "PRRollMan": "PRBallHandler",  # roll man needs good ball handlers
+        "Spotup": "PRBallHandler",     # spot-up often created off PnR penetration
+        "Cut": "PRBallHandler",        # cuts created by ball movement
+    }
+
+    # Per-player context
+    context = {}
+    for pid, group in player_pts.groupby("player_id"):
+        pid = int(pid)
+        tid = pid_to_tid.get(pid)
+        if tid is None:
+            continue
+
+        total_poss = group["possessions"].sum()
+        if total_poss == 0:
+            continue
+
+        # 1. Play type advantage: weighted PPP vs league average
+        weighted_advantage = 0
+        for _, row in group.iterrows():
+            pt = row["play_type"]
+            avg = league_avg.get(pt, 0.95)
+            if avg > 0:
+                weighted_advantage += (float(row["ppp"]) / avg) * (float(row["possessions"]) / total_poss)
+
+        # 2. Best play types (by PPP relative to league avg)
+        plays_rated = []
+        for _, row in group.iterrows():
+            pt = row["play_type"]
+            avg = league_avg.get(pt, 0.95)
+            plays_rated.append((pt, float(row["ppp"]), float(row["ppp"]) / avg if avg > 0 else 1.0, float(row["possessions"])))
+        plays_rated.sort(key=lambda x: x[2], reverse=True)
+        best_plays = [(p[0], p[1]) for p in plays_rated[:3]]
+
+        # 3. Scheme alignment: do the team's high-volume play types match player strengths?
+        scheme = team_schemes.get(tid, {})
+        if not scheme:
+            scheme_fit = 0.5  # neutral
+        else:
+            # For each play type, multiply (player PPP advantage) × (team possession share)
+            # High score = team gives lots of possessions to play types this player is good at
+            fit_score = 0
+            total_scheme_share = 0
+            for pt_info in plays_rated:
+                pt_name = pt_info[0]
+                pt_advantage = pt_info[2]  # PPP / league_avg
+                team_share = scheme.get(pt_name, {}).get("poss_share", 0)
+                fit_score += pt_advantage * team_share
+                total_scheme_share += team_share
+            scheme_fit = fit_score / total_scheme_share if total_scheme_share > 0 else 0.5
+
+        # 4. Identify wasted talent: play types where player is elite but team barely uses them
+        wasted_plays = []
+        for pt_info in plays_rated:
+            pt_name, pt_ppp, pt_ratio, pt_poss = pt_info
+            if pt_ratio > 1.15:  # 15% above league avg = elite
+                team_share = scheme.get(pt_name, {}).get("poss_share", 0)
+                if team_share < 0.08:  # team runs this less than 8% of possessions
+                    wasted_plays.append((pt_name, pt_ppp))
+
+        # 5. Dependent play quality: does the team support this player's key play types?
+        dependent_boost = 0
+        for _, row in group.iterrows():
+            pt = row["play_type"]
+            dep_type = PLAY_DEPENDENCIES.get(pt)
+            if dep_type and tid in team_schemes:
+                team_dep_ppp = team_schemes[tid].get(dep_type, {}).get("ppp", 0.88)
+                dep_avg = league_avg.get(dep_type, 0.88)
+                # If team's PnR BH is above avg → boost for roll man
+                # If below avg → penalty
+                quality_diff = (team_dep_ppp - dep_avg) / dep_avg if dep_avg > 0 else 0
+                play_weight = float(row["possessions"]) / total_poss
+                dependent_boost += quality_diff * play_weight * 10  # scale to meaningful range
+
+        # Build detail string
+        best_str = ", ".join(f"{p[0]}({p[1]:.3f})" for p in best_plays)
+        detail_parts = [f"Best: {best_str}", f"SchFit={scheme_fit:.2f}"]
+        if wasted_plays:
+            waste_str = ", ".join(f"{p[0]}({p[1]:.3f})" for p in wasted_plays)
+            detail_parts.append(f"Wasted: {waste_str}")
+        if abs(dependent_boost) > 0.5:
+            detail_parts.append(f"DepQ={dependent_boost:+.1f}")
+
+        context[pid] = {
+            "advantage": weighted_advantage,
+            "scheme_fit": scheme_fit,
+            "dependent_boost": dependent_boost,
+            "best_plays": best_plays,
+            "wasted_plays": wasted_plays,
+            "detail": " | ".join(detail_parts),
+        }
+
+    logger.info(f"  Play type context computed for {len(context)} players")
+    scheme_mismatches = sum(1 for c in context.values() if c["scheme_fit"] < 0.90)
+    wasted_talent = sum(1 for c in context.values() if len(c["wasted_plays"]) > 0)
+    logger.info(f"  Scheme mismatches (<0.90 fit): {scheme_mismatches}")
+    logger.info(f"  Players with wasted elite play types: {wasted_talent}")
+
+    return context
+
+
 def compute_player_potential():
     """Compute potential MOJO for every player — the Clingan detector + inverse Clingan.
 
@@ -333,11 +508,18 @@ def compute_player_potential():
 
     Also identifies teammate usage waste — players who hog possessions less efficiently
     than a teammate who could use them better.
+
+    NEW: Scheme-aware analysis layers in play type advantages, coaching scheme
+    alignment, and dependent play type quality (e.g., PnR Roll Man needs good
+    ball handlers) to produce a richer potential assessment.
     """
     logger.info("=== Computing player potential model ===")
 
     # Build empirical USG-efficiency curves from game logs
     usg_curves = _compute_usg_efficiency_curves()
+
+    # Build scheme-aware play type context
+    play_context = _compute_play_type_context()
 
     # Get season stats
     players = read_query("""
@@ -474,26 +656,59 @@ def compute_player_potential():
 
         mojo_gap = potential_mojo - current_mojo
 
-        # ── Breakout signal ──
+        # ── Scheme-aware context ──
+        ctx = play_context.get(pid, {})
+        scheme_fit = ctx.get("scheme_fit", 0.5)
+        play_advantage = ctx.get("advantage", 1.0)
+        dependent_boost = ctx.get("dependent_boost", 0)
+        wasted_plays = ctx.get("wasted_plays", [])
+
+        # Adjust potential_mojo by scheme context:
+        # - Elite play types that team doesn't use → potential is HIGHER (talent wasted)
+        # - Poor scheme fit → player could be better elsewhere, cap potential gain
+        if wasted_plays:
+            # Each wasted elite play type adds potential MOJO (team isn't leveraging talent)
+            potential_mojo = min(99, potential_mojo + len(wasted_plays) * 2)
+            mojo_gap = potential_mojo - current_mojo
+
+        # Dependent play quality adjusts potential (e.g., bad PnR BH hurts Roll Man ceiling)
+        if dependent_boost < -1.0:
+            # Teammates are HURTING this player's production in key play types
+            potential_mojo = min(99, potential_mojo + abs(int(dependent_boost)))
+            mojo_gap = potential_mojo - current_mojo
+
+        # ── Breakout signal (scheme-aware) ──
         is_load_bearer = curve["is_load_bearer"] if curve else False
         breakout = (
-            mojo_gap * 0.35 +
-            minutes_headroom * 0.15 +
-            usage_headroom * 0.15 +
-            waste * 0.20 +
-            (5.0 if is_load_bearer and current_mpg < 30 else 0)  # bonus for underused load-bearers
+            mojo_gap * 0.30 +
+            minutes_headroom * 0.10 +
+            usage_headroom * 0.10 +
+            waste * 0.15 +
+            (5.0 if is_load_bearer and current_mpg < 30 else 0) +
+            # Scheme-aware factors:
+            (play_advantage - 1.0) * 20 +  # play type advantage above league avg
+            max(0, (1.0 - scheme_fit) * 15) +  # scheme mismatch bonus (talent being wasted)
+            len(wasted_plays) * 3.0 +  # each wasted elite play type
+            abs(min(0, dependent_boost)) * 2.0  # bad teammate dependency
         )
 
         # Role mismatch: high efficiency + low minutes/usage + gap > 10
-        role_mismatch = 1 if (current_ts > 0.58 and current_mpg < 25 and mojo_gap > 10) else 0
+        # OR: scheme mismatch + elite play types going unused
+        role_mismatch = 1 if (
+            (current_ts > 0.58 and current_mpg < 25 and mojo_gap > 10) or
+            (scheme_fit < 0.85 and len(wasted_plays) >= 2 and mojo_gap > 5)
+        ) else 0
 
-        # Build notes with curve info
-        notes = None
+        # Build notes with curve info + scheme context
+        notes_parts = []
         if curve:
             if curve["is_load_bearer"]:
-                notes = f"LOAD-BEARER: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)"
+                notes_parts.append(f"LOAD-BEARER: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)")
             else:
-                notes = f"DECAY: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)"
+                notes_parts.append(f"DECAY: TS {curve['ts_per_usg']:+.2f}%/USG% ({curve['n_games']}g)")
+        if ctx.get("detail"):
+            notes_parts.append(ctx["detail"])
+        notes = " | ".join(notes_parts) if notes_parts else None
 
         rows.append((
             pid, TODAY, tid,
