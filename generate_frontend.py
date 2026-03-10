@@ -143,6 +143,27 @@ _waste_data = {}
 _waste_data_loaded = False
 
 
+def _sanitize_html_attr(val):
+    """Escape a string for safe embedding inside an HTML attribute value (double-quoted).
+
+    Handles the five critical characters that can break out of attributes or
+    inject HTML/JS: & (must be first), <, >, ", '
+    Also strips newlines/tabs that could break attribute formatting, and
+    removes backticks which can be dangerous in older JS contexts.
+    """
+    s = str(val)
+    s = s.replace("&", "&amp;")      # Must be first — prevents double-encoding
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
+    s = s.replace('"', "&quot;")
+    s = s.replace("'", "&#x27;")
+    s = s.replace("`", "&#96;")
+    s = s.replace("\n", " ")
+    s = s.replace("\r", " ")
+    s = s.replace("\t", " ")
+    return s
+
+
 def _load_waste_data():
     """Load teammate waste / MOJO gap / intel from player_potential."""
     global _waste_data, _waste_data_loaded
@@ -157,12 +178,14 @@ def _load_waste_data():
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM player_potential)
         """, DB_PATH)
         for _, wr in waste_df.iterrows():
+            raw_notes = str(wr["notes"] or "")
             _waste_data[int(wr["player_id"])] = {
                 "waste": round(float(wr["teammate_usg_waste"] or 0), 1),
                 "gap": int(wr["mojo_gap"] or 0),
                 "breakout": round(float(wr["breakout_signal"] or 0), 1),
                 "mismatch": int(wr["role_mismatch_flag"] or 0),
-                "notes": str(wr["notes"] or ""),
+                "notes": _sanitize_html_attr(raw_notes),   # Safe for HTML attributes (f-strings)
+                "notes_raw": raw_notes,                      # Raw for JSON serialization (JS handles escaping)
             }
     except Exception:
         pass  # Table may not exist yet
@@ -3902,7 +3925,7 @@ def get_lab_data():
             "mojo_gap": _waste_data.get(pid, {}).get("gap", 0),
             "breakout": _waste_data.get(pid, {}).get("breakout", 0),
             "role_mismatch": _waste_data.get(pid, {}).get("mismatch", 0),
-            "intel_notes": _waste_data.get(pid, {}).get("notes", ""),
+            "intel_notes": _waste_data.get(pid, {}).get("notes_raw", ""),  # Raw — JS _escAttr/_escHtml handles escaping
         })
 
     # Build PID → name lookup for all roster players
@@ -4120,6 +4143,8 @@ def build_lab_html(lab_data):
     </div>
 
     <script>
+    function _escAttr(s) {{ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;').replace(/`/g,'&#96;'); }}
+    function _escHtml(s) {{ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }}
     const WOWY_DATA = {wowy_json};
     let wowyCurrentTeam = '';
     let wowyCurrentN = 2;
@@ -4208,7 +4233,7 @@ def build_lab_html(lab_data):
                  data-team="${{team}}" data-pid="${{p.id}}"
                  data-waste="${{p.waste || 0}}" data-mojo-gap="${{p.mojo_gap || 0}}"
                  data-breakout="${{p.breakout || 0}}" data-role-mismatch="${{p.role_mismatch || 0}}"
-                 data-intel="${{(p.intel_notes || '').replace('"', '&quot;')}}"
+                 data-intel="${{_escAttr(p.intel_notes)}}"
                  data-ts="${{p.ts || 0}}" data-usg="${{p.usg || 0}}">
                 <div class="mc-frame">
                     <div class="mc-score-area">
@@ -4237,7 +4262,7 @@ def build_lab_html(lab_data):
                     ${{p.rapm != null ? '<div class="mc-rapm-row"><span class="mc-rapm-label">RAPM</span><span class="mc-rapm-val" style="color:' + (p.rapm >= 0 ? '#2e7d32' : '#c62828') + '">' + (p.rapm >= 0 ? '+' : '') + p.rapm.toFixed(1) + '</span></div>' : ''}}
                     ${{bpName ? '<div class="mc-pair-row"><span class="mc-pair-label">w/ ' + bpName + '</span><span class="mc-pair-nrtg" style="color:' + bpColor + '">' + bpSign + bpNrtg.toFixed(1) + '</span></div>' : ''}}
                     ${{p.waste > 5 ? '<div class="mc-waste-row"><span class="mc-waste-label">TM WASTE</span><span class="mc-waste-val" style="color:' + (p.waste >= 40 ? '#FF3333' : p.waste >= 20 ? '#FFB300' : '#8e8e8e') + '">' + p.waste.toFixed(1) + '</span></div>' : ''}}
-                    ${{p.mojo_gap > 10 ? '<div class="mc-gap-row"><span class="mc-gap-label">UPSIDE</span><span class="mc-gap-val" style="color:#00c6ff">+' + p.mojo_gap + '</span></div>' : ''}}
+                    ${{p.mojo_gap > 10 ? '<div class="mc-gap-row"><span class="mc-gap-label">UPSIDE</span><span class="mc-gap-val" style="color:#00c6ff">+' + parseInt(p.mojo_gap || 0) + '</span></div>' : ''}}
                 </div>
             </div>`;
         }});
@@ -4948,7 +4973,7 @@ def generate_html():
              data-syn-score="{bd.get('synergy_score', 50)}" data-fit-score="{bd.get('fit_score', 50)}"
              data-waste="{_rwd.get('waste', 0)}" data-mojo-gap="{_rwd.get('gap', 0)}"
              data-breakout="{_rwd.get('breakout', 0)}" data-role-mismatch="{_rwd.get('mismatch', 0)}"
-             data-intel="{str(_rwd.get('notes', '')).replace(chr(34), '&quot;')}">
+             data-intel="{_rwd.get('notes', '')}">
             <span class="rank-num">#{p['rank']}</span>
             <img src="{headshot}" class="rank-face" onerror="this.style.display='none'">
             <img src="{team_logo}" class="rank-team-logo" onerror="this.style.display='none'">
@@ -6175,7 +6200,7 @@ def render_player_row(player, team_abbr, team_map, is_starter=True, rw_status="I
     w_gap = _wd.get("gap", 0)
     w_breakout = _wd.get("breakout", 0)
     w_mismatch = _wd.get("mismatch", 0)
-    w_intel = str(_wd.get("notes", "")).replace('"', '&quot;')
+    w_intel = _wd.get("notes", "")  # Pre-sanitized by _sanitize_html_attr at load
 
     return f"""
     <div class="player-row {starter_class} {status_class}" onclick="openPlayerSheet(this)"
@@ -6338,7 +6363,7 @@ def render_combo_card(combo, is_fade=False):
              data-pid="{pid}" data-team="{combo['team']}"
              data-waste="{_cwd.get('waste', 0)}" data-mojo-gap="{_cwd.get('gap', 0)}"
              data-role-mismatch="{_cwd.get('mismatch', 0)}"
-             data-intel="{str(_cwd.get('notes', '')).replace(chr(34), '&amp;quot;')}">
+             data-intel="{_cwd.get('notes', '')}">
             <img src="{headshot}" class="combo-face" onerror="this.style.display='none'">
             <span class="combo-pname">{pl['name']}</span>
             <span class="combo-parch">{icon} {arch}</span>
@@ -9407,6 +9432,10 @@ def generate_js():
     return f"""
         {tc_line}
 """ + """
+        // ─── HTML SANITIZERS (prevent XSS from data attributes / innerHTML) ───
+        function _escAttr(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;').replace(/`/g,'&#96;'); }
+        function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+
         // ─── RANKINGS TOGGLE ───
         function toggleRankings() {
             const body = document.getElementById('rankingsBody');
@@ -9634,9 +9663,9 @@ def generate_js():
 
                 ${parseFloat(d.waste || 0) > 5 || parseInt(d.mojoGap || 0) > 5 ? '<div class="sheet-section">SCOUTING INTEL</div>' +
                     (parseFloat(d.waste || 0) > 5 ? '<div class="sheet-intel-row"><span class="sheet-intel-label">Teammate Waste</span><span class="sheet-intel-val" style="color:' + (parseFloat(d.waste) >= 40 ? '#FF3333' : parseFloat(d.waste) >= 20 ? '#FFB300' : '#8e8e8e') + '">' + parseFloat(d.waste).toFixed(1) + '</span><span class="sheet-intel-sub">Less efficient teammates consuming possessions</span></div>' : '') +
-                    (parseInt(d.mojoGap || 0) > 5 ? '<div class="sheet-intel-row"><span class="sheet-intel-label">MOJO Upside</span><span class="sheet-intel-val" style="color:#00c6ff">+' + d.mojoGap + '</span><span class="sheet-intel-sub">Potential MOJO in an expanded role</span></div>' : '') +
+                    (parseInt(d.mojoGap || 0) > 5 ? '<div class="sheet-intel-row"><span class="sheet-intel-label">MOJO Upside</span><span class="sheet-intel-val" style="color:#00c6ff">+' + parseInt(d.mojoGap || 0) + '</span><span class="sheet-intel-sub">Potential MOJO in an expanded role</span></div>' : '') +
                     (parseInt(d.roleMismatch || 0) === 1 ? '<div class="sheet-intel-badge" style="background:rgba(255,179,0,0.15);color:#FFB300;font-size:10px;padding:4px 8px;border-radius:4px;margin-top:4px;font-weight:700;letter-spacing:0.5px">ROLE MISMATCH DETECTED</div>' : '') +
-                    (d.intel ? '<div class="sheet-intel-notes">' + d.intel.replace(/&quot;/g, '"') + '</div>' : '')
+                    (d.intel ? '<div class="sheet-intel-notes">' + _escHtml(d.intel) + '</div>' : '')
                 : ''}
             `;
 
