@@ -2919,11 +2919,11 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     print(f"  [NRtg] {home_abbr} season={h_net:+.1f} recent10={home_recent_nrtg:+.1f} | "
           f"{away_abbr} season={a_net:+.1f} recent10={away_recent_nrtg:+.1f}")
 
-    # ── Streak-collapse penalty: punish teams in obvious freefall ──
-    # If a team has lost 6+ of their last 7, or 8+ of last 10, they get a
-    # direct NRtg penalty. This catches IND-type collapses where season
-    # MOJI + synergy still look OK but the team is clearly broken right now.
-    COLLAPSE_PENALTY = 3.0   # NRtg points penalty for teams in freefall
+    # ── Tank warning: flag teams in obvious freefall ──
+    # If a team has lost 8+ of last 10 (or 6+ of last 7), apply -1.5 NRtg
+    # nudge. Catches IND-type tanks where season MOJI still looks OK but
+    # the team is clearly broken right now.
+    TANK_PENALTY = 1.5   # NRtg points nudge for tanking teams
     home_collapse_penalty = 0.0
     away_collapse_penalty = 0.0
 
@@ -2948,28 +2948,19 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         last_7_wins = int(loss_check.head(7)["won"].sum())
         last_10_wins = int(loss_check["won"].sum()) if len(loss_check) >= 10 else None
 
-        # Severe collapse: 1 or fewer wins in last 7, OR 2 or fewer in last 10
-        if last_7_wins <= 1 or (last_10_wins is not None and last_10_wins <= 2):
-            penalty = COLLAPSE_PENALTY
+        # Tank trigger: 2 or fewer wins in last 10, OR 1 or fewer in last 7
+        is_tanking = (last_10_wins is not None and last_10_wins <= 2) or last_7_wins <= 1
+        if is_tanking:
             if tag == "home":
-                home_collapse_penalty = penalty
+                home_collapse_penalty = TANK_PENALTY
             else:
-                away_collapse_penalty = penalty
+                away_collapse_penalty = TANK_PENALTY
             last_n = 10 if last_10_wins is not None else 7
             last_w = last_10_wins if last_10_wins is not None else last_7_wins
-            print(f"  [COLLAPSE] {abbr} is {last_w}-{last_n - last_w} in last {last_n} — "
-                  f"applying -{penalty:.1f} NRtg penalty")
-        # Moderate collapse: 2 wins in last 7
-        elif last_7_wins <= 2:
-            penalty = COLLAPSE_PENALTY * 0.5
-            if tag == "home":
-                home_collapse_penalty = penalty
-            else:
-                away_collapse_penalty = penalty
-            print(f"  [COLLAPSE] {abbr} is {last_7_wins}-{7 - last_7_wins} in last 7 — "
-                  f"applying -{penalty:.1f} NRtg penalty")
+            print(f"  [TANK WARNING] {abbr} is {last_w}-{last_n - last_w} in last {last_n} — "
+                  f"applying -{TANK_PENALTY:.1f} NRtg penalty")
 
-    # Apply collapse penalties to recent NRtg diff (shifts spread toward opponent)
+    # Apply tank penalties to recent NRtg diff (shifts spread toward opponent)
     if home_collapse_penalty > 0:
         recent_nrtg_diff -= home_collapse_penalty
     if away_collapse_penalty > 0:
