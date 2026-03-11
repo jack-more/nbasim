@@ -2,6 +2,7 @@
 """Generate the NBA SIM frontend HTML — mobile-first redesign with all features."""
 
 import logging
+import sqlite3
 import sys
 import os
 import json
@@ -72,7 +73,7 @@ def _load_rapm_data():
                    rapm_offense, rapm_defense, rapm_rank
             FROM player_rapm WHERE rapm_total IS NOT NULL
         """, DB_PATH)
-    except Exception:
+    except (sqlite3.OperationalError, pd.errors.DatabaseError):
         return  # Table may not exist yet
 
     if df.empty:
@@ -190,7 +191,7 @@ def _load_waste_data():
                 "notes": _sanitize_html_attr(raw_notes),   # Safe for HTML attributes (f-strings)
                 "notes_raw": raw_notes,                      # Raw for JSON serialization (JS handles escaping)
             }
-    except Exception:
+    except (sqlite3.OperationalError, pd.errors.DatabaseError, KeyError):
         pass  # Table may not exist yet
 
 
@@ -211,7 +212,7 @@ def _load_play_profiles():
             WHERE season_id = '{CURRENT_SEASON}' AND type_grouping = 'Offensive'
                   AND possessions > 0
         """, DB_PATH)
-    except Exception:
+    except (sqlite3.OperationalError, pd.errors.DatabaseError):
         return  # Table may not exist yet
 
     if df.empty:
@@ -269,7 +270,7 @@ def _load_usg_curves():
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM player_potential)
                   AND notes IS NOT NULL
         """, DB_PATH)
-    except Exception:
+    except (sqlite3.OperationalError, pd.errors.DatabaseError):
         return  # Table may not exist yet
 
     if df.empty:
@@ -696,7 +697,7 @@ def fetch_nba_schedule():
         })
         resp.raise_for_status()
         data = resp.json()
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError) as e:
         logger.warning("NBA Schedule: failed to fetch: %s", e)
         return {}
 
@@ -716,7 +717,7 @@ def fetch_nba_schedule():
                     "status": status,
                     "status_text": status_text.strip(),
                 }
-            except Exception:
+            except (KeyError, ValueError, TypeError, IndexError):
                 pass
 
     logger.info("NBA Schedule: found %d games for today", len(schedule))
@@ -752,7 +753,7 @@ def fetch_odds_api_lines():
 
         remaining = resp.headers.get("x-requests-remaining", "?")
         logger.info("Odds API: fetched %d games — %s requests remaining", len(data), remaining)
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         logger.warning("Odds API: failed to fetch: %s — using projected lines", e)
         return {}, [], None, [], {}
 
@@ -798,7 +799,7 @@ def fetch_odds_api_lines():
                     et = dt - timedelta(hours=5)
                     months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
                     slate_date_str = f"{months[et.month-1]} {et.day}"
-                except Exception:
+                except (ValueError, IndexError):
                     pass
 
         # Average spread, total, and moneyline across all bookmakers for consensus line
@@ -912,7 +913,7 @@ def fetch_odds_api_player_props(event_ids):
                                 if prop_key not in all_props[pname]:
                                     all_props[pname][prop_key] = []
                                 all_props[pname][prop_key].append(float(point))
-            except Exception:
+            except (ValueError, KeyError, TypeError):
                 continue
 
     # Average across bookmakers
@@ -1300,7 +1301,7 @@ def scrape_rotowire():
         })
         resp.raise_for_status()
         html = resp.text
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         logger.warning("RotoWire: failed to fetch: %s", e)
         return {}, {}, [], None, {}
 
@@ -1479,7 +1480,7 @@ def scrape_rotowire():
                 "spread": home_spread,
                 "total": total_val,
             }
-        except Exception as e:
+        except (ValueError, KeyError, IndexError) as e:
             logger.warning("RotoWire: failed to parse odds for game %d: %s", game_idx, e)
 
         game_idx += 1
@@ -1524,7 +1525,7 @@ def scrape_basketball_monster():
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
         })
         resp.raise_for_status()
-    except Exception as e:
+    except (requests.RequestException, ValueError) as e:
         logger.warning("BM: failed to fetch: %s", e)
         return {}, {}, [], "", {}
 
@@ -1717,7 +1718,7 @@ def scrape_bref_injuries():
         logger.info("Injuries: Basketball Reference: %d OUT players across %d teams", total, len(out_by_team))
         return out_by_team
 
-    except Exception as e:
+    except (requests.RequestException, AttributeError, ValueError) as e:
         logger.warning("Injuries: Basketball Reference scrape failed: %s", e)
         return {}
 
@@ -1788,7 +1789,7 @@ def filter_started_games(matchup_pairs, game_times, rw_lines):
                         if game_et <= now_et:
                             should_keep = False
                             removed.append(f"{away}@{home} (tip {time_text} already passed)")
-                except Exception as e:
+                except (ValueError, KeyError) as e:
                     logger.warning("Step 0: could not parse time for %s@%s: %s (%s)", away, home, time_text, e)
 
         if should_keep:
@@ -3353,7 +3354,7 @@ def get_matchups():
         from collectors.prediction_markets import fetch_all_prediction_markets
         prediction_market_data = fetch_all_prediction_markets("nba")
         logger.info("Prediction Markets: %d games with market probabilities", len(prediction_market_data))
-    except Exception as e:
+    except (requests.RequestException, KeyError, ValueError) as e:
         logger.warning("Prediction Markets: failed to fetch: %s", e)
 
     has_any_real = len(real_lines) > 0
@@ -3416,7 +3417,7 @@ def get_matchups():
                     using_bm_fallback = True
                 else:
                     logger.info("Rollover: BM shows same games as today — no tomorrow slate yet")
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError) as e:
             logger.warning("Rollover: Basketball Monster fallback failed: %s", e)
 
     # ── Supplement: merge Basketball Reference injury data ──

@@ -10,7 +10,7 @@ from nba_api.stats.endpoints import (
 )
 
 from collectors.base import BaseCollector
-from db.connection import read_query
+from db.connection import read_query, execute, save_dataframe
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class PlayerCollector(BaseCollector):
         if all_assignments:
             assignments_df = pd.DataFrame(all_assignments)
             # Clear existing for this season first
-            from db.connection import execute
+
             execute(
                 "DELETE FROM roster_assignments WHERE season_id = ?",
                 self.db_path, [season]
@@ -259,7 +259,7 @@ class PlayerCollector(BaseCollector):
         roster_assignments tables — fixing the JOIN gap that made 71+ players
         invisible to the model.
         """
-        from db.connection import execute, save_dataframe
+
 
         # Get existing player IDs and roster assignments
         try:

@@ -1,7 +1,7 @@
 """Collect betting lines from The Odds API."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 import pandas as pd
@@ -45,7 +45,7 @@ class OddsCollector:
             logger.error(f"Failed to fetch odds: {e}")
             return
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         rows = []
 
         for game in data:

@@ -14,7 +14,6 @@ Usage:
   collector.collect()
 """
 
-import json
 import logging
 
 import pandas as pd

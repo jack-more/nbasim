@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from db.connection import read_query, execute, save_dataframe
 from config import (
@@ -269,7 +269,7 @@ class ValueScoreCalculator:
             2
         )
 
-        df["updated_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        df["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
         # Save
         execute("DELETE FROM player_value_scores WHERE season_id = ?", self.db_path, [season])
