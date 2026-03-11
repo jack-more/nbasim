@@ -5126,7 +5126,7 @@ def generate_html():
         <header class="top-bar">
             <div class="top-bar-inner">
                 <div class="logo">
-                    <span class="logo-icon">◉</span>
+                    <img src="/favicon.svg" alt="Morello Sims" style="width:24px;height:24px;">
                     <span class="logo-text">NBA SIM</span>
                     <span class="logo-date">{slate_date}</span>
                     <span class="logo-credit">by Jack Morello</span>
