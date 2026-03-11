@@ -365,6 +365,25 @@ jobs:
         with:
           path: nbasim
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install beautifulsoup4
+
+      - name: Sync pick data to blog
+        run: python nbasim/scripts/update_blog.py nbasim/index.html morellosims/index.html
+
+      - name: Inject blog entry (if new snippet exists)
+        run: |
+          if [ -f nbasim/data/blog_snippet.html ]; then
+            python nbasim/scripts/inject_blog_entry.py nbasim/data/blog_snippet.html morellosims/index.html
+          else
+            echo "No blog_snippet.html found — skipping injection"
+          fi
+
       - name: Copy NBA SIM dashboard + inject auth
         run: |
           cp nbasim/index.html morellosims/nbasim/index.html
@@ -382,7 +401,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add nbasim/index.html
+          git add index.html nbasim/index.html
 
           if git diff --cached --quiet; then
             echo "No changes"
