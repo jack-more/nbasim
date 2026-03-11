@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the NBA SIM frontend HTML — mobile-first redesign with all features."""
 
+import logging
 import sys
 import os
 import json
@@ -10,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -694,7 +697,7 @@ def fetch_nba_schedule():
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
-        print(f"[NBA Schedule] Failed to fetch: {e}")
+        logger.warning("NBA Schedule: failed to fetch: %s", e)
         return {}
 
     schedule = {}
@@ -716,7 +719,7 @@ def fetch_nba_schedule():
             except Exception:
                 pass
 
-    print(f"[NBA Schedule] Found {len(schedule)} games for today")
+    logger.info("NBA Schedule: found %d games for today", len(schedule))
     return schedule
 
 
@@ -731,7 +734,7 @@ def fetch_odds_api_lines():
     Returns ({}, [], None, []) if no API key or if request fails.
     """
     if not ODDS_API_KEY:
-        print("[Odds API] No ODDS_API_KEY set — using projected lines")
+        logger.info("Odds API: no ODDS_API_KEY set — using projected lines")
         return {}, [], None, [], {}
 
     url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
@@ -748,9 +751,9 @@ def fetch_odds_api_lines():
         data = resp.json()
 
         remaining = resp.headers.get("x-requests-remaining", "?")
-        print(f"[Odds API] Fetched {len(data)} games — {remaining} requests remaining this month")
+        logger.info("Odds API: fetched %d games — %s requests remaining", len(data), remaining)
     except Exception as e:
-        print(f"[Odds API] Failed to fetch: {e} — using projected lines")
+        logger.warning("Odds API: failed to fetch: %s — using projected lines", e)
         return {}, [], None, [], {}
 
     lines = {}
@@ -862,7 +865,7 @@ def fetch_odds_api_lines():
         if game_books:
             bookmaker_lines[(home_abbr, away_abbr)] = game_books
 
-    print(f"[Odds API] Parsed lines for {len(lines)} matchups | Slate: {slate_date_str} | {len(matchup_pairs)} games | {len(event_ids)} event IDs")
+    logger.info("Odds API: parsed lines for %d matchups | slate: %s | %d games | %d event IDs", len(lines), slate_date_str, len(matchup_pairs), len(event_ids))
     return lines, matchup_pairs, slate_date_str, event_ids, bookmaker_lines
 
 
@@ -920,7 +923,7 @@ def fetch_odds_api_player_props(event_ids):
             result[pname][prop_type] = round(sum(values) / len(values), 1)
 
     if result:
-        print(f"[Odds API] Fetched player props for {len(result)} players")
+        logger.info("Odds API: fetched player props for %d players", len(result))
     return result
 
 
@@ -1298,7 +1301,7 @@ def scrape_rotowire():
         resp.raise_for_status()
         html = resp.text
     except Exception as e:
-        print(f"[RotoWire] Failed to fetch: {e}")
+        logger.warning("RotoWire: failed to fetch: %s", e)
         return {}, {}, [], None, {}
 
     soup = BeautifulSoup(html, "html.parser")
@@ -1307,7 +1310,7 @@ def scrape_rotowire():
     team_els = soup.select(".lineup__abbr")
     team_abbrs = [el.get_text(strip=True) for el in team_els]
     if len(team_abbrs) < 2:
-        print("[RotoWire] No teams found")
+        logger.warning("RotoWire: no teams found")
         return {}, {}, [], None, {}
 
     # Build matchup pairs (every 2 teams = 1 game: away, home)
@@ -1317,7 +1320,7 @@ def scrape_rotowire():
         home = team_abbrs[i + 1]
         matchup_pairs.append((home, away))
 
-    print(f"[RotoWire] Found {len(matchup_pairs)} games, {len(team_abbrs)} teams")
+    logger.info("RotoWire: found %d games, %d teams", len(matchup_pairs), len(team_abbrs))
 
     # ── Extract game times from parent containers ──
     # Structure: .lineup.is-nba > .lineup__time (text: "7:00 PM ET" or "Final")
@@ -1357,7 +1360,7 @@ def scrape_rotowire():
             game_times[(c_home, c_away)] = time_text
 
     if game_times:
-        print(f"[RotoWire] Extracted {len(game_times)} game times")
+        logger.info("RotoWire: extracted %d game times", len(game_times))
 
     # ── Extract lineups per team ──
     # Each .lineup__box = one game, containing:
@@ -1477,7 +1480,7 @@ def scrape_rotowire():
                 "total": total_val,
             }
         except Exception as e:
-            print(f"[RotoWire] Failed to parse odds for game {game_idx}: {e}")
+            logger.warning("RotoWire: failed to parse odds for game %d: %s", game_idx, e)
 
         game_idx += 1
 
@@ -1487,14 +1490,14 @@ def scrape_rotowire():
               "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
     slate_date = f"{months[today.month - 1]} {today.day}"
 
-    print(f"[RotoWire] Parsed {len(lineups)} team lineups, {len(lines)} game lines")
+    logger.info("RotoWire: parsed %d team lineups, %d game lines", len(lineups), len(lines))
     for pair, line_data in lines.items():
         home, away = pair
         sp = line_data["spread"]
         if sp <= 0:
-            print(f"  {away}@{home}: {home} {sp:+.1f}, O/U {line_data['total']}")
+            logger.debug("  %s@%s: %s %+.1f, O/U %s", away, home, home, sp, line_data['total'])
         else:
-            print(f"  {away}@{home}: {away} {-sp:+.1f}, O/U {line_data['total']}")
+            logger.debug("  %s@%s: %s %+.1f, O/U %s", away, home, away, -sp, line_data['total'])
 
     return lineups, lines, matchup_pairs, slate_date, game_times
 
@@ -1522,7 +1525,7 @@ def scrape_basketball_monster():
         })
         resp.raise_for_status()
     except Exception as e:
-        print(f"[BM] Failed to fetch: {e}")
+        logger.warning("BM: failed to fetch: %s", e)
         return {}, {}, [], "", {}
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -1538,7 +1541,7 @@ def scrape_basketball_monster():
             month_idx = int(date_match.group(1)) - 1
             day = int(date_match.group(2))
             slate_date = f"{months[month_idx]} {day}"
-        print(f"[BM] Heading: {h_text}")
+        logger.debug("BM: heading: %s", h_text)
 
     lineups = {}
     lines = {}
@@ -1652,11 +1655,11 @@ def scrape_basketball_monster():
         if spread_val != 0 or total_val != 0:
             lines[pair] = {"spread": spread_val, "total": total_val}
 
-    print(f"[BM] Found {len(matchup_pairs)} games, {len(lineups)} teams ({slate_date})")
+    logger.info("BM: found %d games, %d teams (%s)", len(matchup_pairs), len(lineups), slate_date)
     for home, away in matchup_pairs:
         sp = lines.get((home, away), {}).get("spread", 0)
         total = lines.get((home, away), {}).get("total", 0)
-        print(f"  {away}@{home}: {home} {sp:+.1f}, O/U {total}")
+        logger.debug("  %s@%s: %s %+.1f, O/U %s", away, home, home, sp, total)
 
     return lineups, lines, matchup_pairs, slate_date, game_times
 
@@ -1678,7 +1681,7 @@ def scrape_bref_injuries():
 
         table = soup.find("table", id="injuries")
         if not table:
-            print("[Injuries] BREF: no injury table found")
+            logger.warning("Injuries: BREF: no injury table found")
             return {}
 
         tbody = table.find("tbody")
@@ -1711,11 +1714,11 @@ def scrape_bref_injuries():
             out_by_team.setdefault(team_abbr, []).append(player_name)
 
         total = sum(len(v) for v in out_by_team.values())
-        print(f"[Injuries] Basketball Reference: {total} OUT players across {len(out_by_team)} teams")
+        logger.info("Injuries: Basketball Reference: %d OUT players across %d teams", total, len(out_by_team))
         return out_by_team
 
     except Exception as e:
-        print(f"[Injuries] Basketball Reference scrape failed: {e}")
+        logger.warning("Injuries: Basketball Reference scrape failed: %s", e)
         return {}
 
 
@@ -1786,17 +1789,17 @@ def filter_started_games(matchup_pairs, game_times, rw_lines):
                             should_keep = False
                             removed.append(f"{away}@{home} (tip {time_text} already passed)")
                 except Exception as e:
-                    print(f"[Step 0] Could not parse time for {away}@{home}: {time_text} ({e})")
+                    logger.warning("Step 0: could not parse time for %s@%s: %s (%s)", away, home, time_text, e)
 
         if should_keep:
             filtered_pairs.append(pair)
 
     if removed:
-        print(f"[Step 0] Filtered {len(removed)} started/completed games:")
+        logger.info("Step 0: filtered %d started/completed games:", len(removed))
         for r in removed:
-            print(f"  - {r}")
+            logger.info("  - %s", r)
     else:
-        print("[Step 0] All games are upcoming — no filtering needed")
+        logger.info("Step 0: all games are upcoming — no filtering needed")
 
     # Prune lines dict for removed games
     removed_set = set(matchup_pairs) - set(filtered_pairs)
@@ -2823,10 +2826,10 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
 
     if home_b2b:
         home_adj_nrtg -= K["B2B_HOME"]
-        print(f"  [B2B] {home_abbr} is on a home back-to-back (-{K['B2B_HOME']})")
+        logger.debug("B2B: %s is on a home back-to-back (-%s)", home_abbr, K['B2B_HOME'])
     if away_b2b:
         away_adj_nrtg -= K["B2B_ROAD"]
-        print(f"  [B2B] {away_abbr} is on a road back-to-back (-{K['B2B_ROAD']})")
+        logger.debug("B2B: %s is on a road back-to-back (-%s)", away_abbr, K['B2B_ROAD'])
 
     season_nrtg_diff = home_adj_nrtg - away_adj_nrtg
 
@@ -2841,8 +2844,8 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         away_adj_recent -= K["B2B_ROAD"]
     recent_nrtg_diff = home_adj_recent - away_adj_recent
 
-    print(f"  [NRtg] {home_abbr} season={h_net:+.1f} recent10={home_recent_nrtg:+.1f} | "
-          f"{away_abbr} season={a_net:+.1f} recent10={away_recent_nrtg:+.1f}")
+    logger.debug("NRtg: %s season=%+.1f recent10=%+.1f | %s season=%+.1f recent10=%+.1f",
+                 home_abbr, h_net, home_recent_nrtg, away_abbr, a_net, away_recent_nrtg)
 
     # ── Tank warning: flag teams in obvious freefall ──
     # If a team has lost 8+ of last 10 (or 6+ of last 7), apply -1.5 NRtg
@@ -2882,8 +2885,8 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
                 away_collapse_penalty = TANK_PENALTY
             last_n = 10 if last_10_wins is not None else 7
             last_w = last_10_wins if last_10_wins is not None else last_7_wins
-            print(f"  [TANK WARNING] {abbr} is {last_w}-{last_n - last_w} in last {last_n} — "
-                  f"applying -{TANK_PENALTY:.1f} NRtg penalty")
+            logger.info("TANK WARNING: %s is %d-%d in last %d — applying -%.1f NRtg penalty",
+                        abbr, last_w, last_n - last_w, last_n, TANK_PENALTY)
 
     # Apply tank penalties to recent NRtg diff (shifts spread toward opponent)
     if home_collapse_penalty > 0:
@@ -2969,12 +2972,12 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
         "raw_power": round(raw_power, 1),
     }
 
-    print(f"  [MOJI] {away_abbr}@{home_abbr}: MOJI {home_moji:.1f}v{away_moji:.1f} | "
-          f"NRtg {home_adj_nrtg:+.1f}v{away_adj_nrtg:+.1f} | "
-          f"SYN {home_syn:.1f}v{away_syn:.1f} | "
-          f"power={raw_power:+.1f} → spread={proj_spread:+.1f} | "
-          f"OUT: {len(home_out_ids)}h/{len(away_out_ids)}a"
-          f"{' B2B:'+home_abbr if home_b2b else ''}{' B2B:'+away_abbr if away_b2b else ''}")
+    b2b_tag = (' B2B:'+home_abbr if home_b2b else '') + (' B2B:'+away_abbr if away_b2b else '')
+    logger.info("MOJI: %s@%s: MOJI %.1fv%.1f | NRtg %+.1fv%+.1f | SYN %.1fv%.1f | "
+                "power=%+.1f → spread=%+.1f | OUT: %dh/%da%s",
+                away_abbr, home_abbr, home_moji, away_moji,
+                home_adj_nrtg, away_adj_nrtg, home_syn, away_syn,
+                raw_power, proj_spread, len(home_out_ids), len(away_out_ids), b2b_tag)
 
     return proj_spread, proj_total, breakdown
 
@@ -3349,9 +3352,9 @@ def get_matchups():
     try:
         from collectors.prediction_markets import fetch_all_prediction_markets
         prediction_market_data = fetch_all_prediction_markets("nba")
-        print(f"[Prediction Markets] {len(prediction_market_data)} games with market probabilities")
+        logger.info("Prediction Markets: %d games with market probabilities", len(prediction_market_data))
     except Exception as e:
-        print(f"[Prediction Markets] Failed to fetch (non-fatal): {e}")
+        logger.warning("Prediction Markets: failed to fetch: %s", e)
 
     has_any_real = len(real_lines) > 0
 
@@ -3360,11 +3363,11 @@ def get_matchups():
     if rw_pairs:
         matchup_pairs = rw_pairs
         slate_date = rw_slate_date
-        print(f"[Matchups] Using {len(matchup_pairs)} games from RotoWire ({slate_date})")
+        logger.info("Matchups: using %d games from RotoWire (%s)", len(matchup_pairs), slate_date)
     elif api_pairs:
         matchup_pairs = api_pairs
         slate_date = api_slate_date
-        print(f"[Matchups] Using {len(matchup_pairs)} games from Odds API ({slate_date})")
+        logger.info("Matchups: using %d games from Odds API (%s)", len(matchup_pairs), slate_date)
     else:
         matchup_pairs = [
             ("WAS", "IND"),
@@ -3378,7 +3381,7 @@ def get_matchups():
             ("POR", "DEN"),
         ]
         slate_date = "FEB 20"
-        print(f"[Matchups] Using hardcoded fallback slate ({len(matchup_pairs)} games)")
+        logger.info("Matchups: using hardcoded fallback slate (%d games)", len(matchup_pairs))
 
     # ── STEP 0: Filter out games that have already started ──
     game_times_for_filter = rw_game_times if matchup_pairs == rw_pairs else {}
@@ -3389,11 +3392,11 @@ def get_matchups():
         # Also prune bookmaker_lines for removed games
         kept = set(matchup_pairs)
         bookmaker_lines = {k: v for k, v in bookmaker_lines.items() if k in kept}
-        print(f"[Matchups] {len(matchup_pairs)} games remaining after Step 0 filtering")
+        logger.info("Matchups: %d games remaining after Step 0 filtering", len(matchup_pairs))
 
     # ── ROLLOVER: If ALL games filtered, try Basketball Monster for tomorrow ──
     if len(matchup_pairs) == 0 and removed_count > 0:
-        print("[Rollover] All games completed — checking Basketball Monster for tomorrow's slate...")
+        logger.info("Rollover: all games completed — checking Basketball Monster for tomorrow's slate")
         try:
             bm_lineups, bm_lines, bm_pairs, bm_date, bm_times = scrape_basketball_monster()
             if bm_pairs:
@@ -3403,7 +3406,7 @@ def get_matchups():
                 overlap = len(rw_set & bm_set)
                 if overlap < len(bm_set) * 0.5:
                     # BM has mostly different games → it's tomorrow's slate
-                    print(f"[Rollover] Basketball Monster has tomorrow's slate: {bm_date} ({len(bm_pairs)} games)")
+                    logger.info("Rollover: Basketball Monster has tomorrow's slate: %s (%d games)", bm_date, len(bm_pairs))
                     matchup_pairs = bm_pairs
                     slate_date = bm_date
                     rw_lineups = bm_lineups  # Use BM lineups for MOJI model
@@ -3412,9 +3415,9 @@ def get_matchups():
                     rw_game_times = bm_times
                     using_bm_fallback = True
                 else:
-                    print(f"[Rollover] BM shows same games as today — no tomorrow slate yet")
+                    logger.info("Rollover: BM shows same games as today — no tomorrow slate yet")
         except Exception as e:
-            print(f"[Rollover] Basketball Monster fallback failed: {e}")
+            logger.warning("Rollover: Basketball Monster fallback failed: %s", e)
 
     # ── Supplement: merge Basketball Reference injury data ──
     bref_out = scrape_bref_injuries()
@@ -3428,7 +3431,7 @@ def get_matchups():
                 if name not in existing_out:
                     rw_lineups[team_abbr]["out"].append(name)
                     added += 1
-        print(f"[Injuries] Merged {added} new BREF OUT players into lineups")
+        logger.info("Injuries: merged %d new BREF OUT players into lineups", added)
 
     for home_abbr, away_abbr in matchup_pairs:
         if home_abbr in team_map and away_abbr in team_map:
@@ -3646,7 +3649,7 @@ def get_matchups():
     os.makedirs("data", exist_ok=True)
     with open("data/daily_picks.json", "w") as _dpf:
         json.dump(daily_snapshot, _dpf, indent=2)
-    print(f"[Picks] Saved daily snapshot: {len(daily_snapshot['games'])} games → data/daily_picks.json")
+    logger.info("Picks: saved daily snapshot: %d games → data/daily_picks.json", len(daily_snapshot["games"]))
 
     return matchups, team_map, slate_date, event_ids
 
@@ -5010,7 +5013,7 @@ def generate_html():
                     pid = _match_player_name(name, roster)
                     if pid is not None:
                         global_out_pids.add(int(pid))
-    print(f"[Trends] {len(global_out_pids)} OUT players excluded from fallers")
+    logger.info("Trends: %d OUT players excluded from fallers", len(global_out_pids))
 
     # ── Build WOWY Trending Players HTML ──
     risers, fallers = get_wowy_trending_players(out_player_ids=global_out_pids)
@@ -11101,6 +11104,11 @@ def generate_js():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
     html = generate_html()
     output_path = os.path.join(os.path.dirname(__file__), "nba_sim.html")
     with open(output_path, "w") as f:
@@ -11111,6 +11119,6 @@ if __name__ == "__main__":
     with open(index_path, "w") as f:
         f.write(html)
 
-    print(f"Generated {output_path}")
-    print(f"Generated {index_path}")
-    print(f"Open in browser: file://{output_path}")
+    logger.info("Generated %s", output_path)
+    logger.info("Generated %s", index_path)
+    logger.info("Open in browser: file://%s", output_path)
