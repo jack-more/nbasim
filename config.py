@@ -5,6 +5,7 @@ load_dotenv()
 
 # Seasons to collect (most recent first)
 SEASONS = ["2025-26", "2024-25"]
+CURRENT_SEASON = SEASONS[0]  # "2025-26" — update SEASONS[0] to roll over
 SEASON_TYPES = ["Regular Season"]
 LEAGUE_ID = "00"
 

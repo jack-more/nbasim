@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from config import DB_PATH
+from config import DB_PATH, CURRENT_SEASON
 from db.connection import read_query, execute
 from collectors.players import PlayerCollector
 from collectors.boxscores import BoxScoreCollector
@@ -36,7 +36,7 @@ logging.basicConfig(
 logger = logging.getLogger("refresh_trends")
 
 LOOKBACK_DAYS = 10
-SEASON_ID = "2025-26"
+SEASON_ID = CURRENT_SEASON
 
 
 def refresh_recent_games():

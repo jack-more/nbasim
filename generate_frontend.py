@@ -16,7 +16,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 
 from db.connection import read_query
-from config import DB_PATH
+from config import DB_PATH, CURRENT_SEASON
 
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
@@ -29,11 +29,11 @@ _VALUE_SCORES = {}
 def _load_value_scores():
     """Load player_value_scores into memory for contextual MOJO blending."""
     global _VALUE_SCORES
-    df = read_query("""
+    df = read_query(f"""
         SELECT player_id, base_value, solo_impact, two_man_synergy,
                three_man_synergy, four_man_synergy, five_man_synergy,
                composite_value, archetype_fit_score, minutes_weight
-        FROM player_value_scores WHERE season_id = '2025-26'
+        FROM player_value_scores WHERE season_id = '{CURRENT_SEASON}'
     """, DB_PATH)
     if df.empty:
         return
@@ -202,10 +202,10 @@ def _load_play_profiles():
     global _PLAYER_PLAY_PROFILE, _LEAGUE_AVG_PPP
 
     try:
-        df = read_query("""
+        df = read_query(f"""
             SELECT player_id, play_type, poss_pct, ppp, possessions
             FROM player_playtypes
-            WHERE season_id = '2025-26' AND type_grouping = 'Offensive'
+            WHERE season_id = '{CURRENT_SEASON}' AND type_grouping = 'Offensive'
                   AND possessions > 0
         """, DB_PATH)
     except Exception:
@@ -423,14 +423,14 @@ def _build_injury_adjusted_cache(matchups):
     pairs_df = read_query(f"""
         SELECT player_a_id, player_b_id, synergy_score, possessions, team_id
         FROM pair_synergy
-        WHERE season_id = '2025-26' AND team_id IN ({placeholders})
+        WHERE season_id = '{CURRENT_SEASON}' AND team_id IN ({placeholders})
     """, DB_PATH, tid_list)
 
     # ── Batch SQL: load lineup_stats for playing teams ──
     lineups_df = read_query(f"""
         SELECT player_ids, possessions, group_quantity, team_id
         FROM lineup_stats
-        WHERE season_id = '2025-26' AND group_quantity IN (2,3,4,5)
+        WHERE season_id = '{CURRENT_SEASON}' AND group_quantity IN (2,3,4,5)
               AND team_id IN ({placeholders})
               AND possessions > 0
     """, DB_PATH, tid_list)
@@ -1821,7 +1821,7 @@ def is_back_to_back(team_tricode, game_date=None):
 
 def _get_full_roster(team_abbr):
     """Get full rotation roster (mpg > 5) with archetypes."""
-    return read_query("""
+    return read_query(f"""
         SELECT p.player_id, p.full_name, ps.pts_pg, ps.ast_pg, ps.reb_pg,
                ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
                ps.minutes_per_game, ps.off_rating, ps.def_rating,
@@ -1832,7 +1832,7 @@ def _get_full_roster(team_abbr):
         JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
         JOIN teams t ON ps.team_id = t.team_id
         LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
-        WHERE ps.season_id = '2025-26' AND t.abbreviation = ?
+        WHERE ps.season_id = '{CURRENT_SEASON}' AND t.abbreviation = ?
               AND ps.minutes_per_game > 5
         ORDER BY ps.minutes_per_game DESC
     """, DB_PATH, [team_abbr])
@@ -2158,18 +2158,18 @@ def compute_lineup_rating(team_abbr, available_player_ids, team_net_rating):
     Returns lineup_quality (float, net-rating scale).
     """
     # Get all reliable lineups for this team
-    lineups_5 = read_query("""
+    lineups_5 = read_query(f"""
         SELECT player_ids, net_rating, minutes, gp
         FROM lineup_stats
-        WHERE season_id = '2025-26' AND group_quantity = 5
+        WHERE season_id = '{CURRENT_SEASON}' AND group_quantity = 5
               AND gp > 5 AND minutes > 8
               AND team_id = (SELECT team_id FROM teams WHERE abbreviation = ?)
     """, DB_PATH, [team_abbr])
 
-    lineups_small = read_query("""
+    lineups_small = read_query(f"""
         SELECT player_ids, net_rating, minutes, gp, group_quantity
         FROM lineup_stats
-        WHERE season_id = '2025-26' AND group_quantity IN (2, 3)
+        WHERE season_id = '{CURRENT_SEASON}' AND group_quantity IN (2, 3)
               AND gp > 5 AND minutes > 15
               AND team_id = (SELECT team_id FROM teams WHERE abbreviation = ?)
         ORDER BY net_rating DESC
@@ -2509,7 +2509,7 @@ def _compute_team_avg_moji(projected_minutes, player_mojo_dict):
 
 def compute_team_synergy_vs_opponent(avail_ids, team_id, opp_def_scheme,
                                      projected_minutes=None, player_mojo_dict=None,
-                                     season="2025-26"):
+                                     season=CURRENT_SEASON):
     """SYN v2: Lineup-simulation synergy model.
 
     Cascading lineup build: 5-man → 4-man → 3-man → 2-man.
@@ -2702,13 +2702,13 @@ def get_trailing_nrtg(team_id, n_games=10):
     BLOWOUT_CAP = 20.0   # Max margin that counts (±20)
     DECAY_RATE = 0.85     # Each older game gets 0.85× the weight of the next newer one
 
-    df = read_query("""
+    df = read_query(f"""
         SELECT
             CASE WHEN home_team_id = ? THEN home_score - away_score
                  ELSE away_score - home_score END as margin
         FROM games
         WHERE (home_team_id = ? OR away_team_id = ?)
-          AND season_id = '2025-26'
+          AND season_id = '{CURRENT_SEASON}'
           AND home_score IS NOT NULL
         ORDER BY game_date DESC
         LIMIT ?
@@ -2853,7 +2853,7 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     away_collapse_penalty = 0.0
 
     for tag, tid, abbr in [("home", home_tid, home_abbr), ("away", away_tid, away_abbr)]:
-        loss_check = read_query("""
+        loss_check = read_query(f"""
             SELECT
                 CASE WHEN home_team_id = ?
                      THEN CASE WHEN home_score > away_score THEN 1 ELSE 0 END
@@ -2861,7 +2861,7 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
                 END as won
             FROM games
             WHERE (home_team_id = ? OR away_team_id = ?)
-              AND season_id = '2025-26'
+              AND season_id = '{CURRENT_SEASON}'
               AND home_score IS NOT NULL
             ORDER BY game_date DESC
             LIMIT 10
@@ -2893,13 +2893,13 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
 
     # ── Compute lineup synergy vs opponent scheme ──
     # Get opponent defensive schemes from coaching_profiles
-    away_scheme_df = read_query("""
+    away_scheme_df = read_query(f"""
         SELECT def_scheme_label FROM coaching_profiles
-        WHERE team_id = ? AND season_id = '2025-26'
+        WHERE team_id = ? AND season_id = '{CURRENT_SEASON}'
     """, DB_PATH, [away_tid])
-    home_scheme_df = read_query("""
+    home_scheme_df = read_query(f"""
         SELECT def_scheme_label FROM coaching_profiles
-        WHERE team_id = ? AND season_id = '2025-26'
+        WHERE team_id = ? AND season_id = '{CURRENT_SEASON}'
     """, DB_PATH, [home_tid])
 
     away_def_scheme = away_scheme_df.iloc[0]["def_scheme_label"] if not away_scheme_df.empty else None
@@ -3074,7 +3074,7 @@ def get_wowy_trending_players(out_player_ids=None):
     twenty_ago = (latest_dt - timedelta(days=20)).strftime("%Y-%m-%d")
 
     # Recent 10 days: avg plus_minus and net_rating
-    recent = read_query("""
+    recent = read_query(f"""
         SELECT pgs.player_id,
                p.full_name,
                t.abbreviation AS team,
@@ -3088,9 +3088,9 @@ def get_wowy_trending_players(out_player_ids=None):
         FROM player_game_stats pgs
         JOIN games g ON pgs.game_id = g.game_id
         JOIN players p ON pgs.player_id = p.player_id
-        JOIN roster_assignments ra ON pgs.player_id = ra.player_id AND ra.season_id = '2025-26'
+        JOIN roster_assignments ra ON pgs.player_id = ra.player_id AND ra.season_id = '{CURRENT_SEASON}'
         JOIN teams t ON ra.team_id = t.team_id
-        LEFT JOIN player_archetypes pa ON pgs.player_id = pa.player_id AND pa.season_id = '2025-26'
+        LEFT JOIN player_archetypes pa ON pgs.player_id = pa.player_id AND pa.season_id = '{CURRENT_SEASON}'
         WHERE g.game_date >= ? AND g.game_date <= ?
           AND pgs.minutes >= 15
         GROUP BY pgs.player_id
@@ -3163,12 +3163,12 @@ def get_trending_combos():
     ten_ago = (latest_dt - timedelta(days=10)).strftime("%Y-%m-%d")
 
     # Get season baselines from pair_synergy
-    baselines = read_query("""
+    baselines = read_query(f"""
         SELECT player_a_id, player_b_id, net_rating, synergy_score, ps2.team_id,
                t.abbreviation as team
         FROM pair_synergy ps2
         JOIN teams t ON ps2.team_id = t.team_id
-        WHERE ps2.season_id = '2025-26'
+        WHERE ps2.season_id = '{CURRENT_SEASON}'
     """, DB_PATH)
 
     if baselines.empty:
@@ -3269,10 +3269,10 @@ def get_trending_combos():
 
 def get_team_mojo_rankings():
     """Rank all 30 teams by minutes-weighted average MOJO across rotation."""
-    all_teams = read_query("""
+    all_teams = read_query(f"""
         SELECT t.abbreviation FROM teams t
         JOIN team_season_stats ts ON t.team_id = ts.team_id
-        WHERE ts.season_id = '2025-26'
+        WHERE ts.season_id = '{CURRENT_SEASON}'
     """, DB_PATH)
 
     team_mojo = []
@@ -3295,7 +3295,7 @@ def get_team_mojo_rankings():
 
 def get_matchups():
     """Generate matchups from the Odds API slate (or fallback to hardcoded)."""
-    teams = read_query("""
+    teams = read_query(f"""
         SELECT t.team_id, t.abbreviation, t.full_name,
                ts.pace, ts.off_rating, ts.def_rating, ts.net_rating, ts.fg3a_rate,
                cp.off_scheme_label, cp.def_scheme_label, cp.pace_category,
@@ -3303,12 +3303,12 @@ def get_matchups():
         FROM team_season_stats ts
         JOIN teams t ON ts.team_id = t.team_id
         LEFT JOIN coaching_profiles cp ON ts.team_id = cp.team_id AND ts.season_id = cp.season_id
-        WHERE ts.season_id = '2025-26'
+        WHERE ts.season_id = '{CURRENT_SEASON}'
         ORDER BY ts.net_rating DESC
     """, DB_PATH)
 
     # ── Get real W-L records from games table ──
-    records = read_query("""
+    records = read_query(f"""
         SELECT t.abbreviation,
                COUNT(CASE WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
                            OR (g.away_team_id = t.team_id AND g.away_score > g.home_score) THEN 1 END) as wins,
@@ -3316,7 +3316,7 @@ def get_matchups():
                            OR (g.away_team_id = t.team_id AND g.away_score < g.home_score) THEN 1 END) as losses
         FROM teams t
         LEFT JOIN games g ON (g.home_team_id = t.team_id OR g.away_team_id = t.team_id)
-            AND g.season_id = '2025-26'
+            AND g.season_id = '{CURRENT_SEASON}'
         GROUP BY t.abbreviation
     """, DB_PATH)
     record_map = {row["abbreviation"]: (int(row["wins"]), int(row["losses"])) for _, row in records.iterrows()}
@@ -3653,7 +3653,7 @@ def get_matchups():
 
 def get_team_roster(abbreviation, limit=8):
     """Get top players for a team sorted by minutes."""
-    players = read_query("""
+    players = read_query(f"""
         SELECT p.player_id, p.full_name, ps.pts_pg, ps.ast_pg, ps.reb_pg,
                ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
                ps.minutes_per_game, ps.def_rating, ra.listed_position,
@@ -3663,7 +3663,7 @@ def get_team_roster(abbreviation, limit=8):
         JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
         JOIN teams t ON ps.team_id = t.team_id
         LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
-        WHERE ps.season_id = '2025-26' AND t.abbreviation = ?
+        WHERE ps.season_id = '{CURRENT_SEASON}' AND t.abbreviation = ?
               AND ps.minutes_per_game > 5
         ORDER BY ps.minutes_per_game DESC
         LIMIT ?
@@ -3681,7 +3681,7 @@ def get_top_combos():
                    ls.plus_minus, ls.gp, ls.fg_pct, ls.fg3_pct
             FROM lineup_stats ls
             JOIN teams t ON ls.team_id = t.team_id
-            WHERE ls.season_id = '2025-26' AND ls.group_quantity = {n}
+            WHERE ls.season_id = '{CURRENT_SEASON}' AND ls.group_quantity = {n}
                   AND ls.net_rating IS NOT NULL AND ls.minutes > 8 AND ls.gp > 5
             ORDER BY ls.net_rating DESC
             LIMIT 4
@@ -3696,8 +3696,8 @@ def get_top_combos():
                            ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game,
                            ps.def_rating
                     FROM players p
-                    LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '2025-26'
-                    LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '2025-26'
+                    LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '{CURRENT_SEASON}'
+                    LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '{CURRENT_SEASON}'
                     WHERE p.player_id IN ({placeholders})""",
                 DB_PATH, pids
             )
@@ -3749,7 +3749,7 @@ def get_fade_combos():
             SELECT ls.player_ids, t.abbreviation, ls.minutes, ls.net_rating, ls.gp
             FROM lineup_stats ls
             JOIN teams t ON ls.team_id = t.team_id
-            WHERE ls.season_id = '2025-26' AND ls.group_quantity = {n}
+            WHERE ls.season_id = '{CURRENT_SEASON}' AND ls.group_quantity = {n}
                   AND ls.net_rating IS NOT NULL AND ls.minutes > 8 AND ls.gp > 5
             ORDER BY ls.net_rating ASC
             LIMIT 3
@@ -3764,8 +3764,8 @@ def get_fade_combos():
                            ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game,
                            ps.def_rating
                     FROM players p
-                    LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '2025-26'
-                    LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '2025-26'
+                    LEFT JOIN player_archetypes pa ON p.player_id = pa.player_id AND pa.season_id = '{CURRENT_SEASON}'
+                    LEFT JOIN player_season_stats ps ON p.player_id = ps.player_id AND ps.season_id = '{CURRENT_SEASON}'
                     WHERE p.player_id IN ({placeholders})""",
                 DB_PATH, pids
             )
@@ -3810,7 +3810,7 @@ def get_lab_data():
     from collections import defaultdict
 
     # Rosters grouped by team abbreviation
-    rosters_df = read_query("""
+    rosters_df = read_query(f"""
         SELECT p.player_id, p.full_name, t.abbreviation as team,
                ps.pts_pg, ps.ast_pg, ps.reb_pg, ps.stl_pg, ps.blk_pg,
                ps.ts_pct, ps.usg_pct, ps.net_rating, ps.minutes_per_game, ps.def_rating,
@@ -3820,8 +3820,8 @@ def get_lab_data():
         JOIN players p ON ps.player_id = p.player_id
         JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
         JOIN teams t ON ra.team_id = t.team_id
-        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '2025-26'
-        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 5
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '{CURRENT_SEASON}'
+        WHERE ps.season_id = '{CURRENT_SEASON}' AND ps.minutes_per_game > 5
         ORDER BY t.abbreviation, ps.minutes_per_game DESC
     """, DB_PATH)
 
@@ -3889,11 +3889,11 @@ def get_lab_data():
             pid_names[p["id"]] = p["name"]
 
     # Pair synergy data — add team_id for team grouping
-    pairs_df = read_query("""
+    pairs_df = read_query(f"""
         SELECT player_a_id, player_b_id, synergy_score, net_rating,
                minutes_together, possessions, team_id
         FROM pair_synergy
-        WHERE season_id = '2025-26'
+        WHERE season_id = '{CURRENT_SEASON}'
     """, DB_PATH)
 
     pairs = {}
@@ -3963,7 +3963,7 @@ def get_lab_data():
         df = read_query(f"""
             SELECT player_ids, net_rating, off_rating, def_rating, minutes, gp, team_id
             FROM lineup_stats
-            WHERE season_id = '2025-26' AND group_quantity = {n}
+            WHERE season_id = '{CURRENT_SEASON}' AND group_quantity = {n}
                   AND net_rating IS NOT NULL AND minutes > 5
         """, DB_PATH)
         for _, row in df.iterrows():
@@ -3990,13 +3990,13 @@ def get_lab_data():
                 })
 
     # ── Team-level stats for SIM engine (pace, ORTG, DRTG, NRtg) ──
-    team_stats_df = read_query("""
+    team_stats_df = read_query(f"""
         SELECT t.abbreviation, ts.pace, ts.off_rating, ts.def_rating, ts.net_rating,
                cp.def_scheme_label, cp.off_scheme_label
         FROM team_season_stats ts
         JOIN teams t ON ts.team_id = t.team_id
         LEFT JOIN coaching_profiles cp ON ts.team_id = cp.team_id AND ts.season_id = cp.season_id
-        WHERE ts.season_id = '2025-26'
+        WHERE ts.season_id = '{CURRENT_SEASON}'
     """, DB_PATH)
     team_stats = {}
     for _, row in team_stats_df.iterrows():
@@ -4386,15 +4386,15 @@ def get_ceiling_floor_players():
     if not _VALUE_SCORES:
         return [], []
 
-    players_df = read_query("""
+    players_df = read_query(f"""
         SELECT p.player_id, p.full_name, t.abbreviation as team,
                pa.archetype_label, ps.minutes_per_game
         FROM player_season_stats ps
         JOIN players p ON ps.player_id = p.player_id
         JOIN roster_assignments ra ON ps.player_id = ra.player_id AND ps.season_id = ra.season_id
         JOIN teams t ON ra.team_id = t.team_id
-        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '2025-26'
-        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 12
+        LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND pa.season_id = '{CURRENT_SEASON}'
+        WHERE ps.season_id = '{CURRENT_SEASON}' AND ps.minutes_per_game > 12
     """, DB_PATH)
 
     movers = []
@@ -4643,7 +4643,7 @@ def get_player_spotlights(matchups, team_map, real_player_props=None):
 
 def get_top_50_ds():
     """Get top 50 players league-wide ranked by MOJO."""
-    players = read_query("""
+    players = read_query(f"""
         SELECT p.player_id, p.full_name, t.abbreviation,
                ps.pts_pg, ps.ast_pg, ps.reb_pg,
                ps.stl_pg, ps.blk_pg, ps.ts_pct, ps.usg_pct, ps.net_rating,
@@ -4653,7 +4653,7 @@ def get_top_50_ds():
         JOIN players p ON ps.player_id = p.player_id
         JOIN teams t ON ps.team_id = t.team_id
         LEFT JOIN player_archetypes pa ON ps.player_id = pa.player_id AND ps.season_id = pa.season_id
-        WHERE ps.season_id = '2025-26' AND ps.minutes_per_game > 15
+        WHERE ps.season_id = '{CURRENT_SEASON}' AND ps.minutes_per_game > 15
         ORDER BY ps.minutes_per_game DESC
         LIMIT 300
     """, DB_PATH)

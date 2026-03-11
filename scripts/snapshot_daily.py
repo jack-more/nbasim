@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from config import DB_PATH
+from config import DB_PATH, CURRENT_SEASON
 from db.connection import read_query, get_connection
 
 logging.basicConfig(
@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger("snapshot_daily")
 
 TODAY = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-SEASON_ID = "2025-26"
+SEASON_ID = CURRENT_SEASON
 
 
 def _safe(val, typ=float):
