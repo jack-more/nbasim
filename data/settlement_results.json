@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-10T17:44:55.616194+00:00",
+  "graded_at": "2026-03-11T17:48:53.471913+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -616,16 +616,104 @@
       "profit": 45.45,
       "home_score": 119,
       "away_score": 116
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "DAL @ ATL",
+      "side": "DAL +9.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 124,
+      "away_score": 112
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "BOS @ SAS",
+      "side": "BOS ML",
+      "type": "ml",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 125,
+      "away_score": 116
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "CHI @ GSW",
+      "side": "CHI ML",
+      "type": "ml",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 124,
+      "away_score": 130
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "IND @ SAC",
+      "side": "IND ML",
+      "type": "ml",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 114,
+      "away_score": 109
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "MEM @ PHI",
+      "side": "MEM ML",
+      "type": "ml",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 139,
+      "away_score": 129
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "CHI @ GSW",
+      "side": "CHI +6.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 124,
+      "away_score": 130
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "PHX @ MIL",
+      "side": "PHX ML",
+      "type": "ml",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 114,
+      "away_score": 129
+    },
+    {
+      "date": "2026-03-10",
+      "matchup": "PHX @ MIL",
+      "side": "PHX -1.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 114,
+      "away_score": 129
     }
   ],
-  "pending_count": 7,
+  "pending_count": 2,
   "record": {
-    "W": 38,
-    "L": 18,
+    "W": 42,
+    "L": 22,
     "P": 0
   },
-  "total_profit": 630.23,
+  "total_profit": 615.67,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1780.23,
+  "new_bankroll": 1765.67,
   "status": "PARTIAL"
 }
