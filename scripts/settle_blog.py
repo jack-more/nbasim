@@ -327,19 +327,33 @@ def patch_pick_cards(html, picks):
     return html, changes
 
 
-def patch_day_summaries(html, picks):
-    """Update day summary records from PENDING to actual W-L record."""
-    changes = 0
+def _blog_matchups_for_date(html, label):
+    """Return set of matchup strings that have pick cards in the blog for a date.
 
-    # Group settled picks by date
-    from collections import defaultdict
-    daily = defaultdict(lambda: {"W": 0, "L": 0, "P": 0, "profit": 0.0})
-    for p in picks:
-        if not p.get("result"):
-            continue
-        date = p["date"]
-        daily[date][p["result"]] += 1
-        daily[date]["profit"] += float(p.get("profit", 0))
+    Scans the <details class="slate-day"> block for the given label (e.g. "MAR 10")
+    and extracts data-matchup values from pick cards.
+    """
+    matchups = set()
+    pattern = re.compile(
+        rf'<details class="slate-day"[^>]*>\s*<summary>.*?'
+        rf'{re.escape(label)} · [A-Z]+.*?</summary>\s*'
+        rf'<div class="slate-day-body">(.*?)</div>\s*</details>',
+        re.DOTALL,
+    )
+    block = pattern.search(html)
+    if block:
+        for m in re.finditer(r'data-matchup="([^"]+)"', block.group(1)):
+            matchups.add(m.group(1))
+    return matchups
+
+
+def patch_day_summaries(html, picks):
+    """Update day summary records from PENDING to actual W-L record.
+
+    Only counts picks that have visible cards in the blog, so the day
+    record matches what the reader actually sees.
+    """
+    changes = 0
 
     # Date label map: "2026-03-06" → "MAR 6"
     month_names = {
@@ -348,11 +362,39 @@ def patch_day_summaries(html, picks):
         "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC",
     }
 
-    for date_str, rec in daily.items():
+    # Build label for each pick's date
+    def date_to_label(date_str):
         parts = date_str.split("-")
         month = month_names.get(parts[1], parts[1])
-        day = str(int(parts[2]))  # Remove leading zero
-        label = f"{month} {day}"
+        day = str(int(parts[2]))
+        return f"{month} {day}"
+
+    # Group settled picks by date, but only count those with blog cards
+    from collections import defaultdict
+    daily = defaultdict(lambda: {"W": 0, "L": 0, "P": 0, "profit": 0.0})
+    skipped = defaultdict(int)
+
+    for p in picks:
+        if not p.get("result"):
+            continue
+        date = p["date"]
+        label = date_to_label(date)
+        blog_matchups = _blog_matchups_for_date(html, label)
+
+        matchup = p.get("matchup", "")
+        if blog_matchups and matchup not in blog_matchups:
+            skipped[label] += 1
+            continue  # Pick exists in CSV but has no card in blog — skip
+
+        daily[date][p["result"]] += 1
+        daily[date]["profit"] += float(p.get("profit", 0))
+
+    # Report skipped picks
+    for label, count in skipped.items():
+        print(f"  Skipped {count} picks for {label} (no blog card)")
+
+    for date_str, rec in daily.items():
+        label = date_to_label(date_str)
 
         wins = rec["W"]
         losses = rec["L"]
