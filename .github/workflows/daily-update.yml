@@ -350,7 +350,7 @@ jobs:
   # Sync trends update to MORELLOSIMS
   sync-trends-to-morellosims:
     needs: refresh-trends
-    if: github.event.schedule == '0 16 * * *' || inputs.trends_only == 'true'
+    if: always() && (github.event.schedule == '0 16 * * *' || inputs.trends_only == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
