@@ -205,7 +205,7 @@ def refresh_rosters_and_stats():
     """
     import signal
 
-    class _Timeout(Exception):
+    class _Timeout(BaseException):
         pass
 
     def _handler(signum, frame):
