@@ -3503,8 +3503,8 @@ def get_matchups():
                 # For away pick: their number is `-spread` (e.g., away gets +5.0 when home is -5.0)
                 # ML: only when book has team as underdog (+number) but model says they WIN
                 def _pick_text(team, team_spread, model_projects_win):
-                    if team_spread > 0 and model_projects_win:
-                        return f"{team} ML"
+                    # Always use the book spread — never convert to ML.
+                    # ML odds are unreliable and the spread is the actionable line.
                     return f"{team} {team_spread:+.1f}"
 
                 # Model projects home to win if proj_spread < 0
