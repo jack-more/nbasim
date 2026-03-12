@@ -63,8 +63,8 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-03-10,CHI @ GSW,CHI +6.5,spread,30,W,27.27,,124,130
 2026-03-10,PHX @ MIL,PHX ML,ml,30,W,27.27,,114,129
 2026-03-10,PHX @ MIL,PHX -1.5,spread,50,W,45.45,,114,129
-2026-03-11,HOU @ DEN,HOU ML,ml,50,,,,,
-2026-03-11,MIN @ LAC,MIN ML,ml,50,,,,,
+2026-03-11,HOU @ DEN,HOU ML,ml,50,L,-50.0,,129,93
+2026-03-11,MIN @ LAC,MIN ML,ml,50,L,-50.0,,153,128
 2026-03-12,DAL @ MEM,MEM ML,ml,50,,,,,
 2026-03-12,DEN @ SAS,SAS -5.5,spread,50,,,,,
 2026-03-12,BOS @ OKC,BOS +6.5,spread,50,,,,,
