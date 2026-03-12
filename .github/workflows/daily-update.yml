@@ -483,6 +483,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install dependencies
+        run: pip install python-dotenv
+
       - name: Settle blog with results
         run: python nbasim/scripts/settle_blog.py nbasim/data/settlement_results.json morellosims/index.html
 
