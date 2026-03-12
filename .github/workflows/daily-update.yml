@@ -180,8 +180,9 @@ jobs:
           if [ -f data/pick_log.json ]; then git add data/pick_log.json; fi
           if [ -f data/blog_snippet.html ]; then git add data/blog_snippet.html; fi
 
-          # Always include DB (rosters + stats refresh on every run)
+          # Always include DB + refresh marker
           git add db/nba_sim.db
+          if [ -f db/.nba_api_last_refresh ]; then git add db/.nba_api_last_refresh; fi
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
@@ -331,6 +332,7 @@ jobs:
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
           git add index.html nba_sim.html db/nba_sim.db
+          if [ -f db/.nba_api_last_refresh ]; then git add db/.nba_api_last_refresh; fi
           if [ -f data/picks.csv ]; then git add data/picks.csv; fi
           if [ -f data/pick_log.json ]; then git add data/pick_log.json; fi
           if [ -f data/blog_snippet.html ]; then git add data/blog_snippet.html; fi

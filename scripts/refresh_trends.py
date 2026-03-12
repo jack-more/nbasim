@@ -232,25 +232,58 @@ def refresh_rosters_and_stats():
         signal.signal(signal.SIGALRM, old_handler)
 
 
+def _nba_api_data_is_stale(max_age_days=3):
+    """Check if stats.nba.com data needs refreshing.
+
+    Returns True if player_season_stats hasn't been updated in max_age_days.
+    Since stats.nba.com blocks datacenter IPs, we only attempt the refresh
+    when data is actually stale — not every single run.
+    """
+    try:
+        db_path = DB_PATH
+        db_mtime = os.path.getmtime(db_path)
+        # Check if any player_season_stats were updated recently by looking at
+        # the DB file's modification time vs when we last successfully wrote stats
+        marker = os.path.join(os.path.dirname(db_path), ".nba_api_last_refresh")
+        if os.path.exists(marker):
+            age_hours = (datetime.now(timezone.utc).timestamp() - os.path.getmtime(marker)) / 3600
+            if age_hours < max_age_days * 24:
+                logger.info(f"stats.nba.com data is {age_hours:.0f}h old (< {max_age_days}d) — skipping refresh")
+                return False
+        return True
+    except Exception:
+        return True  # If we can't tell, try to refresh
+
+
+def _mark_nba_api_refreshed():
+    """Touch marker file to record successful stats.nba.com refresh."""
+    marker = os.path.join(os.path.dirname(DB_PATH), ".nba_api_last_refresh")
+    with open(marker, "w") as f:
+        f.write(datetime.now(timezone.utc).isoformat())
+
+
 def main():
     logger.info("=" * 60)
     logger.info("NBA SIM — DAILY TRENDS REFRESH")
     logger.info(f"Lookback: {LOOKBACK_DAYS} days | Season: {SEASON_ID}")
     logger.info("=" * 60)
 
-    # Step 1: Refresh rosters + player/team season stats (lineups, trades, stat lines)
-    refresh_rosters_and_stats()
-
-    # Step 2: Make sure we have recent game records
+    # Step 1: Refresh game scores from ESPN (reliable from cloud IPs)
     refresh_recent_games()
 
-    # Step 3: Collect any missing boxscores (the key data for player trends)
-    new_boxscores = collect_missing_boxscores()
+    # Step 2: stats.nba.com-dependent steps — only run when data is stale.
+    # stats.nba.com blocks datacenter IPs, so these timeout ~50% of the time.
+    # Rosters/stats don't change fast enough to need daily refreshes anyway.
+    if _nba_api_data_is_stale(max_age_days=3):
+        logger.info("=== stats.nba.com data is stale — attempting refresh ===")
+        refresh_rosters_and_stats()
+        new_boxscores = collect_missing_boxscores()
+        refresh_lineup_stats()
+        _mark_nba_api_refreshed()
+    else:
+        new_boxscores = 0
 
-    # Step 4: Refresh lineup combo stats (for hot/cold combos)
-    refresh_lineup_stats()
-
-    # Step 5: Recompute synergy + value scores (for WOWY trends + projection model)
+    # Step 3: Recompute synergy + value scores (local computation, always runs)
     refresh_synergy_data()
 
     logger.info("=" * 60)
