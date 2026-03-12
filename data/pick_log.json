@@ -669,5 +669,26 @@
     "conf_label": "TAKE BOS",
     "ml_odds": null,
     "generated_at": "2026-03-12T08:05:22.480676+00:00"
+  },
+  {
+    "slate_date": "2026-03-12",
+    "matchup": "CHI @ LAL",
+    "side": "CHI +11.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 11.5,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -7.5,
+    "book_spread": -11.5,
+    "spread_edge": 4.0,
+    "sim_total": 235.5,
+    "book_total": 239.0,
+    "raw_edge": 7.5,
+    "captured_at": "2026-03-12T23:16:29.772608+00:00",
+    "conf_label": "TAKE CHI",
+    "ml_odds": null,
+    "generated_at": "2026-03-12T23:16:27.444885+00:00"
   }
 ]
