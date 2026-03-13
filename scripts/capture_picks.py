@@ -126,18 +126,20 @@ def capture(threshold=65, dry_run=False):
         c10 = conf_to_1_10(conf)
         risk = risk_amount(c10)
 
-        # Extract line value from pick_text (e.g., "LAL +3.5" → 3.5, "MIN ML" → 0)
+        # Extract line value from pick_text (e.g., "LAL +3.5" → 3.5)
+        # ALL picks are spreads — never capture as ML regardless of pick_text.
         ml_odds = None
         if "ML" in pick_text:
-            line_val = 0.0
-            pick_type = "ml"
-            # Store actual moneyline odds for correct payout calculation
+            # Convert ML text back to the book spread
             team = pick_text.replace(" ML", "").strip()
             home = g["matchup"].split(" @ ")[1]
+            book_spread = g.get("book_spread", 0)
             if team == home:
-                ml_odds = g.get("home_ml")
+                line_val = book_spread
+                pick_text = f"{team} {book_spread:+.1f}"
             else:
-                ml_odds = g.get("away_ml")
+                line_val = -book_spread
+                pick_text = f"{team} {-book_spread:+.1f}"
         else:
             parts = pick_text.split()
             line_val = float(parts[-1]) if len(parts) >= 2 else 0.0
