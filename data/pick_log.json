@@ -858,5 +858,26 @@
     "conf_label": "TAKE PHX",
     "ml_odds": null,
     "generated_at": "2026-03-13T14:15:34.823414+00:00"
+  },
+  {
+    "slate_date": "2026-03-13",
+    "matchup": "UTA @ POR",
+    "side": "UTA +15.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 15.5,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -11.5,
+    "book_spread": -15.5,
+    "spread_edge": 4.0,
+    "sim_total": 242.0,
+    "book_total": 236.5,
+    "raw_edge": 11.5,
+    "captured_at": "2026-03-13T18:56:51.126072+00:00",
+    "conf_label": "TAKE UTA",
+    "ml_odds": null,
+    "generated_at": "2026-03-13T18:56:48.496579+00:00"
   }
 ]
