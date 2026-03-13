@@ -837,5 +837,26 @@
     "conf_label": "TAKE CHI",
     "ml_odds": null,
     "generated_at": "2026-03-13T08:05:25.197976+00:00"
+  },
+  {
+    "slate_date": "2026-03-13",
+    "matchup": "PHX @ TOR",
+    "side": "PHX +4.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 4.5,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -0.5,
+    "book_spread": -4.5,
+    "spread_edge": 4.0,
+    "sim_total": 220.5,
+    "book_total": 218.5,
+    "raw_edge": 0.5,
+    "captured_at": "2026-03-13T14:15:37.317916+00:00",
+    "conf_label": "TAKE PHX",
+    "ml_odds": null,
+    "generated_at": "2026-03-13T14:15:34.823414+00:00"
   }
 ]
