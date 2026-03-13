@@ -89,6 +89,22 @@ jobs:
       - name: Create .env
         run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
 
+      # ── Refresh game scores from ESPN (fast + reliable from cloud IPs) ──
+      - name: Refresh game scores (ESPN)
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          python -c "
+          import sys, os, logging
+          sys.path.insert(0, os.getcwd())
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+          from config import DB_PATH, CURRENT_SEASON
+          from collectors.games_espn import ESPNGameCollector
+          espn = ESPNGameCollector(DB_PATH)
+          n = espn.update_games_table(CURRENT_SEASON, days=21)
+          print(f'ESPN: {n} games added/updated')
+          "
+
       # ── Refresh rosters + player stats (non-blocking — cached DB is fine if API is down) ──
       - name: Refresh rosters and player stats
         continue-on-error: true

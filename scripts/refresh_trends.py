@@ -114,7 +114,19 @@ def _verify_game_freshness():
 
 
 def collect_missing_boxscores():
-    """Collect boxscores for recent games not yet in player_game_stats."""
+    """Collect boxscores for recent games not yet in player_game_stats.
+
+    Uses stats.nba.com — hard 5-minute timeout on the entire loop so it
+    can't hang forever when datacenter IPs are blocked.
+    """
+    import signal
+
+    class _BoxscoreTimeout(BaseException):
+        pass
+
+    def _handler(signum, frame):
+        raise _BoxscoreTimeout("Boxscore collection exceeded 5-minute limit")
+
     cutoff = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
     logger.info(f"=== Collecting missing boxscores since {cutoff} ===")
 
@@ -150,16 +162,26 @@ def collect_missing_boxscores():
 
     logger.info(f"Found {len(missing)} games missing boxscores (of {len(all_ids)} recent).")
 
-    # Collect missing boxscores
-    bs_collector = BoxScoreCollector(DB_PATH)
+    # Hard 5-minute wall clock limit on entire boxscore loop
+    old_handler = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(300)
     success = 0
-    for game_id in sorted(missing):
-        try:
-            bs_collector.collect_game_boxscore(game_id)
-            success += 1
-            logger.info(f"  ✓ {game_id} ({success}/{len(missing)})")
-        except Exception as e:
-            logger.warning(f"  ✗ {game_id}: {e}")
+    try:
+        bs_collector = BoxScoreCollector(DB_PATH)
+        for game_id in sorted(missing):
+            try:
+                bs_collector.collect_game_boxscore(game_id)
+                success += 1
+                logger.info(f"  ✓ {game_id} ({success}/{len(missing)})")
+            except _BoxscoreTimeout:
+                raise  # Let the timeout propagate
+            except Exception as e:
+                logger.warning(f"  ✗ {game_id}: {e}")
+    except _BoxscoreTimeout:
+        logger.warning(f"Boxscore collection timed out after 5 min — got {success}/{len(missing)}")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
     logger.info(f"Collected {success}/{len(missing)} missing boxscores.")
     return success
@@ -269,17 +291,33 @@ def main():
     logger.info("=" * 60)
 
     # Step 1: Refresh game scores from ESPN (reliable from cloud IPs)
+    # This MUST succeed — everything else is optional.
     refresh_recent_games()
 
     # Step 2: stats.nba.com-dependent steps — only run when data is stale.
-    # stats.nba.com blocks datacenter IPs, so these timeout ~50% of the time.
-    # Rosters/stats don't change fast enough to need daily refreshes anyway.
+    # stats.nba.com blocks datacenter IPs, so these timeout regularly.
+    # Entire block is wrapped in try/except so failures NEVER kill the script
+    # (ESPN scores from step 1 must always get committed).
+    new_boxscores = 0
     if _nba_api_data_is_stale(max_age_days=3):
         logger.info("=== stats.nba.com data is stale — attempting refresh ===")
-        refresh_rosters_and_stats()
-        new_boxscores = collect_missing_boxscores()
-        refresh_lineup_stats()
-        _mark_nba_api_refreshed()
+        try:
+            refresh_rosters_and_stats()
+            # Mark refreshed IMMEDIATELY after rosters succeed — don't wait
+            # for boxscores/lineups (which can hang and get killed by workflow timeout).
+            _mark_nba_api_refreshed()
+        except Exception as e:
+            logger.warning(f"Roster refresh failed (non-fatal): {e}")
+
+        try:
+            new_boxscores = collect_missing_boxscores()
+        except Exception as e:
+            logger.warning(f"Boxscore collection failed (non-fatal): {e}")
+
+        try:
+            refresh_lineup_stats()
+        except Exception as e:
+            logger.warning(f"Lineup stats refresh failed (non-fatal): {e}")
     else:
         new_boxscores = 0
 
