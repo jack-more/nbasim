@@ -93,10 +93,27 @@ def capture(threshold=65, dry_run=False):
     else:
         slate_date = raw_slate_date
 
+    # Cross-check: if slate_date doesn't match today and the games already
+    # exist in picks.csv under an adjacent date, skip to prevent duplicates.
+    # This catches cases where generate_frontend ran late and stamped games
+    # with tomorrow's date when they actually played today (or vice versa).
+    from datetime import timedelta
+    try:
+        sd = datetime.strptime(slate_date, "%Y-%m-%d")
+        adjacent_dates = [
+            (sd - timedelta(days=1)).strftime("%Y-%m-%d"),
+            (sd + timedelta(days=1)).strftime("%Y-%m-%d"),
+        ]
+    except ValueError:
+        adjacent_dates = []
+
     print(f"[capture] Slate: {slate_date} | Generated: {generated_at}")
     print(f"[capture] Threshold: >{threshold} or <{100 - threshold}")
 
     already = existing_picks(slate_date)
+    # Also check adjacent dates to prevent cross-day duplicates
+    for adj_date in adjacent_dates:
+        already |= existing_picks(adj_date)
     picks = []
 
     for g in snapshot["games"]:
