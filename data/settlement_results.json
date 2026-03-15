@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-14T17:26:14.829873+00:00",
+  "graded_at": "2026-03-15T17:27:23.951276+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -773,39 +773,6 @@
     },
     {
       "date": "2026-03-13",
-      "matchup": "DEN @ SAS",
-      "side": "SAS -3.0",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "L",
-      "profit": -30.0,
-      "home_score": 131,
-      "away_score": 136
-    },
-    {
-      "date": "2026-03-13",
-      "matchup": "BOS @ OKC",
-      "side": "BOS +7.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "W",
-      "profit": 27.27,
-      "home_score": 104,
-      "away_score": 102
-    },
-    {
-      "date": "2026-03-13",
-      "matchup": "CHI @ LAL",
-      "side": "CHI +11.5",
-      "type": "spread",
-      "risk": 30.0,
-      "result": "L",
-      "profit": -30.0,
-      "home_score": 142,
-      "away_score": 130
-    },
-    {
-      "date": "2026-03-13",
       "matchup": "CLE @ DAL",
       "side": "DAL +13.0",
       "type": "spread",
@@ -869,16 +836,38 @@
       "profit": 27.27,
       "home_score": 124,
       "away_score": 114
+    },
+    {
+      "date": "2026-03-14",
+      "matchup": "BKN @ PHI",
+      "side": "BKN +8.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 104,
+      "away_score": 97
+    },
+    {
+      "date": "2026-03-14",
+      "matchup": "DEN @ LAL",
+      "side": "LAL +2.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 127,
+      "away_score": 125
     }
   ],
-  "pending_count": 2,
+  "pending_count": 4,
   "record": {
-    "W": 47,
-    "L": 32,
+    "W": 48,
+    "L": 30,
     "P": 0
   },
-  "total_profit": 388.38,
+  "total_profit": 512.01,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1538.38,
+  "new_bankroll": 1662.01,
   "status": "PARTIAL"
 }

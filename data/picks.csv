@@ -75,8 +75,8 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-03-13,CHI @ LAC,CHI +12.5,spread,30,W,27.27,,119,108
 2026-03-13,PHX @ TOR,PHX +4.5,spread,30,L,-30.0,,122,115
 2026-03-13,UTA @ POR,UTA +15.5,spread,30,W,27.27,,124,114
-2026-03-14,BKN @ PHI,BKN +8.5,spread,50,,,,,
-2026-03-14,DEN @ LAL,LAL +2.5,spread,50,,,,,
+2026-03-14,BKN @ PHI,BKN +8.5,spread,50,W,45.45,,104,97
+2026-03-14,DEN @ LAL,LAL +2.5,spread,50,W,45.45,,127,125
 2026-03-15,DAL @ CLE,DAL +16.5,spread,50,,,,,
 2026-03-15,IND @ MIL,IND +7.5,spread,50,,,,,
 2026-03-15,GSW @ NYK,NYK -13.5,spread,30,,,,,
