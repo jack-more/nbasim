@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-15T17:27:23.951276+00:00",
+  "graded_at": "2026-03-16T17:59:55.771159+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -858,16 +858,60 @@
       "profit": 45.45,
       "home_score": 127,
       "away_score": 125
+    },
+    {
+      "date": "2026-03-15",
+      "matchup": "DAL @ CLE",
+      "side": "DAL +16.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 120,
+      "away_score": 130
+    },
+    {
+      "date": "2026-03-15",
+      "matchup": "IND @ MIL",
+      "side": "IND +7.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 134,
+      "away_score": 123
+    },
+    {
+      "date": "2026-03-15",
+      "matchup": "GSW @ NYK",
+      "side": "NYK -13.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 110,
+      "away_score": 107
+    },
+    {
+      "date": "2026-03-15",
+      "matchup": "UTA @ SAC",
+      "side": "SAC -1.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 116,
+      "away_score": 111
     }
   ],
-  "pending_count": 4,
+  "pending_count": 1,
   "record": {
-    "W": 48,
-    "L": 30,
+    "W": 50,
+    "L": 32,
     "P": 0
   },
-  "total_profit": 512.01,
+  "total_profit": 504.73,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1662.01,
+  "new_bankroll": 1654.73,
   "status": "PARTIAL"
 }
