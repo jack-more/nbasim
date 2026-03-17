@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-16T17:59:55.771159+00:00",
+  "graded_at": "2026-03-17T17:58:05.879701+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -902,16 +902,27 @@
       "profit": 27.27,
       "home_score": 116,
       "away_score": 111
+    },
+    {
+      "date": "2026-03-16",
+      "matchup": "SAS @ LAC",
+      "side": "LAC +9.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 115,
+      "away_score": 119
     }
   ],
-  "pending_count": 1,
+  "pending_count": 3,
   "record": {
-    "W": 50,
+    "W": 51,
     "L": 32,
     "P": 0
   },
-  "total_profit": 504.73,
+  "total_profit": 532.0,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1654.73,
+  "new_bankroll": 1682.0,
   "status": "PARTIAL"
 }
