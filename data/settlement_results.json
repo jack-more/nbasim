@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-17T17:58:05.879701+00:00",
+  "graded_at": "2026-03-18T18:00:13.609844+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -913,16 +913,49 @@
       "profit": 27.27,
       "home_score": 115,
       "away_score": 119
+    },
+    {
+      "date": "2026-03-17",
+      "matchup": "MIA @ CHA",
+      "side": "MIA +3.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 136,
+      "away_score": 106
+    },
+    {
+      "date": "2026-03-17",
+      "matchup": "CLE @ MIL",
+      "side": "MIL +10.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 116,
+      "away_score": 123
+    },
+    {
+      "date": "2026-03-17",
+      "matchup": "PHX @ MIN",
+      "side": "PHX +4.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 116,
+      "away_score": 104
     }
   ],
-  "pending_count": 3,
+  "pending_count": 0,
   "record": {
-    "W": 51,
-    "L": 32,
+    "W": 52,
+    "L": 34,
     "P": 0
   },
-  "total_profit": 532.0,
+  "total_profit": 499.27,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1682.0,
-  "status": "PARTIAL"
+  "new_bankroll": 1649.27,
+  "status": "SETTLED"
 }
