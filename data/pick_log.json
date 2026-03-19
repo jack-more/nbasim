@@ -1131,5 +1131,26 @@
     "conf_label": "TAKE CHI",
     "ml_odds": null,
     "generated_at": "2026-03-19T08:05:54.740436+00:00"
+  },
+  {
+    "slate_date": "2026-03-19",
+    "matchup": "DET @ WAS",
+    "side": "DET -14.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": -14.0,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": 17.5,
+    "book_spread": 14.0,
+    "spread_edge": 3.5,
+    "sim_total": 233.0,
+    "book_total": 231.5,
+    "raw_edge": -17.5,
+    "captured_at": "2026-03-19T16:45:33.962406+00:00",
+    "conf_label": "TAKE DET",
+    "ml_odds": null,
+    "generated_at": "2026-03-19T16:45:31.462585+00:00"
   }
 ]
