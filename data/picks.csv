@@ -89,7 +89,7 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-03-19,CLE @ CHI,CHI +13.0,spread,50,W,45.45,,110,115
 2026-03-19,DET @ WAS,DET -14.0,spread,30,L,-30.0,,117,130
 2026-03-19,LAL @ MIA,LAL +6.0,spread,50,W,45.45,,126,134
-2026-03-20,GSW @ DET,DET -6.5,spread,50,,,,,
-2026-03-20,ATL @ HOU,ATL +4.0,spread,50,,,,,
-2026-03-20,TOR @ DEN,TOR +7.0,spread,50,,,,,
+2026-03-20,GSW @ DET,DET -6.5,spread,50,W,45.45,,115,101
+2026-03-20,ATL @ HOU,ATL +4.0,spread,50,L,-50.0,,117,95
+2026-03-20,TOR @ DEN,TOR +7.0,spread,50,W,45.45,,121,115
 2026-03-21,MIL @ PHX,MIL +11.5,spread,30,,,,,
