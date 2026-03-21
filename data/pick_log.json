@@ -1236,5 +1236,26 @@
     "conf_label": "TAKE TOR",
     "ml_odds": null,
     "generated_at": "2026-03-20T08:04:32.970604+00:00"
+  },
+  {
+    "slate_date": "2026-03-21",
+    "matchup": "MIL @ PHX",
+    "side": "MIL +11.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 11.5,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -7.5,
+    "book_spread": -11.5,
+    "spread_edge": 4.0,
+    "sim_total": 220.5,
+    "book_total": 219.5,
+    "raw_edge": 7.5,
+    "captured_at": "2026-03-21T07:55:18.293174+00:00",
+    "conf_label": "TAKE MIL",
+    "ml_odds": null,
+    "generated_at": "2026-03-21T07:55:13.116285+00:00"
   }
 ]
