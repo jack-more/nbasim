@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-21T17:25:08.857623+00:00",
+  "graded_at": "2026-03-22T17:24:29.774702+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1023,16 +1023,27 @@
       "profit": 45.45,
       "home_score": 121,
       "away_score": 115
+    },
+    {
+      "date": "2026-03-21",
+      "matchup": "MIL @ PHX",
+      "side": "MIL +11.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 105,
+      "away_score": 108
     }
   ],
-  "pending_count": 1,
+  "pending_count": 3,
   "record": {
-    "W": 57,
+    "W": 58,
     "L": 36,
     "P": 0
   },
-  "total_profit": 628.34,
+  "total_profit": 655.61,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1778.34,
+  "new_bankroll": 1805.61,
   "status": "PARTIAL"
 }
