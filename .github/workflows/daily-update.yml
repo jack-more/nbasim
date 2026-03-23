@@ -86,8 +86,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create .env
-        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+      # Odds API removed — lines come from RotoWire scrape
 
       # ── Refresh game scores from ESPN (fast + reliable from cloud IPs) ──
       - name: Refresh game scores (ESPN)
@@ -106,9 +105,10 @@ jobs:
           "
 
       # ── Refresh rosters + player stats (non-blocking — cached DB is fine if API is down) ──
+      # Timeout reduced: nba_api now uses 30s per request (was 120s), 3 retries = 90s max per call
       - name: Refresh rosters and player stats
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: |
           python -c "
           import sys, os, logging
@@ -131,6 +131,29 @@ jobs:
           except Exception as e:
               print(f'Team stats refresh failed (using cached): {e}')
           print('=== Rosters + season stats step complete ===')
+          "
+
+      # ── Staleness check: warn loudly if player boxscore data is old ──
+      - name: Check data freshness
+        run: |
+          python -c "
+          import sys, os, sqlite3
+          sys.path.insert(0, os.getcwd())
+          from config import DB_PATH
+          from datetime import datetime, timedelta, timezone
+          conn = sqlite3.connect(DB_PATH)
+          result = conn.execute('''
+              SELECT MAX(g.game_date) as latest
+              FROM player_game_stats pgs
+              JOIN games g ON pgs.game_id = g.game_id
+          ''').fetchone()
+          conn.close()
+          latest = result[0] if result else None
+          cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).strftime('%Y-%m-%d')
+          if latest is None or latest < cutoff:
+              print(f'::warning::BOXSCORE DATA IS STALE! Latest: {latest}, required: after {cutoff}. MOJI + SYN (60% of model) are unreliable.')
+          else:
+              print(f'Boxscore freshness OK: latest = {latest}')
           "
 
       # ── Optional: full pipeline (manual trigger only) ──
@@ -304,8 +327,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create .env
-        run: echo "ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" > .env
+      # Odds API removed — lines come from RotoWire scrape
 
       - name: Refresh trends (collect missing boxscores + lineup stats)
         timeout-minutes: 15

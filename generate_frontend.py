@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from db.connection import read_query
 from config import DB_PATH, CURRENT_SEASON
 
-ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
-ODDS_API_BASE = "https://api.the-odds-api.com/v4"
+# Odds API removed — was returning 401 (expired key) and all lines come from
+# RotoWire scrape anyway. Keeping stub functions so callers don't break.
 
 # ─── Precomputed Value Scores Cache ──────────────────────────────
 # Loaded once at module load — maps player_id → contextual scores
@@ -666,21 +666,7 @@ ARCHETYPE_DESCRIPTIONS = {
     "Versatile Big": "Multi-skilled center. Can pass, shoot, and defend at an above-average level.",
 }
 
-# ─── The Odds API: team name → abbreviation mapping ──────────────
-ODDS_TEAM_MAP = {
-    "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
-    "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
-    "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
-    "Golden State Warriors": "GSW", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
-    "Los Angeles Clippers": "LAC", "Los Angeles Lakers": "LAL", "Memphis Grizzlies": "MEM",
-    "Miami Heat": "MIA", "Milwaukee Bucks": "MIL", "Minnesota Timberwolves": "MIN",
-    "New Orleans Pelicans": "NOP", "New York Knicks": "NYK",
-    "Oklahoma City Thunder": "OKC", "Orlando Magic": "ORL",
-    "Philadelphia 76ers": "PHI", "Phoenix Suns": "PHX",
-    "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC",
-    "San Antonio Spurs": "SAS", "Toronto Raptors": "TOR",
-    "Utah Jazz": "UTA", "Washington Wizards": "WAS",
-}
+# Odds API team map removed — Odds API has been removed from the pipeline.
 
 
 def fetch_nba_schedule():
@@ -725,207 +711,13 @@ def fetch_nba_schedule():
 
 
 def fetch_odds_api_lines():
-    """Fetch real NBA spreads and totals from The Odds API.
-
-    Returns (lines_dict, matchup_pairs, slate_date_str, event_ids).
-      lines_dict: keyed by (home_abbr, away_abbr) with consensus spread and total
-      matchup_pairs: list of (home_abbr, away_abbr) in game order from API
-      slate_date_str: e.g. "FEB 20" derived from first game's commence_time
-      event_ids: list of Odds API event IDs for player prop lookups
-    Returns ({}, [], None, []) if no API key or if request fails.
-    """
-    if not ODDS_API_KEY:
-        logger.info("Odds API: no ODDS_API_KEY set — using projected lines")
-        return {}, [], None, [], {}
-
-    url = f"{ODDS_API_BASE}/sports/basketball_nba/odds"
-    params = {
-        "apiKey": ODDS_API_KEY,
-        "regions": "us",
-        "markets": "h2h,spreads,totals",
-        "oddsFormat": "american",
-    }
-
-    try:
-        resp = requests.get(url, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-
-        remaining = resp.headers.get("x-requests-remaining", "?")
-        logger.info("Odds API: fetched %d games — %s requests remaining", len(data), remaining)
-    except (requests.RequestException, ValueError) as e:
-        logger.warning("Odds API: failed to fetch: %s — using projected lines", e)
-        return {}, [], None, [], {}
-
-    lines = {}
-    bookmaker_lines = {}
-    matchup_pairs = []
-    event_ids = []
-    slate_date_str = None
-
-    # Bookmakers to collect individual lines from
-    TRACKED_BOOKS = {
-        "draftkings": "DK",
-        "fanduel": "FD",
-        "betmgm": "MGM",
-        "bovada": "BOV",
-        "pointsbetus": "PBU",
-    }
-
-    for game in data:
-        home_full = game.get("home_team", "")
-        away_full = game.get("away_team", "")
-        home_abbr = ODDS_TEAM_MAP.get(home_full, "")
-        away_abbr = ODDS_TEAM_MAP.get(away_full, "")
-
-        if not home_abbr or not away_abbr:
-            continue
-
-        matchup_pairs.append((home_abbr, away_abbr))
-
-        # Capture event ID for player props lookup
-        eid = game.get("id", "")
-        if eid:
-            event_ids.append(eid)
-
-        # Parse date from first game
-        if slate_date_str is None:
-            commence = game.get("commence_time", "")
-            if commence:
-                from datetime import datetime, timezone, timedelta
-                try:
-                    dt = datetime.fromisoformat(commence.replace("Z", "+00:00"))
-                    # Convert UTC to Eastern (games listed in ET)
-                    et = dt - timedelta(hours=5)
-                    months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
-                    slate_date_str = f"{months[et.month-1]} {et.day}"
-                except (ValueError, IndexError):
-                    pass
-
-        # Average spread, total, and moneyline across all bookmakers for consensus line
-        spreads = []
-        totals = []
-        home_mls = []
-        away_mls = []
-        for bk in game.get("bookmakers", []):
-            for market in bk.get("markets", []):
-                if market["key"] == "spreads":
-                    for outcome in market.get("outcomes", []):
-                        if ODDS_TEAM_MAP.get(outcome.get("name", ""), "") == home_abbr:
-                            pt = outcome.get("point")
-                            if pt is not None:
-                                spreads.append(float(pt))
-                elif market["key"] == "totals":
-                    for outcome in market.get("outcomes", []):
-                        if outcome.get("name", "") == "Over":
-                            pt = outcome.get("point")
-                            if pt is not None:
-                                totals.append(float(pt))
-                elif market["key"] == "h2h":
-                    for outcome in market.get("outcomes", []):
-                        team_abbr = ODDS_TEAM_MAP.get(outcome.get("name", ""), "")
-                        price = outcome.get("price")
-                        if price is not None:
-                            if team_abbr == home_abbr:
-                                home_mls.append(int(price))
-                            elif team_abbr == away_abbr:
-                                away_mls.append(int(price))
-
-        result = {}
-        if spreads:
-            avg_spread = sum(spreads) / len(spreads)
-            result["spread"] = round(avg_spread * 2) / 2  # round to nearest 0.5
-        if totals:
-            avg_total = sum(totals) / len(totals)
-            result["total"] = round(avg_total * 2) / 2
-        if home_mls:
-            result["home_ml"] = round(sum(home_mls) / len(home_mls))
-        if away_mls:
-            result["away_ml"] = round(sum(away_mls) / len(away_mls))
-
-        if result:
-            lines[(home_abbr, away_abbr)] = result
-
-        # Collect per-bookmaker spreads for tracked sportsbooks
-        game_books = []
-        for bk in game.get("bookmakers", []):
-            bk_key = bk.get("key", "")
-            if bk_key not in TRACKED_BOOKS:
-                continue
-            for market in bk.get("markets", []):
-                if market["key"] == "spreads":
-                    for outcome in market.get("outcomes", []):
-                        if ODDS_TEAM_MAP.get(outcome.get("name", ""), "") == home_abbr:
-                            pt = outcome.get("point")
-                            if pt is not None:
-                                game_books.append({
-                                    "name": TRACKED_BOOKS[bk_key],
-                                    "key": bk_key,
-                                    "spread": float(pt),
-                                })
-        if game_books:
-            bookmaker_lines[(home_abbr, away_abbr)] = game_books
-
-    logger.info("Odds API: parsed lines for %d matchups | slate: %s | %d games | %d event IDs", len(lines), slate_date_str, len(matchup_pairs), len(event_ids))
-    return lines, matchup_pairs, slate_date_str, event_ids, bookmaker_lines
+    """Stub — Odds API removed. Lines come from RotoWire scrape."""
+    return {}, [], None, [], {}
 
 
 def fetch_odds_api_player_props(event_ids):
-    """Fetch player props from The Odds API for given event IDs.
-
-    Returns dict keyed by player_name with prop lines.
-    Requires event IDs from the main odds endpoint.
-    """
-    if not ODDS_API_KEY or not event_ids:
-        return {}
-
-    all_props = {}
-    prop_markets = ["player_points", "player_assists", "player_rebounds",
-                    "player_points_rebounds_assists"]
-
-    for eid in event_ids[:5]:  # Limit to 5 events to conserve API credits
-        for market in prop_markets:
-            url = f"{ODDS_API_BASE}/sports/basketball_nba/events/{eid}/odds"
-            params = {
-                "apiKey": ODDS_API_KEY,
-                "regions": "us",
-                "markets": market,
-                "oddsFormat": "american",
-            }
-            try:
-                resp = requests.get(url, params=params, timeout=15)
-                if resp.status_code != 200:
-                    continue
-                data = resp.json()
-
-                for bk in data.get("bookmakers", []):
-                    for mkt in bk.get("markets", []):
-                        for outcome in mkt.get("outcomes", []):
-                            pname = outcome.get("description", "")
-                            point = outcome.get("point")
-                            side = outcome.get("name", "")  # Over/Under
-                            if pname and point is not None and side == "Over":
-                                prop_key = market.replace("player_", "").upper()
-                                if prop_key == "POINTS_REBOUNDS_ASSISTS":
-                                    prop_key = "PRA"
-                                if pname not in all_props:
-                                    all_props[pname] = {}
-                                if prop_key not in all_props[pname]:
-                                    all_props[pname][prop_key] = []
-                                all_props[pname][prop_key].append(float(point))
-            except (ValueError, KeyError, TypeError):
-                continue
-
-    # Average across bookmakers
-    result = {}
-    for pname, props in all_props.items():
-        result[pname] = {}
-        for prop_type, values in props.items():
-            result[pname][prop_type] = round(sum(values) / len(values), 1)
-
-    if result:
-        logger.info("Odds API: fetched player props for %d players", len(result))
-    return result
+    """Stub — Odds API removed."""
+    return {}
 
 
 def compute_mojo_score(row, injury_adjusted_composite=None):
@@ -2743,7 +2535,7 @@ def compute_moji_spread(home_data, away_data, rw_lineups, team_map):
     4. Compute adjusted MOJOs (MOJI) with archetype-aware usage redistribution
     5. Compare home net rating + HCA vs away net rating (with B2B penalties)
     6. Compute lineup synergy adjusted by opponent coaching scheme
-    7. Blend 45% SYN + 20% MOJI + 15% adjusted NRtg + 20% H2H
+    7. Blend 40% MOJI + 10% Season NRtg + 30% Trailing 10-Game NRtg + 20% SYN
 
     Returns (spread, total, breakdown).
     """
@@ -4774,10 +4566,8 @@ def generate_html():
     ceiling_players, floor_players = get_ceiling_floor_players()
     locks = get_lock_picks(matchups)
 
-    # Fetch real player props from Odds API (costs ~20 credits for 5 games × 4 markets)
+    # Player props — Odds API removed, always empty
     real_player_props = {}
-    if event_ids and ODDS_API_KEY:
-        real_player_props = fetch_odds_api_player_props(event_ids)
 
     props = get_player_spotlights(matchups, team_map, real_player_props)
     top50 = get_top_50_ds()
@@ -5859,9 +5649,9 @@ def render_matchup_card(m, idx, team_map):
         l10_fav = "EVEN"
         l10_fav_val = ""
 
-    # Model weighting computations
-    moji_weighted = 0.45 * moji_pts
-    nrtg_weighted = 0.10 * nrtg_diff + 0.25 * recent_nrtg_diff
+    # Model weighting computations (must match _MOJI_CONSTANTS: 40/10/30/20)
+    moji_weighted = 0.40 * moji_pts
+    nrtg_weighted = 0.10 * nrtg_diff + 0.30 * recent_nrtg_diff
     syn_weighted = 0.20 * syn_pts
     proj_spread_val = m.get("proj_spread", 0)
 
@@ -5911,7 +5701,7 @@ def render_matchup_card(m, idx, team_map):
             </div>
             <div class="moji-row moji-model-row ma-premium">
                 <span class="moji-label">MODEL</span>
-                <span class="moji-model-formula">45% MOJI ({moji_weighted:+.1f}) + 10% NRtg ({0.10 * nrtg_diff:+.1f}) + 25% L10 ({0.25 * recent_nrtg_diff:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
+                <span class="moji-model-formula">40% MOJI ({moji_weighted:+.1f}) + 10% NRtg ({0.10 * nrtg_diff:+.1f}) + 30% L10 ({0.30 * recent_nrtg_diff:+.1f}) + 20% SYN ({syn_weighted:+.1f}) = <strong>PROJ {ha if proj_spread_val <= 0 else aa} {(-abs(proj_spread_val)):+.1f}</strong></span>
             </div>
             <div class="moji-row moji-tags">
                 <span class="hca-badge">HCA \u25B2{TEAM_HCA.get(ha, 1.8):.1f} {ha}</span>
@@ -6486,7 +6276,7 @@ def render_info_page():
                 <div class="formula-row"><span>Step 5</span><span>Apply stocks penalty for missing defensive players</span></div>
                 <div class="formula-row"><span>Step 6</span><span>Compute adjusted NRtg: season-long + trailing 10-game (HCA [1.8 base, 3.8 DEN, 3.5 BOS], B2B −2.0/−2.5)</span></div>
                 <div class="formula-row"><span>Step 7</span><span>Compute lineup synergy adjusted by opponent defensive scheme</span></div>
-                <div class="formula-row"><span>Step 8</span><span>Blend: 45% MOJI + 10% Season NRtg + 25% Trailing 10-Game NRtg + 20% SYN = raw power</span></div>
+                <div class="formula-row"><span>Step 8</span><span>Blend: 40% MOJI + 10% Season NRtg + 30% Trailing 10-Game NRtg + 20% SYN = raw power</span></div>
                 <div class="formula-row"><span>Step 9</span><span>Proj. Spread = −(raw power), rounded to 0.5</span></div>
             </div>
             <div class="info-formula" style="margin-top:12px">

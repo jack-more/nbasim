@@ -40,9 +40,10 @@ class BaseCollector:
         Rate-limited wrapper around any nba_api endpoint class.
         Returns list of DataFrames from get_data_frames().
         """
-        # Inject browser headers and extended timeout
+        # Inject browser headers — use shorter timeout so retries fit within
+        # CI step limits (3 retries × 30s = 90s vs old 3 × 120s = 360s)
         params.setdefault("headers", NBA_HEADERS)
-        params.setdefault("timeout", 120)
+        params.setdefault("timeout", 30)
 
         for attempt in range(self.max_retries):
             self.rate_limiter.wait()

@@ -224,6 +224,8 @@ def refresh_rosters_and_stats():
 
     Uses a hard 3-minute timeout — if stats.nba.com is down, bail fast
     and use cached data from the DB. Yesterday's rosters are fine.
+
+    Returns True if data was actually refreshed, False if timed out or failed.
     """
     import signal
 
@@ -245,13 +247,47 @@ def refresh_rosters_and_stats():
         player_collector.collect_player_season_stats(SEASON_ID)
         player_collector.collect_team_season_stats(SEASON_ID)
         logger.info("Rosters + season stats refreshed.")
+        return True
     except _Timeout as e:
-        logger.warning(f"Roster refresh timed out (non-fatal, using cached): {e}")
+        logger.warning(f"Roster refresh timed out (DATA IS STALE): {e}")
+        return False
     except Exception as e:
-        logger.warning(f"Roster/stats refresh failed (non-fatal): {e}")
+        logger.warning(f"Roster/stats refresh failed (DATA IS STALE): {e}")
+        return False
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old_handler)
+
+
+def _verify_boxscore_freshness():
+    """Check if player_game_stats has data within the last 14 days.
+
+    If boxscore data is more than 14 days old, the MOJI and SYN signals
+    (60% of the model) are running on stale player stats. Emit a loud
+    warning so this is visible in CI logs and cannot be silently ignored.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%d")
+    try:
+        result = read_query(
+            """SELECT MAX(g.game_date) as latest
+               FROM player_game_stats pgs
+               JOIN games g ON pgs.game_id = g.game_id""",
+            DB_PATH,
+        )
+        latest = result.iloc[0]["latest"] if not result.empty else None
+        if latest is None or latest < cutoff:
+            logger.error(
+                "╔══════════════════════════════════════════════════════╗\n"
+                "║  ⚠️  BOXSCORE DATA IS STALE!                        ║\n"
+                f"║  Latest boxscore: {latest or 'NONE'}                       ║\n"
+                f"║  Required: after {cutoff}                        ║\n"
+                "║  MOJI + SYN signals (60%% of model) are UNRELIABLE  ║\n"
+                "╚══════════════════════════════════════════════════════╝"
+            )
+        else:
+            logger.info(f"Boxscore freshness check: latest = {latest} ✓")
+    except Exception as e:
+        logger.warning(f"Could not verify boxscore freshness: {e}")
 
 
 def _nba_api_data_is_stale(max_age_days=3):
@@ -301,11 +337,18 @@ def main():
     new_boxscores = 0
     if _nba_api_data_is_stale(max_age_days=3):
         logger.info("=== stats.nba.com data is stale — attempting refresh ===")
+        roster_ok = False
         try:
-            refresh_rosters_and_stats()
-            # Mark refreshed IMMEDIATELY after rosters succeed — don't wait
-            # for boxscores/lineups (which can hang and get killed by workflow timeout).
-            _mark_nba_api_refreshed()
+            roster_ok = refresh_rosters_and_stats()
+            if roster_ok:
+                # ONLY mark refreshed if data was actually collected
+                _mark_nba_api_refreshed()
+                logger.info("Marked stats.nba.com data as refreshed.")
+            else:
+                logger.warning(
+                    "stats.nba.com refresh FAILED — NOT marking as fresh. "
+                    "Will retry on next run."
+                )
         except Exception as e:
             logger.warning(f"Roster refresh failed (non-fatal): {e}")
 
@@ -320,6 +363,11 @@ def main():
             logger.warning(f"Lineup stats refresh failed (non-fatal): {e}")
     else:
         new_boxscores = 0
+
+    # ── Staleness verification ──
+    # Check if player_game_stats has data within the last 14 days.
+    # If not, emit a loud warning so it's visible in CI logs.
+    _verify_boxscore_freshness()
 
     # Step 3: Recompute synergy + value scores (local computation, always runs)
     refresh_synergy_data()
