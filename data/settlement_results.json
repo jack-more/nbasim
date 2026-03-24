@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-23T17:50:57.258815+00:00",
+  "graded_at": "2026-03-24T17:55:47.352201+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1067,16 +1067,60 @@
       "profit": -30.0,
       "home_score": 120,
       "away_score": 98
+    },
+    {
+      "date": "2026-03-23",
+      "matchup": "LAL @ DET",
+      "side": "DET +2.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 113,
+      "away_score": 110
+    },
+    {
+      "date": "2026-03-23",
+      "matchup": "IND @ ORL",
+      "side": "IND +13.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 126,
+      "away_score": 128
+    },
+    {
+      "date": "2026-03-23",
+      "matchup": "BKN @ POR",
+      "side": "BKN +14.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 134,
+      "away_score": 99
+    },
+    {
+      "date": "2026-03-23",
+      "matchup": "MIL @ LAC",
+      "side": "MIL +13.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 129,
+      "away_score": 96
     }
   ],
-  "pending_count": 4,
+  "pending_count": 1,
   "record": {
-    "W": 59,
-    "L": 38,
+    "W": 61,
+    "L": 40,
     "P": 0
   },
-  "total_profit": 622.88,
+  "total_profit": 615.6,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1772.88,
+  "new_bankroll": 1765.6,
   "status": "PARTIAL"
 }
