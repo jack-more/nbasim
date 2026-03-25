@@ -101,3 +101,7 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-03-23,BKN @ POR,BKN +14.5,spread,30,L,-30.0,,134,99
 2026-03-23,MIL @ LAC,MIL +13.5,spread,50,L,-50.0,,129,96
 2026-03-24,DEN @ PHX,PHX +5.0,spread,30,,,,,
+2026-03-25,CHI @ PHI,CHI +6.5,spread,50,,,,,
+2026-03-25,SAS @ MEM,SAS -16.5,spread,50,,,,,
+2026-03-25,DAL @ DEN,DAL +13.5,spread,30,,,,,
+2026-03-25,TOR @ LAC,TOR +4.0,spread,50,,,,,
