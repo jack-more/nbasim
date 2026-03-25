@@ -1509,5 +1509,26 @@
     "conf_label": "TAKE TOR",
     "ml_odds": null,
     "generated_at": "2026-03-25T08:09:46.941396+00:00"
+  },
+  {
+    "slate_date": "2026-03-25",
+    "matchup": "BKN @ GSW",
+    "side": "BKN +12.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 12.5,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": -9.0,
+    "book_spread": -12.5,
+    "spread_edge": 3.5,
+    "sim_total": 222.0,
+    "book_total": 217.0,
+    "raw_edge": 9.0,
+    "captured_at": "2026-03-25T16:53:46.632456+00:00",
+    "conf_label": "TAKE BKN",
+    "ml_odds": null,
+    "generated_at": "2026-03-25T16:53:43.639085+00:00"
   }
 ]
