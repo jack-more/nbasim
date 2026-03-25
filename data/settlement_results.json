@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-24T17:55:47.352201+00:00",
+  "graded_at": "2026-03-25T17:58:27.448367+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1111,16 +1111,27 @@
       "profit": -50.0,
       "home_score": 129,
       "away_score": 96
+    },
+    {
+      "date": "2026-03-24",
+      "matchup": "DEN @ PHX",
+      "side": "PHX +5.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 123,
+      "away_score": 125
     }
   ],
-  "pending_count": 1,
+  "pending_count": 5,
   "record": {
-    "W": 61,
+    "W": 62,
     "L": 40,
     "P": 0
   },
-  "total_profit": 615.6,
+  "total_profit": 642.87,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1765.6,
+  "new_bankroll": 1792.87,
   "status": "PARTIAL"
 }
