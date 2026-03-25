@@ -5783,7 +5783,7 @@ def render_matchup_card(m, idx, team_map):
     bethog_btn = f'''
         <div class="mc-sportsbooks mc-bethog-row">
             <a href="{AFFILIATE_LINKS['bethog']}" target="_blank" rel="noopener" class="sb-btn sb-btn-featured" style="border-color:{BOOK_COLORS['bethog']}60">
-                <img src="https://www.bethog.com/logo-mini.svg" class="sb-logo" alt="BetHOG" style="height:16px;filter:brightness(0);">
+                <svg class="sb-logo" style="height:16px;width:16px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#1a1a1a"/><path d="M6 6h5l3 3-3 3H6V6zm0 6h6l3 3-3 3H6v-6z" fill="#fff"/></svg>
                 <span class="sb-name" style="color:{BOOK_COLORS['bethog']}">BetHOG</span>
                 <span class="sb-line">BET NOW</span>
             </a>
@@ -5807,7 +5807,7 @@ def render_matchup_card(m, idx, team_map):
             k_prob = k_away
         k_link = "https://kalshi.com/sign-up/?referral=88acd325-1cbe-44b0-9358-f0cf92cf9fc7"
         pm_btn_html = f'''<a href="{k_link}" target="_blank" rel="noopener" class="sb-btn pm-btn" style="border-color:#00C48040">
-            <img src="https://kalshi.com/logo192.png" class="sb-logo" alt="Kalshi" style="height:16px;border-radius:3px;">
+            <svg class="sb-logo" style="height:16px;width:16px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="#00C480"/><path d="M8 6l4 6-4 6h3l4-6-4-6H8z" fill="#fff"/></svg>
             <span class="sb-name" style="color:#00C480">KALSHI</span>
             <span class="sb-line">{k_team} {k_prob*100:.0f}%</span>
         </a>'''
