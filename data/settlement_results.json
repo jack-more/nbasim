@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-25T17:58:27.448367+00:00",
+  "graded_at": "2026-03-26T17:59:52.346438+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1122,16 +1122,71 @@
       "profit": 27.27,
       "home_score": 123,
       "away_score": 125
+    },
+    {
+      "date": "2026-03-25",
+      "matchup": "CHI @ PHI",
+      "side": "CHI +6.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 157,
+      "away_score": 137
+    },
+    {
+      "date": "2026-03-25",
+      "matchup": "SAS @ MEM",
+      "side": "SAS -16.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 98,
+      "away_score": 123
+    },
+    {
+      "date": "2026-03-25",
+      "matchup": "DAL @ DEN",
+      "side": "DAL +13.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 142,
+      "away_score": 135
+    },
+    {
+      "date": "2026-03-25",
+      "matchup": "TOR @ LAC",
+      "side": "TOR +4.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 119,
+      "away_score": 94
+    },
+    {
+      "date": "2026-03-25",
+      "matchup": "BKN @ GSW",
+      "side": "BKN +12.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 109,
+      "away_score": 106
     }
   ],
-  "pending_count": 5,
+  "pending_count": 1,
   "record": {
-    "W": 62,
-    "L": 40,
+    "W": 65,
+    "L": 42,
     "P": 0
   },
-  "total_profit": 642.87,
+  "total_profit": 642.86,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1792.87,
+  "new_bankroll": 1792.86,
   "status": "PARTIAL"
 }
