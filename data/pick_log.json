@@ -1530,5 +1530,26 @@
     "conf_label": "TAKE BKN",
     "ml_odds": null,
     "generated_at": "2026-03-25T16:53:43.639085+00:00"
+  },
+  {
+    "slate_date": "2026-03-26",
+    "matchup": "SAC @ ORL",
+    "side": "SAC +15.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 15.5,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -11.5,
+    "book_spread": -15.5,
+    "spread_edge": 4.0,
+    "sim_total": 229.5,
+    "book_total": 230.5,
+    "raw_edge": 11.5,
+    "captured_at": "2026-03-26T08:19:00.944944+00:00",
+    "conf_label": "TAKE SAC",
+    "ml_odds": null,
+    "generated_at": "2026-03-26T08:18:57.254744+00:00"
   }
 ]
