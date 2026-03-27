@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-26T17:59:52.346438+00:00",
+  "graded_at": "2026-03-27T17:50:11.903208+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1177,16 +1177,38 @@
       "profit": 27.27,
       "home_score": 109,
       "away_score": 106
+    },
+    {
+      "date": "2026-03-26",
+      "matchup": "SAC @ ORL",
+      "side": "SAC +15.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 121,
+      "away_score": 117
+    },
+    {
+      "date": "2026-03-27",
+      "matchup": "MIA @ CLE",
+      "side": "MIA +5.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 103,
+      "away_score": 120
     }
   ],
-  "pending_count": 1,
+  "pending_count": 3,
   "record": {
-    "W": 65,
+    "W": 67,
     "L": 42,
     "P": 0
   },
-  "total_profit": 642.86,
+  "total_profit": 715.58,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1792.86,
+  "new_bankroll": 1865.58,
   "status": "PARTIAL"
 }
