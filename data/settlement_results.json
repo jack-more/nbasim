@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-29T17:29:37.615920+00:00",
+  "graded_at": "2026-03-30T17:54:02.172731+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1276,16 +1276,38 @@
       "profit": 27.27,
       "home_score": 123,
       "away_score": 113
+    },
+    {
+      "date": "2026-03-29",
+      "matchup": "LAC @ MIL",
+      "side": "MIL +14.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "P",
+      "profit": 0.0,
+      "home_score": 113,
+      "away_score": 127
+    },
+    {
+      "date": "2026-03-29",
+      "matchup": "WAS @ POR",
+      "side": "WAS +15.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 123,
+      "away_score": 88
     }
   ],
   "pending_count": 2,
   "record": {
     "W": 71,
-    "L": 45,
-    "P": 0
+    "L": 46,
+    "P": 1
   },
-  "total_profit": 731.02,
+  "total_profit": 681.02,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1881.02,
+  "new_bankroll": 1831.02,
   "status": "PARTIAL"
 }
