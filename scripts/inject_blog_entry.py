@@ -271,17 +271,32 @@ def _append_to_existing_day(html, cards_html, table_html, short_date, day_name):
 
 
 def inject(snippet_path, blog_path):
-    """Inject blog snippet into MORELLOSIMS blog HTML."""
+    """Inject blog snippet into MORELLOSIMS blog HTML.
+
+    Only operates within the NBA picks tracker card (post-nba-picks).
+    All other blog content (MLB card, dispatch log, etc.) is untouched.
+    """
     with open(snippet_path) as f:
         snippet = f.read()
 
     with open(blog_path) as f:
-        html = f.read()
+        full_html = f.read()
 
-    # ── Isolate the NBA picks tracker so injection targets MLB only ──
-    html, _nba_block = _isolate_nba_tracker(html)
-    if _nba_block:
-        print(f"[inject] Isolated NBA picks tracker ({len(_nba_block)} chars)")
+    # ── Extract ONLY the NBA section — all injection targets it exclusively ──
+    prefix, nba_section, suffix = "", "", ""
+    full_html_work, nba_section = _isolate_nba_tracker(full_html)
+    if nba_section:
+        # Find where the placeholder is to know prefix/suffix
+        ph_idx = full_html_work.find(_NBA_PLACEHOLDER)
+        prefix = full_html_work[:ph_idx]
+        suffix = full_html_work[ph_idx + len(_NBA_PLACEHOLDER):]
+        print(f"[inject] Extracted NBA picks tracker ({len(nba_section)} chars) — only this section will be modified")
+    else:
+        print("[inject] No NBA picks tracker found — nothing to inject into")
+        return 0
+
+    # All work below operates on nba_section only
+    html = nba_section
 
     # Parse metadata from snippet comments
     date_match = re.search(r'Blog snippet for (\d{4}-\d{2}-\d{2})', snippet)
@@ -303,7 +318,7 @@ def inject(snippet_path, blog_path):
     # Parse snippet into cards and table sections
     cards_html, table_html = _parse_snippet(snippet)
 
-    # ── Check if date already exists in the blog ──
+    # ── Check if date already exists in the NBA section ──
     date_exists = (
         f"{short_date} SLATE" in html
         or f"{short_date} &middot;" in html
@@ -316,9 +331,9 @@ def inject(snippet_path, blog_path):
             html, cards_html, table_html, short_date, day_name
         )
         if changes > 0:
-            html = _restore_nba_tracker(html, _nba_block)
+            full_html = prefix + html + suffix
             with open(blog_path, "w") as f:
-                f.write(html)
+                f.write(full_html)
             print(f"[inject] Done — appended new picks to existing {short_date} entry")
         else:
             print(f"[inject] No new picks to add for {short_date}")
@@ -378,9 +393,9 @@ def inject(snippet_path, blog_path):
             print("  Could not find <tbody> for table row insertion")
 
     if changes > 0:
-        html = _restore_nba_tracker(html, _nba_block)
+        full_html = prefix + html + suffix
         with open(blog_path, "w") as f:
-            f.write(html)
+            f.write(full_html)
         print(f"[inject] Done — {changes} sections injected")
     else:
         print("[inject] No changes made")

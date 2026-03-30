@@ -151,24 +151,27 @@ def _split_blog_sections(html):
 def patch_blog(blog_path, games, props):
     """Patch specific values in the blog HTML, one pick at a time.
 
-    The NBA picks tracker card is isolated before patching so that
-    global regex replacements never corrupt it.
+    Only operates within the NBA picks tracker card (post-nba-picks).
+    All other blog content (MLB card, dispatch log, etc.) is untouched.
     """
 
     with open(blog_path, "r") as f:
         html = f.read()
 
-    # ── Isolate the NBA picks tracker so we never touch it ──
-    # Replace it with a unique placeholder; restore after all patches.
-    _NBA_PLACEHOLDER = "<!-- __NBA_PICKS_TRACKER_PLACEHOLDER__ -->"
+    # ── Extract only the NBA section — all patches target it exclusively ──
     prefix, nba_block, suffix = _split_blog_sections(html)
-    if nba_block:
-        html = prefix + _NBA_PLACEHOLDER + suffix
-        print(f"  Isolated NBA picks tracker ({len(nba_block)} chars) — will not be modified")
-    else:
-        print("  No NBA picks tracker found — patching entire file")
+    if not nba_block:
+        print("  No NBA picks tracker found — nothing to patch")
+        return 0
+
+    print(f"  Working within NBA picks tracker only ({len(nba_block)} chars)")
+    # All regex work below operates on nba_block, not the full html
 
     changes = 0
+
+    # All regex work below operates on `nba_block` only.
+    # The variable is aliased to `section` for clarity.
+    section = nba_block
 
     # ── Patch game line spreads ──
     # Finds "AWAY @ HOME — TEAM -XX.X" and updates the spread
@@ -179,7 +182,7 @@ def patch_blog(blog_path, games, props):
         # Check if this matchup has already been settled
         final_check = re.search(
             rf"FINAL: {re.escape(away)} \d+ — {re.escape(home)} \d+",
-            html,
+            section,
         )
         if final_check:
             print(f"  Skipping {key} — already settled (FINAL exists)")
@@ -191,11 +194,11 @@ def patch_blog(blog_path, games, props):
             rf"({re.escape(away)} @ {re.escape(home)} — {re.escape(g['spread_team'])}) [+-]?[\d.]+"
         )
         new_val = f"\\1 {g['spread_val']}"
-        new_html = old_pattern.sub(new_val, html)
-        if new_html != html:
+        new_section = old_pattern.sub(new_val, section)
+        if new_section != section:
             print(f"  Updated spread: {key} → {g['spread']}")
             changes += 1
-            html = new_html
+            section = new_section
 
         # Update spread in table rows
         # Pattern: "CLE -16.0" in <td> elements
@@ -203,10 +206,10 @@ def patch_blog(blog_path, games, props):
             rf"(>){re.escape(g['spread_team'])} [+-]?[\d.]+(</td>)"
         )
         new_table = f"\\g<1>{g['spread']}\\2"
-        new_html = old_table.sub(new_table, html)
-        if new_html != html:
+        new_section = old_table.sub(new_table, section)
+        if new_section != section:
             changes += 1
-            html = new_html
+            section = new_section
 
         # Update IMPLIED line
         if g["implied"]:
@@ -214,11 +217,11 @@ def patch_blog(blog_path, games, props):
                 rf"IMPLIED: {re.escape(away)} \d+ — {re.escape(home)} \d+"
             )
             new_implied = f"IMPLIED: {g['implied']}"
-            new_html = old_implied.sub(new_implied, html)
-            if new_html != html:
+            new_section = old_implied.sub(new_implied, section)
+            if new_section != section:
                 print(f"  Updated implied: {key} → {g['implied']}")
                 changes += 1
-                html = new_html
+                section = new_section
 
             # Update implied in table (e.g., "107-123")
             imp_match = re.match(
@@ -241,11 +244,11 @@ def patch_blog(blog_path, games, props):
                 rf"(IMPLIED: {re.escape(g['implied'])}.*?O/U )[\d.]+"
             )
             new_ou = f"\\g<1>{g['total']}"
-            new_html = old_ou.sub(new_ou, html)
-            if new_html != html:
+            new_section = old_ou.sub(new_ou, section)
+            if new_section != section:
                 print(f"  Updated O/U: {key} → {g['total']}")
                 changes += 1
-                html = new_html
+                section = new_section
 
     # ── Patch prop lines + edges ──
     # SKIP props that have already been settled (result in table)
@@ -265,7 +268,7 @@ def patch_blog(blog_path, games, props):
         for variant in name_variants:
             if re.search(
                 rf">{re.escape(variant)}[^<]*</td>.*?>[WLP]</td>",
-                html,
+                section,
                 re.DOTALL,
             ):
                 print(f"  Skipping {pname} — already settled")
@@ -280,11 +283,11 @@ def patch_blog(blog_path, games, props):
                 rf"({re.escape(blog_name)}.*?OVER )([\d.]+)( (?:PTS|AST|REB))",
                 re.DOTALL,
             )
-            new_html = old_line.sub(rf"\g<1>{p['line']}\3", html)
-            if new_html != html:
+            new_section = old_line.sub(rf"\g<1>{p['line']}\3", section)
+            if new_section != section:
                 print(f"  Updated prop line: {pname} → {p['line']}")
                 changes += 1
-                html = new_html
+                section = new_section
 
         # Update EDGE value
         if p["edge"] and p["avg"] and p["line"]:
@@ -299,22 +302,19 @@ def patch_blog(blog_path, games, props):
                 re.DOTALL,
             )
             repl = rf"\g<1>{p['edge']}\g<2>{p['avg']}\g<3>{p['line']}"
-            new_html = block_pattern.sub(repl, html)
-            if new_html != html:
+            new_section = block_pattern.sub(repl, section)
+            if new_section != section:
                 print(f"  Updated edge: {pname} → {p['edge']}")
                 changes += 1
-                html = new_html
+                section = new_section
 
     print(f"\nTotal changes: {changes}")
 
-    # ── Restore the NBA picks tracker ──
-    if nba_block:
-        if _NBA_PLACEHOLDER in html:
-            html = html.replace(_NBA_PLACEHOLDER, nba_block)
-            print("  Restored NBA picks tracker (unmodified)")
-        else:
-            print("  WARNING: placeholder lost — appending NBA block at original position")
-            html = prefix + nba_block + html[len(prefix):]
+    # ── Reassemble: prefix + patched NBA section + suffix ──
+    html = prefix + section + suffix
+
+    with open(blog_path, "w") as f:
+        f.write(html)
 
     return changes
 

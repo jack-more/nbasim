@@ -484,37 +484,48 @@ def main():
         settlement = json.load(f)
 
     with open(blog_path) as f:
-        html = f.read()
+        full_html = f.read()
 
-    # ── Isolate the NBA picks tracker so settlement never touches it ──
+    # ── Extract ONLY the NBA picks tracker — all patches target it exclusively ──
     _NBA_PLACEHOLDER = "<!-- __NBA_PICKS_TRACKER_PLACEHOLDER__ -->"
-    _nba_block = ""
-    nba_start = html.find('<!-- NBA SIM PICKS TRACKER (TOP POST)')
+    prefix = full_html
+    nba_section = ""
+    suffix = ""
+
+    nba_start = full_html.find('<!-- NBA SIM PICKS TRACKER (TOP POST)')
     if nba_start == -1:
-        nba_start = html.find('<details class="blog-card post-nba-picks"')
+        nba_start = full_html.find('<details class="blog-card post-nba-picks"')
     if nba_start != -1:
         depth = 0
-        tag_start = html.find('<details', nba_start)
+        tag_start = full_html.find('<details', nba_start)
         i = tag_start
-        while i < len(html):
-            if html[i:i+8] == '<details':
+        while i < len(full_html):
+            if full_html[i:i+8] == '<details':
                 depth += 1
                 i += 8
-            elif html[i:i+10] == '</details>':
+            elif full_html[i:i+10] == '</details>':
                 depth -= 1
                 if depth == 0:
                     end_idx = i + 10
-                    _nba_block = html[nba_start:end_idx]
-                    html = html[:nba_start] + _NBA_PLACEHOLDER + html[end_idx:]
-                    print(f"  Isolated NBA picks tracker ({len(_nba_block)} chars)")
+                    prefix = full_html[:nba_start]
+                    nba_section = full_html[nba_start:end_idx]
+                    suffix = full_html[end_idx:]
+                    print(f"  Extracted NBA picks tracker ({len(nba_section)} chars) — only this section will be modified")
                     break
                 i += 10
             else:
                 i += 1
 
+    if not nba_section:
+        print("  WARNING: No NBA picks tracker found — nothing to settle")
+        return
+
     picks = settlement["picks"]
 
     total_changes = 0
+
+    # All patches below operate ONLY on nba_section
+    html = nba_section
 
     # Patch results table
     print("Patching results table...")
@@ -559,16 +570,11 @@ def main():
 
     print(f"\nTotal changes: {total_changes}")
 
-    # ── Restore the NBA picks tracker ──
-    if _nba_block:
-        if _NBA_PLACEHOLDER in html:
-            html = html.replace(_NBA_PLACEHOLDER, _nba_block)
-            print("  Restored NBA picks tracker (unmodified)")
-        else:
-            print("  WARNING: NBA placeholder lost during settlement")
+    # ── Reassemble: prefix + patched NBA section + suffix ──
+    full_html = prefix + html + suffix
 
     with open(blog_path, "w") as f:
-        f.write(html)
+        f.write(full_html)
 
     print(f"Blog updated: {blog_path}")
 
