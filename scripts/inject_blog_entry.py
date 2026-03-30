@@ -19,6 +19,58 @@ import sys
 from datetime import datetime
 
 
+# ── NBA picks tracker isolation ──────────────────────────────────
+# The MORELLOSIMS blog contains both an NBA picks tracker card
+# (class="post-nba-picks") and an MLB picks card.  All injection
+# must target the MLB section only.  We replace the NBA card with a
+# placeholder before any regex work and restore it at the end.
+
+_NBA_PLACEHOLDER = "<!-- __NBA_PICKS_TRACKER_PLACEHOLDER__ -->"
+
+
+def _isolate_nba_tracker(html):
+    """Replace the NBA picks tracker card with a placeholder.
+
+    Returns (html_with_placeholder, nba_block_or_empty_string).
+    """
+    start_marker = '<!-- NBA SIM PICKS TRACKER (TOP POST)'
+    start_idx = html.find(start_marker)
+    if start_idx == -1:
+        start_idx = html.find('<details class="blog-card post-nba-picks"')
+    if start_idx == -1:
+        return html, ""
+
+    # Find closing </details> by counting nesting
+    depth = 0
+    tag_start = html.find('<details', start_idx)
+    i = tag_start
+    while i < len(html):
+        if html[i:i+8] == '<details':
+            depth += 1
+            i += 8
+        elif html[i:i+10] == '</details>':
+            depth -= 1
+            if depth == 0:
+                end_idx = i + 10
+                nba_block = html[start_idx:end_idx]
+                return html[:start_idx] + _NBA_PLACEHOLDER + html[end_idx:], nba_block
+            i += 10
+        else:
+            i += 1
+
+    return html, ""
+
+
+def _restore_nba_tracker(html, nba_block):
+    """Put the NBA picks tracker back, replacing the placeholder."""
+    if not nba_block:
+        return html
+    if _NBA_PLACEHOLDER in html:
+        return html.replace(_NBA_PLACEHOLDER, nba_block)
+    print("  WARNING: NBA placeholder lost during injection")
+    return html
+
+
 # Day-of-week abbreviations
 DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
@@ -226,6 +278,11 @@ def inject(snippet_path, blog_path):
     with open(blog_path) as f:
         html = f.read()
 
+    # ── Isolate the NBA picks tracker so injection targets MLB only ──
+    html, _nba_block = _isolate_nba_tracker(html)
+    if _nba_block:
+        print(f"[inject] Isolated NBA picks tracker ({len(_nba_block)} chars)")
+
     # Parse metadata from snippet comments
     date_match = re.search(r'Blog snippet for (\d{4}-\d{2}-\d{2})', snippet)
     meta_match = re.search(r'(\d+) picks?, (\d+) \$PP risked', snippet)
@@ -259,6 +316,7 @@ def inject(snippet_path, blog_path):
             html, cards_html, table_html, short_date, day_name
         )
         if changes > 0:
+            html = _restore_nba_tracker(html, _nba_block)
             with open(blog_path, "w") as f:
                 f.write(html)
             print(f"[inject] Done — appended new picks to existing {short_date} entry")
@@ -320,6 +378,7 @@ def inject(snippet_path, blog_path):
             print("  Could not find <tbody> for table row insertion")
 
     if changes > 0:
+        html = _restore_nba_tracker(html, _nba_block)
         with open(blog_path, "w") as f:
             f.write(html)
         print(f"[inject] Done — {changes} sections injected")

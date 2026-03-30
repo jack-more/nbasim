@@ -486,6 +486,32 @@ def main():
     with open(blog_path) as f:
         html = f.read()
 
+    # ── Isolate the NBA picks tracker so settlement never touches it ──
+    _NBA_PLACEHOLDER = "<!-- __NBA_PICKS_TRACKER_PLACEHOLDER__ -->"
+    _nba_block = ""
+    nba_start = html.find('<!-- NBA SIM PICKS TRACKER (TOP POST)')
+    if nba_start == -1:
+        nba_start = html.find('<details class="blog-card post-nba-picks"')
+    if nba_start != -1:
+        depth = 0
+        tag_start = html.find('<details', nba_start)
+        i = tag_start
+        while i < len(html):
+            if html[i:i+8] == '<details':
+                depth += 1
+                i += 8
+            elif html[i:i+10] == '</details>':
+                depth -= 1
+                if depth == 0:
+                    end_idx = i + 10
+                    _nba_block = html[nba_start:end_idx]
+                    html = html[:nba_start] + _NBA_PLACEHOLDER + html[end_idx:]
+                    print(f"  Isolated NBA picks tracker ({len(_nba_block)} chars)")
+                    break
+                i += 10
+            else:
+                i += 1
+
     picks = settlement["picks"]
 
     total_changes = 0
@@ -532,6 +558,14 @@ def main():
         print("WARNING: Could not find picks.csv — skipping hero stat update")
 
     print(f"\nTotal changes: {total_changes}")
+
+    # ── Restore the NBA picks tracker ──
+    if _nba_block:
+        if _NBA_PLACEHOLDER in html:
+            html = html.replace(_NBA_PLACEHOLDER, _nba_block)
+            print("  Restored NBA picks tracker (unmodified)")
+        else:
+            print("  WARNING: NBA placeholder lost during settlement")
 
     with open(blog_path, "w") as f:
         f.write(html)

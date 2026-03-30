@@ -112,11 +112,61 @@ def extract_sim_data(sim_path):
     return games, props
 
 
+def _split_blog_sections(html):
+    """Split HTML into (before_nba, nba_picks_tracker, after_nba).
+
+    The NBA picks tracker card (class="post-nba-picks") is isolated so
+    regex replacements never touch it.  Returns (prefix, nba_block, suffix).
+    If the card isn't found, nba_block is empty and prefix+suffix == html.
+    """
+    start_marker = '<!-- NBA SIM PICKS TRACKER (TOP POST)'
+    # Fallback: look for the details tag directly
+    start_idx = html.find(start_marker)
+    if start_idx == -1:
+        start_idx = html.find('<details class="blog-card post-nba-picks"')
+    if start_idx == -1:
+        return html, "", ""
+
+    # Find the matching </details> by counting nesting
+    depth = 0
+    tag_start = html.find('<details', start_idx)
+    i = tag_start
+    while i < len(html):
+        if html[i:i+8] == '<details':
+            depth += 1
+            i += 8
+        elif html[i:i+10] == '</details>':
+            depth -= 1
+            if depth == 0:
+                end_idx = i + 10
+                return html[:start_idx], html[start_idx:end_idx], html[end_idx:]
+            i += 10
+        else:
+            i += 1
+
+    # Fallback: couldn't find closing tag, treat whole thing as prefix
+    return html, "", ""
+
+
 def patch_blog(blog_path, games, props):
-    """Patch specific values in the blog HTML, one pick at a time."""
+    """Patch specific values in the blog HTML, one pick at a time.
+
+    The NBA picks tracker card is isolated before patching so that
+    global regex replacements never corrupt it.
+    """
 
     with open(blog_path, "r") as f:
         html = f.read()
+
+    # ── Isolate the NBA picks tracker so we never touch it ──
+    # Replace it with a unique placeholder; restore after all patches.
+    _NBA_PLACEHOLDER = "<!-- __NBA_PICKS_TRACKER_PLACEHOLDER__ -->"
+    prefix, nba_block, suffix = _split_blog_sections(html)
+    if nba_block:
+        html = prefix + _NBA_PLACEHOLDER + suffix
+        print(f"  Isolated NBA picks tracker ({len(nba_block)} chars) — will not be modified")
+    else:
+        print("  No NBA picks tracker found — patching entire file")
 
     changes = 0
 
@@ -257,8 +307,14 @@ def patch_blog(blog_path, games, props):
 
     print(f"\nTotal changes: {changes}")
 
-    with open(blog_path, "w") as f:
-        f.write(html)
+    # ── Restore the NBA picks tracker ──
+    if nba_block:
+        if _NBA_PLACEHOLDER in html:
+            html = html.replace(_NBA_PLACEHOLDER, nba_block)
+            print("  Restored NBA picks tracker (unmodified)")
+        else:
+            print("  WARNING: placeholder lost — appending NBA block at original position")
+            html = prefix + nba_block + html[len(prefix):]
 
     return changes
 
