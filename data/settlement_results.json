@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-03-30T17:54:02.172731+00:00",
+  "graded_at": "2026-03-31T17:56:26.760244+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1298,16 +1298,38 @@
       "profit": -50.0,
       "home_score": 123,
       "away_score": 88
+    },
+    {
+      "date": "2026-03-30",
+      "matchup": "BOS @ ATL",
+      "side": "BOS +1.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 112,
+      "away_score": 102
+    },
+    {
+      "date": "2026-03-30",
+      "matchup": "DET @ OKC",
+      "side": "DET +13.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 114,
+      "away_score": 110
     }
   ],
   "pending_count": 2,
   "record": {
-    "W": 71,
-    "L": 46,
+    "W": 72,
+    "L": 47,
     "P": 1
   },
-  "total_profit": 681.02,
+  "total_profit": 676.47,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1831.02,
+  "new_bankroll": 1826.47,
   "status": "PARTIAL"
 }
