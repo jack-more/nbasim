@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-02T14:46:15.151777+00:00",
+  "generated_at": "2026-04-02T16:58:33.815532+00:00",
   "slate_date": "APR 2",
   "games": [
     {
@@ -47,7 +47,7 @@
       "home": "OKC",
       "away": "LAL",
       "book_spread": -9.0,
-      "book_total": 232.0,
+      "book_total": 231.5,
       "sim_spread": -10.0,
       "sim_total": 228.0,
       "confidence": 55.0,
@@ -56,9 +56,9 @@
       "pick_text": "OKC -9.0",
       "pick_type": "spread",
       "conf_label": "TOSS-UP",
-      "ou_pick_text": "U 232.0",
-      "ou_conf": 5,
-      "ou_edge": -4.0,
+      "ou_pick_text": "U 231.5",
+      "ou_conf": 4,
+      "ou_edge": -3.5,
       "home_ml": null,
       "away_ml": null
     },
