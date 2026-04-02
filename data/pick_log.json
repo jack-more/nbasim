@@ -1950,5 +1950,26 @@
     "conf_label": "TAKE SAS",
     "ml_odds": null,
     "generated_at": "2026-04-02T08:41:01.366727+00:00"
+  },
+  {
+    "slate_date": "2026-04-02",
+    "matchup": "PHX @ CHA",
+    "side": "PHX +6.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 6.0,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": -2.5,
+    "book_spread": -6.0,
+    "spread_edge": 3.5,
+    "sim_total": 221.5,
+    "book_total": 225.5,
+    "raw_edge": 2.5,
+    "captured_at": "2026-04-02T19:11:37.336997+00:00",
+    "conf_label": "TAKE PHX",
+    "ml_odds": null,
+    "generated_at": "2026-04-02T19:11:35.159679+00:00"
   }
 ]
