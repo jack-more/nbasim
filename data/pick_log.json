@@ -2034,5 +2034,26 @@
     "conf_label": "TAKE BKN",
     "ml_odds": null,
     "generated_at": "2026-04-03T16:42:22.006991+00:00"
+  },
+  {
+    "slate_date": "2026-04-03",
+    "matchup": "MIN @ PHI",
+    "side": "MIN +4.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 4.5,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": -1.0,
+    "book_spread": -4.5,
+    "spread_edge": 3.5,
+    "sim_total": 232.5,
+    "book_total": 235.0,
+    "raw_edge": 1.0,
+    "captured_at": "2026-04-03T19:04:04.223677+00:00",
+    "conf_label": "TAKE MIN",
+    "ml_odds": null,
+    "generated_at": "2026-04-03T19:04:01.554624+00:00"
   }
 ]
