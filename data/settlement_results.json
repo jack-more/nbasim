@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-03T17:33:56.876893+00:00",
+  "graded_at": "2026-04-04T17:29:15.578362+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1408,16 +1408,60 @@
       "profit": -30.0,
       "home_score": 127,
       "away_score": 107
+    },
+    {
+      "date": "2026-04-03",
+      "matchup": "IND @ CHA",
+      "side": "IND +15.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 129,
+      "away_score": 108
+    },
+    {
+      "date": "2026-04-03",
+      "matchup": "UTA @ HOU",
+      "side": "HOU -17.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 140,
+      "away_score": 106
+    },
+    {
+      "date": "2026-04-03",
+      "matchup": "ATL @ BKN",
+      "side": "BKN +17.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 107,
+      "away_score": 141
+    },
+    {
+      "date": "2026-04-03",
+      "matchup": "MIN @ PHI",
+      "side": "MIN +4.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 115,
+      "away_score": 103
     }
   ],
-  "pending_count": 3,
+  "pending_count": 1,
   "record": {
-    "W": 76,
-    "L": 51,
+    "W": 77,
+    "L": 54,
     "P": 1
   },
-  "total_profit": 700.09,
+  "total_profit": 655.54,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1850.09,
+  "new_bankroll": 1805.54,
   "status": "PARTIAL"
 }
