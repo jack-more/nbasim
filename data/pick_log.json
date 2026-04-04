@@ -2055,5 +2055,26 @@
     "conf_label": "TAKE MIN",
     "ml_odds": null,
     "generated_at": "2026-04-03T19:04:01.554624+00:00"
+  },
+  {
+    "slate_date": "2026-04-04",
+    "matchup": "WAS @ MIA",
+    "side": "WAS +17.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 17.0,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -13.0,
+    "book_spread": -17.0,
+    "spread_edge": 4.0,
+    "sim_total": 243.5,
+    "book_total": 248.5,
+    "raw_edge": 13.0,
+    "captured_at": "2026-04-04T08:08:42.688544+00:00",
+    "conf_label": "TAKE WAS",
+    "ml_odds": null,
+    "generated_at": "2026-04-04T08:08:38.409861+00:00"
   }
 ]
