@@ -2160,5 +2160,26 @@
     "conf_label": "TAKE LAL",
     "ml_odds": null,
     "generated_at": "2026-04-05T14:12:22.284948+00:00"
+  },
+  {
+    "slate_date": "2026-04-05",
+    "matchup": "LAC @ SAC",
+    "side": "SAC +13.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 13.0,
+    "confidence": 67.5,
+    "conf_1_10": 6,
+    "risk": 30,
+    "sim_spread": 9.5,
+    "book_spread": 13.0,
+    "spread_edge": -3.5,
+    "sim_total": 224.0,
+    "book_total": 228.5,
+    "raw_edge": -9.5,
+    "captured_at": "2026-04-05T16:38:59.246124+00:00",
+    "conf_label": "TAKE SAC",
+    "ml_odds": null,
+    "generated_at": "2026-04-05T16:38:56.316570+00:00"
   }
 ]
