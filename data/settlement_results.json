@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-04T17:29:15.578362+00:00",
+  "graded_at": "2026-04-05T17:29:44.544944+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1452,16 +1452,27 @@
       "profit": -30.0,
       "home_score": 115,
       "away_score": 103
+    },
+    {
+      "date": "2026-04-04",
+      "matchup": "WAS @ MIA",
+      "side": "WAS +17.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 152,
+      "away_score": 136
     }
   ],
-  "pending_count": 1,
+  "pending_count": 5,
   "record": {
-    "W": 77,
+    "W": 78,
     "L": 54,
     "P": 1
   },
-  "total_profit": 655.54,
+  "total_profit": 682.81,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1805.54,
+  "new_bankroll": 1832.81,
   "status": "PARTIAL"
 }
