@@ -2244,5 +2244,26 @@
     "conf_label": "TAKE POR",
     "ml_odds": null,
     "generated_at": "2026-04-06T08:58:55.179244+00:00"
+  },
+  {
+    "slate_date": "2026-04-06",
+    "matchup": "DET @ ORL",
+    "side": "DET -1.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": -1.5,
+    "confidence": 92.5,
+    "conf_1_10": 10,
+    "risk": 50,
+    "sim_spread": 10.0,
+    "book_spread": 1.5,
+    "spread_edge": 8.5,
+    "sim_total": 227.0,
+    "book_total": 223.0,
+    "raw_edge": -10.0,
+    "captured_at": "2026-04-06T19:17:24.184066+00:00",
+    "conf_label": "TAKE DET",
+    "ml_odds": null,
+    "generated_at": "2026-04-06T19:17:22.341578+00:00"
   }
 ]
