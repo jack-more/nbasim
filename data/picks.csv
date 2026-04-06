@@ -132,11 +132,11 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-04-03,ATL @ BKN,BKN +17.0,spread,30,L,-30.0,,107,141
 2026-04-03,MIN @ PHI,MIN +4.5,spread,30,L,-30.0,,115,103
 2026-04-04,WAS @ MIA,WAS +17.0,spread,30,W,27.27,,152,136
-2026-04-05,IND @ CLE,IND +16.5,spread,50,,,,,
-2026-04-05,UTA @ OKC,OKC -22.5,spread,50,,,,,
-2026-04-05,HOU @ GSW,HOU -4.0,spread,50,,,,,
-2026-04-05,LAL @ DAL,LAL -1.5,spread,30,,,,,
-2026-04-05,LAC @ SAC,SAC +13.0,spread,30,,,,,
+2026-04-05,IND @ CLE,IND +16.5,spread,50,W,45.45,,117,108
+2026-04-05,UTA @ OKC,OKC -22.5,spread,50,W,45.45,,146,111
+2026-04-05,HOU @ GSW,HOU -4.0,spread,50,L,-50.0,,116,117
+2026-04-05,LAL @ DAL,LAL -1.5,spread,30,L,-30.0,,134,128
+2026-04-05,LAC @ SAC,SAC +13.0,spread,30,L,-30.0,,109,138
 2026-04-06,NYK @ ATL,NYK +1.5,spread,30,,,,,
 2026-04-06,CLE @ MEM,MEM +13.5,spread,30,,,,,
 2026-04-06,POR @ DEN,POR +8.5,spread,30,,,,,
