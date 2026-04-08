@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-07T17:57:48.023992+00:00",
+  "graded_at": "2026-04-08T18:05:41.948586+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1562,16 +1562,82 @@
       "profit": -50.0,
       "home_score": 123,
       "away_score": 107
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "MIN @ IND",
+      "side": "IND +12.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 104,
+      "away_score": 124
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "CHI @ WAS",
+      "side": "WAS +6.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 98,
+      "away_score": 129
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "SAC @ GSW",
+      "side": "SAC +15.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 110,
+      "away_score": 105
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "DAL @ LAC",
+      "side": "DAL +11.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 116,
+      "away_score": 103
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "OKC @ LAL",
+      "side": "LAL +16.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 87,
+      "away_score": 123
+    },
+    {
+      "date": "2026-04-07",
+      "matchup": "HOU @ PHX",
+      "side": "HOU +0.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 105,
+      "away_score": 119
     }
   ],
-  "pending_count": 6,
+  "pending_count": 4,
   "record": {
-    "W": 82,
-    "L": 59,
+    "W": 84,
+    "L": 63,
     "P": 1
   },
-  "total_profit": 638.25,
+  "total_profit": 530.97,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1788.25,
+  "new_bankroll": 1680.97,
   "status": "PARTIAL"
 }
