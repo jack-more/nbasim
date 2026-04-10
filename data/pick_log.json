@@ -2727,5 +2727,26 @@
     "conf_label": "TAKE MEM",
     "ml_odds": null,
     "generated_at": "2026-04-10T08:59:16.760636+00:00"
+  },
+  {
+    "slate_date": "2026-04-10",
+    "matchup": "NOP @ BOS",
+    "side": "BOS -17.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": -17.0,
+    "confidence": 70.0,
+    "conf_1_10": 7,
+    "risk": 30,
+    "sim_spread": -21.0,
+    "book_spread": -17.0,
+    "spread_edge": -4.0,
+    "sim_total": 223.5,
+    "book_total": 224.0,
+    "raw_edge": 21.0,
+    "captured_at": "2026-04-10T16:57:02.176365+00:00",
+    "conf_label": "TAKE BOS",
+    "ml_odds": null,
+    "generated_at": "2026-04-10T16:56:58.796925+00:00"
   }
 ]
