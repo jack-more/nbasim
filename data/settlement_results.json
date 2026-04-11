@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-10T17:47:18.821675+00:00",
+  "graded_at": "2026-04-11T17:30:52.157368+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1705,16 +1705,126 @@
       "profit": 27.27,
       "home_score": 103,
       "away_score": 119
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "CLE @ ATL",
+      "side": "CLE +8.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 124,
+      "away_score": 102
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "MIA @ WAS",
+      "side": "WAS +18.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 117,
+      "away_score": 140
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "DET @ CHA",
+      "side": "DET +4.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 100,
+      "away_score": 118
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "PHI @ IND",
+      "side": "IND +15.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 94,
+      "away_score": 105
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "TOR @ NYK",
+      "side": "TOR +6.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 112,
+      "away_score": 95
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "ORL @ CHI",
+      "side": "CHI +14.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 103,
+      "away_score": 127
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "BKN @ MIL",
+      "side": "BKN +9.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 125,
+      "away_score": 108
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "MIN @ HOU",
+      "side": "MIN +10.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 132,
+      "away_score": 136
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "MEM @ UTA",
+      "side": "MEM +4.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 147,
+      "away_score": 101
+    },
+    {
+      "date": "2026-04-10",
+      "matchup": "NOP @ BOS",
+      "side": "BOS -17.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 144,
+      "away_score": 118
     }
   ],
-  "pending_count": 10,
+  "pending_count": 0,
   "record": {
-    "W": 88,
-    "L": 66,
+    "W": 92,
+    "L": 72,
     "P": 1
   },
-  "total_profit": 546.41,
+  "total_profit": 450.03,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1696.41,
-  "status": "PARTIAL"
+  "new_bankroll": 1600.03,
+  "status": "SETTLED"
 }
