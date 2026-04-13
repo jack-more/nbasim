@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-12T17:33:56.609000+00:00",
+  "graded_at": "2026-04-13T18:00:13.797514+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1815,16 +1815,115 @@
       "profit": 27.27,
       "home_score": 144,
       "away_score": 118
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "ORL @ BOS",
+      "side": "BOS +12.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 113,
+      "away_score": 108
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "CHA @ NYK",
+      "side": "NYK +13.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 96,
+      "away_score": 110
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "MIL @ PHI",
+      "side": "MIL +15.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 126,
+      "away_score": 106
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "BKN @ TOR",
+      "side": "BKN +22.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 136,
+      "away_score": 101
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "NOP @ MIN",
+      "side": "NOP +6.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 132,
+      "away_score": 126
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "PHX @ OKC",
+      "side": "PHX +5.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 103,
+      "away_score": 135
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "ATL @ MIA",
+      "side": "ATL +4.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 143,
+      "away_score": 117
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "GSW @ LAC",
+      "side": "GSW +6.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 115,
+      "away_score": 110
+    },
+    {
+      "date": "2026-04-12",
+      "matchup": "UTA @ LAL",
+      "side": "LAL -13.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "W",
+      "profit": 27.27,
+      "home_score": 131,
+      "away_score": 107
     }
   ],
-  "pending_count": 9,
+  "pending_count": 0,
   "record": {
-    "W": 92,
-    "L": 72,
+    "W": 97,
+    "L": 76,
     "P": 1
   },
-  "total_profit": 450.03,
+  "total_profit": 480.92,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1600.03,
-  "status": "PARTIAL"
+  "new_bankroll": 1630.92,
+  "status": "SETTLED"
 }
