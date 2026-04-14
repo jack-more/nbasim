@@ -2937,5 +2937,26 @@
     "conf_label": "TAKE LAL",
     "ml_odds": null,
     "generated_at": "2026-04-12T16:40:49.416073+00:00"
+  },
+  {
+    "slate_date": "2026-04-14",
+    "matchup": "MIA @ CHA",
+    "side": "MIA +5.5",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 5.5,
+    "confidence": 75.0,
+    "conf_1_10": 8,
+    "risk": 50,
+    "sim_spread": -0.5,
+    "book_spread": -5.5,
+    "spread_edge": 5.0,
+    "sim_total": 235.5,
+    "book_total": 229.0,
+    "raw_edge": 0.5,
+    "captured_at": "2026-04-14T09:06:25.910283+00:00",
+    "conf_label": "TAKE MIA",
+    "ml_odds": null,
+    "generated_at": "2026-04-14T09:06:22.307594+00:00"
   }
 ]
