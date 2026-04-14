@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-14T17:08:50.020008+00:00",
+  "generated_at": "2026-04-14T19:32:25.461740+00:00",
   "slate_date": "APR 14",
   "games": [
     {
@@ -27,7 +27,7 @@
       "home": "PHX",
       "away": "POR",
       "book_spread": -3.0,
-      "book_total": 217.0,
+      "book_total": 216.5,
       "sim_spread": -0.5,
       "sim_total": 228.0,
       "confidence": 62.5,
@@ -36,9 +36,9 @@
       "pick_text": "POR +3.0",
       "pick_type": "spread",
       "conf_label": "LEAN POR",
-      "ou_pick_text": "O 217.0",
-      "ou_conf": 7,
-      "ou_edge": 11.0,
+      "ou_pick_text": "O 216.5",
+      "ou_conf": 8,
+      "ou_edge": 11.5,
       "home_ml": null,
       "away_ml": null
     }
