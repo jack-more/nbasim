@@ -2958,5 +2958,26 @@
     "conf_label": "TAKE MIA",
     "ml_odds": null,
     "generated_at": "2026-04-14T09:06:22.307594+00:00"
+  },
+  {
+    "slate_date": "2026-04-15",
+    "matchup": "ORL @ PHI",
+    "side": "ORL +2.0",
+    "pick_type": "spread",
+    "direction": "HOME",
+    "line_value": 2.0,
+    "confidence": 77.5,
+    "conf_1_10": 9,
+    "risk": 50,
+    "sim_spread": 3.5,
+    "book_spread": -2.0,
+    "spread_edge": 5.5,
+    "sim_total": 228.5,
+    "book_total": 222.0,
+    "raw_edge": -3.5,
+    "captured_at": "2026-04-15T09:06:46.808549+00:00",
+    "conf_label": "TAKE ORL",
+    "ml_odds": null,
+    "generated_at": "2026-04-15T09:06:43.283742+00:00"
   }
 ]
