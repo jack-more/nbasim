@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-15T18:04:19.699928+00:00",
+  "graded_at": "2026-04-16T18:08:22.211658+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1925,16 +1925,27 @@
       "profit": 45.45,
       "home_score": 127,
       "away_score": 126
+    },
+    {
+      "date": "2026-04-15",
+      "matchup": "ORL @ PHI",
+      "side": "ORL +2.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 109,
+      "away_score": 97
     }
   ],
-  "pending_count": 1,
+  "pending_count": 0,
   "record": {
     "W": 98,
-    "L": 76,
+    "L": 77,
     "P": 1
   },
-  "total_profit": 526.37,
+  "total_profit": 476.37,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1676.37,
-  "status": "PARTIAL"
+  "new_bankroll": 1626.37,
+  "status": "SETTLED"
 }
