@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T16:56:27.343191+00:00",
+  "generated_at": "2026-04-17T19:17:01.501590+00:00",
   "slate_date": "APR 17",
   "games": [
     {
@@ -26,14 +26,14 @@
       "matchup": "GSW @ PHX",
       "home": "PHX",
       "away": "GSW",
-      "book_spread": -3.5,
+      "book_spread": -3.0,
       "book_total": 220.0,
       "sim_spread": -5.5,
       "sim_total": 224.0,
-      "confidence": 60.0,
-      "spread_edge": -2.0,
+      "confidence": 62.5,
+      "spread_edge": -2.5,
       "raw_edge": 5.5,
-      "pick_text": "PHX -3.5",
+      "pick_text": "PHX -3.0",
       "pick_type": "spread",
       "conf_label": "LEAN PHX",
       "ou_pick_text": "O 220.0",
