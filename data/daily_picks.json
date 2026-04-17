@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T09:06:30.362274+00:00",
+  "generated_at": "2026-04-17T14:46:57.021088+00:00",
   "slate_date": "APR 17",
   "games": [
     {
@@ -7,7 +7,7 @@
       "home": "ORL",
       "away": "CHA",
       "book_spread": 3.5,
-      "book_total": 218.0,
+      "book_total": 218.5,
       "sim_spread": 0.0,
       "sim_total": 225.5,
       "confidence": 67.5,
@@ -16,9 +16,9 @@
       "pick_text": "ORL +3.5",
       "pick_type": "spread",
       "conf_label": "TAKE ORL",
-      "ou_pick_text": "O 218.0",
+      "ou_pick_text": "O 218.5",
       "ou_conf": 6,
-      "ou_edge": 7.5,
+      "ou_edge": 7.0,
       "home_ml": null,
       "away_ml": null
     },
@@ -27,7 +27,7 @@
       "home": "PHX",
       "away": "GSW",
       "book_spread": -3.5,
-      "book_total": 219.5,
+      "book_total": 220.0,
       "sim_spread": -5.5,
       "sim_total": 224.0,
       "confidence": 60.0,
@@ -36,9 +36,9 @@
       "pick_text": "PHX -3.5",
       "pick_type": "spread",
       "conf_label": "LEAN PHX",
-      "ou_pick_text": "O 219.5",
+      "ou_pick_text": "O 220.0",
       "ou_conf": 5,
-      "ou_edge": 4.5,
+      "ou_edge": 4.0,
       "home_ml": null,
       "away_ml": null
     }
