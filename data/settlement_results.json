@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-18T17:35:52.194348+00:00",
+  "graded_at": "2026-04-19T17:35:31.103973+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1947,16 +1947,38 @@
       "profit": 27.27,
       "home_score": 121,
       "away_score": 90
+    },
+    {
+      "date": "2026-04-18",
+      "matchup": "TOR @ CLE",
+      "side": "TOR +8.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 126,
+      "away_score": 113
+    },
+    {
+      "date": "2026-04-18",
+      "matchup": "MIN @ DEN",
+      "side": "MIN +6.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 116,
+      "away_score": 105
     }
   ],
   "pending_count": 2,
   "record": {
     "W": 99,
-    "L": 77,
+    "L": 79,
     "P": 1
   },
-  "total_profit": 503.64,
+  "total_profit": 423.64,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1653.64,
+  "new_bankroll": 1573.64,
   "status": "PARTIAL"
 }
