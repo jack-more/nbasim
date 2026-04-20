@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-19T17:35:31.103973+00:00",
+  "graded_at": "2026-04-20T17:57:22.922731+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -1969,16 +1969,60 @@
       "profit": -30.0,
       "home_score": 116,
       "away_score": 105
+    },
+    {
+      "date": "2026-04-19",
+      "matchup": "PHX @ OKC",
+      "side": "PHX +14.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 119,
+      "away_score": 84
+    },
+    {
+      "date": "2026-04-19",
+      "matchup": "POR @ SAS",
+      "side": "POR +11.0",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 111,
+      "away_score": 98
+    },
+    {
+      "date": "2026-04-20",
+      "matchup": "TOR @ CLE",
+      "side": "TOR +8.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 126,
+      "away_score": 113
+    },
+    {
+      "date": "2026-04-20",
+      "matchup": "MIN @ DEN",
+      "side": "MIN +6.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 116,
+      "away_score": 105
     }
   ],
-  "pending_count": 2,
+  "pending_count": 0,
   "record": {
     "W": 99,
-    "L": 79,
+    "L": 83,
     "P": 1
   },
-  "total_profit": 423.64,
+  "total_profit": 263.64,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1573.64,
-  "status": "PARTIAL"
+  "new_bankroll": 1413.64,
+  "status": "SETTLED"
 }
