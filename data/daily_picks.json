@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-22T17:02:42.517229+00:00",
+  "generated_at": "2026-04-22T19:30:13.884127+00:00",
   "slate_date": "APR 22",
   "games": [
     {
@@ -26,14 +26,14 @@
       "matchup": "PHX @ OKC",
       "home": "OKC",
       "away": "PHX",
-      "book_spread": -17.5,
+      "book_spread": -17.0,
       "book_total": 216.0,
       "sim_spread": -11.0,
       "sim_total": 222.5,
-      "confidence": 82.5,
-      "spread_edge": 6.5,
+      "confidence": 80.0,
+      "spread_edge": 6.0,
       "raw_edge": 11.0,
-      "pick_text": "PHX +17.5",
+      "pick_text": "PHX +17.0",
       "pick_type": "spread",
       "conf_label": "TAKE PHX",
       "ou_pick_text": "O 216.0",
