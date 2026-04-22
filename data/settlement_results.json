@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-21T17:58:50.127256+00:00",
+  "graded_at": "2026-04-22T17:59:49.533177+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -2015,7 +2015,7 @@
       "away_score": 105
     }
   ],
-  "pending_count": 0,
+  "pending_count": 2,
   "record": {
     "W": 99,
     "L": 83,
@@ -2024,5 +2024,5 @@
   "total_profit": 263.64,
   "starting_bankroll": 1150.0,
   "new_bankroll": 1413.64,
-  "status": "SETTLED"
+  "status": "PARTIAL"
 }
