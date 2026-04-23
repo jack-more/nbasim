@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-04-22T17:59:49.533177+00:00",
+  "graded_at": "2026-04-23T18:05:37.858172+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -2013,16 +2013,38 @@
       "profit": -30.0,
       "home_score": 116,
       "away_score": 105
+    },
+    {
+      "date": "2026-04-22",
+      "matchup": "ORL @ DET",
+      "side": "ORL +8.5",
+      "type": "spread",
+      "risk": 30.0,
+      "result": "L",
+      "profit": -30.0,
+      "home_score": 98,
+      "away_score": 83
+    },
+    {
+      "date": "2026-04-22",
+      "matchup": "PHX @ OKC",
+      "side": "PHX +17.5",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "W",
+      "profit": 45.45,
+      "home_score": 120,
+      "away_score": 107
     }
   ],
-  "pending_count": 2,
+  "pending_count": 1,
   "record": {
-    "W": 99,
-    "L": 83,
+    "W": 100,
+    "L": 84,
     "P": 1
   },
-  "total_profit": 263.64,
+  "total_profit": 279.09,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1413.64,
+  "new_bankroll": 1429.09,
   "status": "PARTIAL"
 }
