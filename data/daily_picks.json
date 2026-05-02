@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-05-02T16:49:35.780862+00:00",
+  "generated_at": "2026-05-02T19:15:57.073060+00:00",
   "slate_date": "MAY 2",
   "games": [
     {
       "matchup": "PHI @ BOS",
       "home": "BOS",
       "away": "PHI",
-      "book_spread": -8.5,
-      "book_total": 205.5,
+      "book_spread": -7.0,
+      "book_total": 205.0,
       "sim_spread": -5.5,
       "sim_total": 220.0,
-      "confidence": 65.0,
-      "spread_edge": 3.0,
+      "confidence": 57.5,
+      "spread_edge": 1.5,
       "raw_edge": 5.5,
-      "pick_text": "PHI +8.5",
+      "pick_text": "PHI +7.0",
       "pick_type": "spread",
       "conf_label": "LEAN PHI",
-      "ou_pick_text": "O 205.5",
+      "ou_pick_text": "O 205.0",
       "ou_conf": 9,
-      "ou_edge": 14.5,
+      "ou_edge": 15.0,
       "home_ml": null,
       "away_ml": null
     }
