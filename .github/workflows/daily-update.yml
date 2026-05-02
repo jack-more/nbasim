@@ -285,6 +285,16 @@ jobs:
           # Add status-indicators div for profile button
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
 
+      # ── Restore MLB + NBA hero stats from picks/*.json contract ──
+      # This bot only owns the NBA picks tracker. The record cards on
+      # /mlbsim/, /nbasim/, and the homepage MLB block are owned by the
+      # picks contract. Regenerate them deterministically so this sync
+      # never carries stale or backtest-derived MLB numbers forward.
+      - name: Re-render hero stats from picks contract
+        working-directory: morellosims
+        continue-on-error: true
+        run: python3 scripts/update_record_cards.py
+
       - name: Commit and push
         working-directory: morellosims
         run: |
@@ -293,7 +303,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html nbasim/index.html
+          git add index.html nbasim/index.html mlbsim/index.html
 
           if git diff --cached --quiet; then
             echo "No changes"
@@ -433,6 +443,12 @@ jobs:
           sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
 
+      # ── Restore hero stats from picks contract ──
+      - name: Re-render hero stats from picks contract
+        working-directory: morellosims
+        continue-on-error: true
+        run: python3 scripts/update_record_cards.py
+
       - name: Commit and push
         working-directory: morellosims
         run: |
@@ -441,7 +457,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html nbasim/index.html
+          git add index.html nbasim/index.html mlbsim/index.html
 
           if git diff --cached --quiet; then
             echo "No changes"
@@ -538,6 +554,12 @@ jobs:
           sed -i 's|<body>|<body data-ma-theme="dark">|' "$FILE"
           sed -i 's|<div class="top-picks">|<div class="top-picks" style="display:flex;align-items:center;gap:8px;">\n                <div class="status-indicators" style="display:flex;align-items:center;"></div>|' "$FILE"
 
+      # ── Restore hero stats from picks contract ──
+      - name: Re-render hero stats from picks contract
+        working-directory: morellosims
+        continue-on-error: true
+        run: python3 scripts/update_record_cards.py
+
       - name: Commit and push
         working-directory: morellosims
         run: |
@@ -546,7 +568,7 @@ jobs:
 
           DATE=$(TZ='America/Los_Angeles' date '+%b %d %I:%M %p PST')
 
-          git add index.html nbasim/index.html
+          git add index.html nbasim/index.html mlbsim/index.html
 
           if git diff --cached --quiet; then
             echo "No settlement blog changes"
