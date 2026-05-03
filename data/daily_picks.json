@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-03T09:07:58.853508+00:00",
+  "generated_at": "2026-05-03T14:35:32.439080+00:00",
   "slate_date": "MAY 3",
   "games": [
     {
@@ -7,7 +7,7 @@
       "home": "DET",
       "away": "ORL",
       "book_spread": -8.5,
-      "book_total": 202.0,
+      "book_total": 201.5,
       "sim_spread": -8.0,
       "sim_total": 227.0,
       "confidence": 52.5,
@@ -16,9 +16,9 @@
       "pick_text": "ORL +8.5",
       "pick_type": "spread",
       "conf_label": "TOSS-UP",
-      "ou_pick_text": "O 202.0",
+      "ou_pick_text": "O 201.5",
       "ou_conf": 10,
-      "ou_edge": 25.0,
+      "ou_edge": 25.5,
       "home_ml": null,
       "away_ml": null
     },
@@ -27,7 +27,7 @@
       "home": "CLE",
       "away": "TOR",
       "book_spread": -8.0,
-      "book_total": 211.0,
+      "book_total": 211.5,
       "sim_spread": -3.0,
       "sim_total": 229.0,
       "confidence": 75.0,
@@ -36,9 +36,9 @@
       "pick_text": "TOR +8.0",
       "pick_type": "spread",
       "conf_label": "TAKE TOR",
-      "ou_pick_text": "O 211.0",
+      "ou_pick_text": "O 211.5",
       "ou_conf": 10,
-      "ou_edge": 18.0,
+      "ou_edge": 17.5,
       "home_ml": null,
       "away_ml": null
     }
