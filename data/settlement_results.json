@@ -1,5 +1,5 @@
 {
-  "graded_at": "2026-05-03T17:46:05.514469+00:00",
+  "graded_at": "2026-05-04T18:13:49.663780+00:00",
   "picks": [
     {
       "date": "2026-02-19",
@@ -2156,16 +2156,27 @@
       "profit": 45.45,
       "home_score": 110,
       "away_score": 98
+    },
+    {
+      "date": "2026-05-03",
+      "matchup": "TOR @ CLE",
+      "side": "TOR +8.0",
+      "type": "spread",
+      "risk": 50.0,
+      "result": "L",
+      "profit": -50.0,
+      "home_score": 114,
+      "away_score": 102
     }
   ],
   "pending_count": 1,
   "record": {
     "W": 108,
-    "L": 87,
+    "L": 88,
     "P": 1
   },
-  "total_profit": 494.51,
+  "total_profit": 444.51,
   "starting_bankroll": 1150.0,
-  "new_bankroll": 1644.51,
+  "new_bankroll": 1594.51,
   "status": "PARTIAL"
 }

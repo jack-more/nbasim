@@ -195,5 +195,5 @@ date,matchup,side,type,risk,result,profit,odds,home_score,away_score
 2026-04-29,HOU @ LAL,HOU +4.5,spread,50,W,45.45,,93,99
 2026-04-30,NYK @ ATL,NYK -2.5,spread,50,W,45.45,,89,140
 2026-04-30,DEN @ MIN,MIN +5.5,spread,50,W,45.45,,110,98
-2026-05-03,TOR @ CLE,TOR +8.0,spread,50,,,,,
+2026-05-03,TOR @ CLE,TOR +8.0,spread,50,L,-50.0,,114,102
 2026-05-04,MIN @ SAS,MIN +13.0,spread,50,,,,,
